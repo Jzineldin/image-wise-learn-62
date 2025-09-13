@@ -23,7 +23,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading component
 const LoadingSpinner = () => (
-  <div className="min-h-screen bg-background flex items-center justify-center">
+  <div className="min-h-screen flex items-center justify-center">
     <div className="loading-spinner h-12 w-12" />
   </div>
 );
