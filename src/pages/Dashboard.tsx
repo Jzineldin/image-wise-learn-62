@@ -46,7 +46,7 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12">
-          <div>
+          <div className="content-overlay flex-1">
             <h1 className="text-4xl font-heading font-bold text-gradient mb-2">
               Welcome Back, Storyteller!
             </h1>
@@ -56,7 +56,6 @@ const Dashboard = () => {
           </div>
           <Link to="/create">
             <Button className="btn-primary text-lg px-8 mt-4 md:mt-0">
-              <Plus className="w-5 h-5 mr-2" />
               Create New Story
             </Button>
           </Link>

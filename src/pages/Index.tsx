@@ -64,14 +64,15 @@ const Index = () => {
               <h1 className="text-6xl md:text-8xl lg:text-9xl font-heading font-bold mb-8 text-gradient leading-tight">
                 TALE FORGE
               </h1>
-              <p className="text-xl md:text-2xl text-text-secondary mb-12 max-w-3xl mx-auto">
-                Where imagination meets AI to create magical stories that come to life
-              </p>
-              <div className="flex flex-col sm:flex-row gap-6 justify-center max-w-md mx-auto">
+              <div className="text-container max-w-4xl mx-auto">
+                <p className="text-xl md:text-2xl text-text-secondary">
+                  Where imagination meets AI to create magical stories that come to life
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-6 justify-center max-w-md mx-auto mt-8">
                 <Link to="/create">
                   <Button className="btn-primary text-lg px-10 py-4 glow-amber hover-scale w-full sm:w-auto">
                     Start Creating Magic
-                    <Sparkles className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
                 <Link to="/discover">
@@ -94,20 +95,22 @@ const Index = () => {
                     />
                   </div>
                 </div>
-                <h3 className="text-xl font-heading font-bold mb-3 text-primary">
-                  A YOUNG WIZARD FINDS A MAP LEADING TO A...
-                </h3>
-                <div className="flex gap-3">
-                  <Link to="/story/preview">
-                    <Button variant="outline" className="btn-secondary text-sm px-4 py-2">
-                      Read Story
-                    </Button>
-                  </Link>
-                  <Link to="/auth">
-                    <Button className="btn-primary text-sm px-4 py-2">
-                      Create Your Own
-                    </Button>
-                  </Link>
+                <div className="content-overlay">
+                  <h3 className="text-xl font-heading font-bold mb-3 text-primary">
+                    A YOUNG WIZARD FINDS A MAP LEADING TO A...
+                  </h3>
+                  <div className="flex gap-3">
+                    <Link to="/story/preview">
+                      <Button variant="outline" className="btn-secondary text-sm px-4 py-2">
+                        Read Story
+                      </Button>
+                    </Link>
+                    <Link to="/auth">
+                      <Button className="btn-primary text-sm px-4 py-2">
+                        Create Your Own
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>

@@ -60,12 +60,14 @@ const Discover = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-heading font-bold text-gradient mb-4">
-            Discover Amazing Stories
-          </h1>
-          <p className="text-xl text-text-secondary max-w-2xl mx-auto">
-            Explore a world of magical tales created by our community of storytellers
-          </p>
+          <div className="content-overlay max-w-4xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-heading font-bold text-gradient mb-4">
+              Discover Amazing Stories
+            </h1>
+            <p className="text-xl text-text-secondary">
+              Explore a world of magical tales created by our community of storytellers
+            </p>
+          </div>
         </div>
 
         {/* Search and Filters */}
@@ -103,8 +105,7 @@ const Discover = () => {
 
         {/* Featured Stories */}
         <section className="mb-16">
-          <h2 className="text-3xl font-heading font-semibold mb-8">
-            <Star className="inline w-8 h-8 text-primary mr-2" />
+          <h2 className="text-3xl font-heading font-semibold mb-8 text-with-shadow">
             Featured Stories
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -128,9 +129,8 @@ const Discover = () => {
                     <h3 className="text-lg font-semibold group-hover:text-primary transition-colors line-clamp-2">
                       {story.title}
                     </h3>
-                    <div className="flex items-center text-primary text-sm">
-                      <Star className="w-4 h-4 mr-1 fill-current" />
-                      {story.rating}
+                    <div className="flex items-center text-primary text-sm font-medium">
+                      ★ {story.rating}
                     </div>
                   </div>
 
@@ -173,8 +173,8 @@ const Discover = () => {
                 className="glass-card-interactive p-6 text-center group"
                 onClick={() => setSelectedGenre(genre)}
               >
-                <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-primary/30 transition-colors">
-                  <Star className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-primary/30 transition-colors text-primary font-bold text-lg">
+                  {genre.charAt(0)}
                 </div>
                 <h3 className="font-medium group-hover:text-primary transition-colors text-sm">
                   {genre}

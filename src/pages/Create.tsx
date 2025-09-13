@@ -45,12 +45,14 @@ const Create = () => {
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-heading font-bold text-gradient mb-4">
-              Create Your Story
-            </h1>
-            <p className="text-xl text-text-secondary">
-              Let's craft a magical tale together in just 3 simple steps
-            </p>
+            <div className="content-overlay max-w-3xl mx-auto">
+              <h1 className="text-4xl md:text-5xl font-heading font-bold text-gradient mb-4">
+                Create Your Story
+              </h1>
+              <p className="text-xl text-text-secondary">
+                Let's craft a magical tale together in just 3 simple steps
+              </p>
+            </div>
           </div>
 
           {/* Enhanced Progress Steps */}
@@ -166,8 +168,7 @@ const Create = () => {
           {step === 3 && (
             <div className="glass-card-elevated p-8 text-center animate-fade-in">
               <div className="mb-8">
-                <Sparkles className="w-16 h-16 text-primary mx-auto mb-4 glow-amber" />
-                <h2 className="text-2xl font-heading font-semibold mb-4">
+                <h2 className="text-2xl font-heading font-semibold mb-4 text-with-shadow">
                   Ready to Create Magic!
                 </h2>
                 <p className="text-text-secondary mb-6">
@@ -183,7 +184,6 @@ const Create = () => {
                 </Button>
                 <Button onClick={handleStartCreating} className="btn-primary text-lg px-8">
                   Start Creating
-                  <Sparkles className="w-5 h-5 ml-2" />
                 </Button>
               </div>
             </div>

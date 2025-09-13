@@ -21,13 +21,13 @@ const Navigation = ({ className = "" }: NavigationProps) => {
           </div>
           
           <div className="hidden md:flex items-center space-x-8">
-            <Link to="/discover" className="text-text-secondary hover:text-primary transition-colors story-link">
+            <Link to="/discover" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
               Discover
             </Link>
-            <Link to="/about" className="text-text-secondary hover:text-primary transition-colors story-link">
+            <Link to="/about" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
               About
             </Link>
-            <Link to="/pricing" className="text-text-secondary hover:text-primary transition-colors story-link">
+            <Link to="/pricing" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
               Pricing
             </Link>
           </div>

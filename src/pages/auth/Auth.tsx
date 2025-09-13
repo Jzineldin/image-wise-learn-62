@@ -270,10 +270,7 @@ const Auth = () => {
             {loading ? (
               <div className="loading-spinner h-5 w-5" />
             ) : isSignUp ? (
-              <>
-                Create Account
-                <Sparkles className="w-4 h-4 ml-2" />
-              </>
+              'Create Account'
             ) : (
               'Sign In'
             )}
