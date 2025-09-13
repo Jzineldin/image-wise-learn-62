@@ -136,26 +136,25 @@ const StoryGeneration = () => {
 
       if (dbError) throw dbError;
 
-      // Create initial story segments
-      const segments = storyData.segments || [];
-      if (segments.length > 0) {
-        const segmentInserts = segments.map((segment: any) => ({
-          story_id: story.id,
-          segment_number: segment.segment_number,
-          content: segment.content,
-          choices: segment.choices || [],
-          is_ending: segment.is_ending || false
-        }));
-
-        const { error: segmentsError } = await supabase
+      // Create the initial story segment
+      const firstSegment = storyData.segments?.[0];
+      if (firstSegment) {
+        const { data: segmentData, error: segmentError } = await supabase
           .from('story_segments')
-          .insert(segmentInserts);
+          .insert({
+            story_id: story.id,
+            segment_number: firstSegment.segment_number,
+            content: firstSegment.content,
+            choices: firstSegment.choices || [],
+            is_ending: firstSegment.is_ending || false
+          })
+          .select()
+          .single();
 
-        if (segmentsError) {
-          console.error('Error creating segments:', segmentsError);
+        if (segmentError) {
+          console.error('Error creating first segment:', segmentError);
         } else {
-          // Generate image for first segment
-          const firstSegment = segments[0];
+          // Start image generation for first segment (non-blocking)
           supabase.functions.invoke('generate-story-image', {
             body: {
               storyContent: firstSegment.content,
@@ -164,6 +163,7 @@ const StoryGeneration = () => {
               genre: creationState.genres[0] || 'fantasy',
               segmentNumber: 1,
               storyId: story.id,
+              segmentId: segmentData.id,
               characters: characters.map(c => ({
                 name: c.name,
                 description: c.description

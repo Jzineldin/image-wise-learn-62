@@ -71,30 +71,34 @@ class AIService {
               properties: {
                 title: { type: "string" },
                 description: { type: "string" },
-                segments: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      segment_number: { type: "integer" },
-                      content: { type: "string", minLength: 150 },
-                      choices: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            id: { type: "integer" },
-                            text: { type: "string" },
-                            impact: { type: "string" }
+                  segments: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        segment_number: { type: "integer" },
+                        content: { type: "string", minLength: 150 },
+                        choices: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              id: { type: "integer" },
+                              text: { type: "string" },
+                              impact: { type: "string" }
+                            },
+                            required: ["id", "text", "impact"]
                           },
-                          required: ["id", "text", "impact"]
-                        }
+                          minItems: 3,
+                          maxItems: 3
+                        },
+                        is_ending: { type: "boolean" }
                       },
-                      is_ending: { type: "boolean" }
+                      required: ["segment_number", "content", "choices"]
                     },
-                    required: ["segment_number", "content", "choices"]
+                    minItems: 1,
+                    maxItems: isInitialGeneration ? 1 : 5
                   }
-                }
               },
               required: ["title", "description", "segments"]
             }
@@ -200,7 +204,7 @@ serve(async (req) => {
       isInitialGeneration = true
     }: GenerateStoryRequest = await req.json();
 
-    console.log('Story generation request:', { prompt, ageGroup, genre, languageCode, storyLength });
+    console.log('Story generation request:', { prompt, ageGroup, genre, languageCode, storyLength, isInitialGeneration });
 
     const aiService = new AIService(openAIApiKey, ovhToken);
 
@@ -210,23 +214,42 @@ serve(async (req) => {
     ).join('\n') || '';
 
     const lengthSpec = {
-      short: '150-250 words per segment, 2-3 segments',
-      medium: '250-400 words per segment, 3-4 segments', 
-      long: '400-600 words per segment, 4-5 segments'
+      short: '150-250 words per segment',
+      medium: '250-400 words per segment', 
+      long: '400-600 words per segment'
     }[storyLength];
 
-    const systemPrompt = `You are a master storyteller who creates engaging, interactive stories for children. Create stories with multiple segments where each segment ends with meaningful choices that lead to different story paths.
+    // Determine if this is initial generation (first segment only) or full story
+    const segmentInstruction = isInitialGeneration 
+      ? 'Generate ONLY the first segment of the story with 3 meaningful choices for how the story can continue.'
+      : `Generate a complete story with ${storyLength === 'short' ? '2-3' : storyLength === 'medium' ? '3-4' : '4-5'} segments.`;
 
-CRITICAL REQUIREMENTS:
-1. Return ONLY valid JSON matching the exact schema
+    const systemPrompt = `You are a master storyteller who creates engaging, interactive stories for children. 
+
+${isInitialGeneration ? `
+CRITICAL: You are generating ONLY the FIRST SEGMENT of an interactive story.
+
+REQUIREMENTS FOR FIRST SEGMENT:
+1. Return JSON with title, description, and EXACTLY ONE segment
+2. The segment must be ${lengthSpec} and end on a compelling cliffhanger
+3. Include exactly 3 meaningful choices that lead to very different story directions
+4. DO NOT resolve the main conflict - this is just the beginning
+5. Age-appropriate for ${ageGroup} audience
+6. Include vivid, descriptive language that sets up the story world
+7. Make choices that significantly impact future story direction
+8. Set "is_ending": false for this segment
+` : `
+REQUIREMENTS FOR COMPLETE STORY:
+1. Return JSON with title, description, and multiple segments
 2. Each segment must be ${lengthSpec}
-3. Age-appropriate for ${ageGroup} audience
-4. Include vivid, descriptive language
-5. Each segment must have exactly 3 choices
+3. Each segment (except the last) must have exactly 3 choices
+4. Age-appropriate for ${ageGroup} audience
+5. Include vivid, descriptive language
 6. Choices should lead to meaningfully different story directions
-7. Mark the final segment with "is_ending": true`;
+7. Mark the final segment with "is_ending": true
+`}`;
 
-    const userPrompt = `Create an interactive ${genre} story for ${ageGroup} age group.
+    const userPrompt = isInitialGeneration ? `Create the opening segment of an interactive ${genre} story for ${ageGroup} age group.
 
 Story premise: ${prompt}
 
@@ -234,7 +257,23 @@ Characters to include:
 ${characterDesc}
 
 Requirements:
-- Target length: ${lengthSpec}
+- Create an engaging opening that sets up the story world and introduces the main character(s)
+- Length: ${lengthSpec}
+- End with a compelling situation that requires a choice
+- The 3 choices should lead to meaningfully different story paths
+- Include rich sensory details and emotional setup
+- Leave the main adventure/conflict unresolved - this is just the beginning
+
+Generate the story opening with title, description, and the first segment with choices.` : `Create a complete interactive ${genre} story for ${ageGroup} age group.
+
+Story premise: ${prompt}
+
+Characters to include:
+${characterDesc}
+
+Requirements:
+- Complete story with multiple segments
+- Each segment: ${lengthSpec}
 - Create compelling cliffhangers between segments
 - Make choices that significantly impact the story direction
 - Include rich sensory details and emotional moments

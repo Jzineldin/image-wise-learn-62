@@ -163,35 +163,33 @@ const StoryViewer = () => {
   const generateSegmentImage = async (segment: StorySegment) => {
     if (!story) return;
 
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-story-image', {
-        body: {
-          storyContent: segment.content,
-          storyTitle: story.title,
-          ageGroup: story.age_group,
-          genre: story.genre,
-          segmentNumber: segment.segment_number,
-          storyId: story.id,
-          segmentId: segment.id,
-          characters: story.metadata?.characters || []
-        }
-      });
-
+    // Start image generation immediately (non-blocking)
+    supabase.functions.invoke('generate-story-image', {
+      body: {
+        storyContent: segment.content,
+        storyTitle: story.title,
+        ageGroup: story.age_group,
+        genre: story.genre,
+        segmentNumber: segment.segment_number,
+        storyId: story.id,
+        segmentId: segment.id,
+        characters: story.metadata?.characters || []
+      }
+    }).then(({ data, error }) => {
       if (error) {
         console.error('Image generation error:', error);
         return;
       }
 
-      // Update segment with image URL
+      // Update segment with image URL when ready
       setSegments(prev => prev.map(s => 
         s.id === segment.id 
           ? { ...s, image_url: data.imageUrl }
           : s
       ));
-
-    } catch (error) {
+    }).catch(error => {
       console.error('Error generating image:', error);
-    }
+    });
   };
 
   const generateAudio = async (segmentId: string, content: string) => {
@@ -332,19 +330,20 @@ const StoryViewer = () => {
           {/* Story Content */}
           {currentSegment && (
             <div className="glass-card-elevated p-8 mb-8">
-              {/* Image */}
+              {/* Image - Shows immediately when available, placeholder while generating */}
               <div className="mb-8">
                 {currentSegment.image_url ? (
                   <img 
                     src={currentSegment.image_url} 
                     alt={`Story segment ${currentSegment.segment_number}`}
-                    className="w-full h-64 md:h-96 object-cover rounded-xl"
+                    className="w-full h-64 md:h-96 object-cover rounded-xl shadow-lg"
                   />
                 ) : (
-                  <div className="w-full h-64 md:h-96 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl flex items-center justify-center">
+                  <div className="w-full h-64 md:h-96 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl flex items-center justify-center border-2 border-dashed border-primary/30">
                     <div className="text-center">
-                      <Sparkles className="w-12 h-12 text-text-tertiary mx-auto mb-2" />
-                      <p className="text-text-tertiary">Image generating...</p>
+                      <div className="loading-spinner w-8 h-8 mx-auto mb-3" />
+                      <p className="text-text-tertiary font-medium">Creating artwork for this scene...</p>
+                      <p className="text-text-tertiary/70 text-sm mt-1">This may take a few moments</p>
                     </div>
                   </div>
                 )}
@@ -398,12 +397,15 @@ const StoryViewer = () => {
             </div>
           )}
 
-          {/* Choices or End Story */}
-          {currentSegment && !currentSegment.is_ending && currentSegment.choices && currentSegmentIndex === segments.length - 1 && (
+          {/* Choices Section - Show when we're on the latest segment and it's not an ending */}
+          {currentSegment && !currentSegment.is_ending && currentSegment.choices.length > 0 && currentSegmentIndex === segments.length - 1 && (
             <div className="glass-card-elevated p-8 mb-8">
               <h3 className="text-xl font-heading font-semibold mb-6 text-center">
                 What happens next?
               </h3>
+              <p className="text-text-secondary text-center mb-6">
+                Your choice will shape how the story continues...
+              </p>
               {generatingSegment ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="loading-spinner w-8 h-8 mr-3" />
@@ -415,13 +417,13 @@ const StoryViewer = () => {
                     <button
                       key={choice.id}
                       onClick={() => handleChoice(choice.id, choice.text)}
-                      className="glass-card-interactive w-full p-6 text-left group"
+                      className="glass-card-interactive w-full p-6 text-left group hover:scale-[1.02] transition-all"
                     >
-                      <p className="text-text-primary group-hover:text-primary transition-colors">
+                      <p className="text-text-primary group-hover:text-primary transition-colors font-medium">
                         {choice.text}
                       </p>
                       {choice.impact && (
-                        <p className="text-sm text-text-secondary mt-2">
+                        <p className="text-sm text-text-secondary mt-2 group-hover:text-text-primary transition-colors">
                           {choice.impact}
                         </p>
                       )}
