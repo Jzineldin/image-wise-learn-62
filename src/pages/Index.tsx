@@ -67,8 +67,8 @@ const Index = () => {
                 TALE<br />FORGE
               </h1>
               
-              <p className="text-xl md:text-2xl text-text-secondary max-w-lg">
-                Where imagination meets AI to create magical stories that come to life
+              <p className="text-xl md:text-2xl text-text-secondary max-w-lg text-with-outline">
+                Where every story becomes an adventure
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 max-w-md">
