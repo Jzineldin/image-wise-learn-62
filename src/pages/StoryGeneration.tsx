@@ -8,6 +8,7 @@ import { useStoryStore } from '@/stores/storyStore';
 import { ArrowRight, ArrowLeft, Plus, X, Sparkles, Users, Lightbulb } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Character {
   id: string;
@@ -19,6 +20,7 @@ interface Character {
 const StoryGeneration = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading } = useAuth();
   const { creationState, updateCreationState } = useStoryStore();
   const [step, setStep] = useState(1);
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -62,6 +64,16 @@ const StoryGeneration = () => {
   };
 
   const generateStory = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to create stories.",
+        variant: "destructive",
+      });
+      navigate('/auth');
+      return;
+    }
+
     if (!storySeed.trim()) {
       toast({
         title: "Story seed required",
@@ -73,7 +85,7 @@ const StoryGeneration = () => {
 
     setIsGenerating(true);
     try {
-      // Create story in database
+      // Create story in database with proper user authentication
       const { data: story, error } = await supabase
         .from('stories')
         .insert({
@@ -84,6 +96,8 @@ const StoryGeneration = () => {
           prompt: storySeed,
           visibility: 'private',
           status: 'draft',
+          user_id: user.id, // Critical: Set the user_id for RLS policies
+          author_id: user.id, // Also set author_id if needed by schema
           metadata: {
             characters: characters.map(c => ({
               name: c.name,
@@ -118,6 +132,15 @@ const StoryGeneration = () => {
       setIsGenerating(false);
     }
   };
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="loading-spinner h-8 w-8" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
