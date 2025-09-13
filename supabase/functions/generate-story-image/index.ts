@@ -55,6 +55,14 @@ serve(async (req) => {
       segmentNumber 
     });
 
+    // Mark generation as in progress
+    if (segmentId) {
+      await supabase
+        .from('story_segments')
+        .update({ image_generation_status: 'generating' })
+        .eq('id', segmentId);
+    }
+
     // Create enhanced image prompt based on story content
     const characterDesc = characters.map(char => 
       `${char.name}: ${char.description}`
@@ -130,7 +138,7 @@ serve(async (req) => {
 
       // Update database with image URL
       if (segmentId) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('story_segments')
           .update({ 
             image_url: imageUrl,
@@ -138,14 +146,24 @@ serve(async (req) => {
             image_prompt: visualPrompt.prompt
           })
           .eq('id', segmentId);
+        
+        if (updateError) {
+          console.error('Failed to update segment with image URL:', updateError);
+          throw new Error('Failed to save image URL to database');
+        }
       } else {
-        await supabase
+        const { error: updateError } = await supabase
           .from('stories')
           .update({ 
             cover_image: imageUrl,
             cover_image_url: imageUrl
           })
           .eq('id', storyId);
+        
+        if (updateError) {
+          console.error('Failed to update story with image URL:', updateError);
+          throw new Error('Failed to save image URL to database');
+        }
       }
     }
 
@@ -157,6 +175,8 @@ serve(async (req) => {
       binaryString += String.fromCharCode(...chunk);
     }
     const base64Image = btoa(binaryString);
+
+    console.log('Image conversion completed, base64 length:', base64Image.length);
 
     console.log('Image generated successfully');
 

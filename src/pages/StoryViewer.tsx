@@ -46,7 +46,9 @@ const StoryViewer = () => {
   const [loading, setLoading] = useState(true);
   const [generatingSegment, setGeneratingSegment] = useState(false);
   const [generatingAudio, setGeneratingAudio] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState<string | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [retryAttempts, setRetryAttempts] = useState<{[key: string]: number}>({});
 
   useEffect(() => {
     if (id) {
@@ -98,6 +100,13 @@ const StoryViewer = () => {
       }));
       
       setSegments(transformedSegments);
+
+      // Auto-generate images for segments that don't have them
+      transformedSegments.forEach(segment => {
+        if (!segment.image_url && segment.content) {
+          generateSegmentImage(segment);
+        }
+      });
 
     } catch (error) {
       console.error('Error loading story:', error);
@@ -166,37 +175,94 @@ const StoryViewer = () => {
   const generateSegmentImage = async (segment: StorySegment) => {
     if (!story) return;
 
-    // Start image generation immediately (non-blocking)
-    supabase.functions.invoke('generate-story-image', {
-      body: {
-        storyContent: segment.content,
-        storyTitle: story.title,
-        ageGroup: story.age_group,
-        genre: story.genre,
-        segmentNumber: segment.segment_number,
-        storyId: story.id,
-        segmentId: segment.id,
-        characters: story.metadata?.characters || []
-      }
-    }).then(({ data, error }) => {
+    const retryKey = `image-${segment.id}`;
+    const currentRetries = retryAttempts[retryKey] || 0;
+    
+    if (currentRetries >= 3) {
+      toast({
+        title: "Image generation failed",
+        description: "Max retry attempts reached. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log(`Generating image for segment ${segment.id}, attempt ${currentRetries + 1}`);
+    setGeneratingImage(segment.id);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-story-image', {
+        body: {
+          storyContent: segment.content,
+          storyTitle: story.title,
+          ageGroup: story.age_group,
+          genre: story.genre,
+          segmentNumber: segment.segment_number,
+          storyId: story.id,
+          segmentId: segment.id,
+          characters: story.metadata?.characters || []
+        }
+      });
+
       if (error) {
         console.error('Image generation error:', error);
+        setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
+        
+        setTimeout(() => {
+          generateSegmentImage(segment);
+        }, 2000 * (currentRetries + 1)); // Exponential backoff
         return;
       }
 
+      console.log('Image generation successful:', data);
+      
       // Update segment with image URL when ready
       setSegments(prev => prev.map(s => 
         s.id === segment.id 
           ? { ...s, image_url: data.imageUrl }
           : s
       ));
-    }).catch(error => {
+
+      // Clear retry counter on success
+      setRetryAttempts(prev => {
+        const newAttempts = { ...prev };
+        delete newAttempts[retryKey];
+        return newAttempts;
+      });
+
+      toast({
+        title: "Image generated!",
+        description: "Story artwork is ready.",
+      });
+
+    } catch (error) {
       console.error('Error generating image:', error);
-    });
+      setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
+      
+      setTimeout(() => {
+        generateSegmentImage(segment);
+      }, 2000 * (currentRetries + 1));
+    } finally {
+      setGeneratingImage(null);
+    }
   };
 
   const generateAudio = async (segmentId: string, content: string) => {
+    const retryKey = `audio-${segmentId}`;
+    const currentRetries = retryAttempts[retryKey] || 0;
+    
+    if (currentRetries >= 3) {
+      toast({
+        title: "Audio generation failed",
+        description: "Max retry attempts reached. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log(`Generating audio for segment ${segmentId}, attempt ${currentRetries + 1}`);
     setGeneratingAudio(true);
+    
     try {
       const { data, error } = await supabase.functions.invoke('generate-story-audio', {
         body: {
@@ -208,7 +274,18 @@ const StoryViewer = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Audio generation error:', error);
+        setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
+        
+        // Retry with exponential backoff
+        setTimeout(() => {
+          generateAudio(segmentId, content);
+        }, 2000 * (currentRetries + 1));
+        return;
+      }
+
+      console.log('Audio generation successful:', data);
 
       // Update segment with audio URL
       setSegments(prev => prev.map(s => 
@@ -217,6 +294,13 @@ const StoryViewer = () => {
           : s
       ));
 
+      // Clear retry counter on success
+      setRetryAttempts(prev => {
+        const newAttempts = { ...prev };
+        delete newAttempts[retryKey];
+        return newAttempts;
+      });
+
       toast({
         title: "Audio generated!",
         description: "You can now listen to this segment.",
@@ -224,9 +308,16 @@ const StoryViewer = () => {
 
     } catch (error) {
       console.error('Error generating audio:', error);
+      setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
+      
+      // Retry with exponential backoff
+      setTimeout(() => {
+        generateAudio(segmentId, content);
+      }, 2000 * (currentRetries + 1));
+      
       toast({
         title: "Audio generation failed",
-        description: "Please try again later.",
+        description: `Retrying... (Attempt ${currentRetries + 1}/3)`,
         variant: "destructive",
       });
     } finally {
@@ -340,13 +431,35 @@ const StoryViewer = () => {
                     src={currentSegment.image_url} 
                     alt={`Story segment ${currentSegment.segment_number}`}
                     className="w-full h-64 md:h-96 object-cover rounded-xl shadow-lg"
+                    onError={(e) => {
+                      console.error('Image failed to load:', currentSegment.image_url);
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                 ) : (
                   <div className="w-full h-64 md:h-96 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl flex items-center justify-center border-2 border-dashed border-primary/30">
                     <div className="text-center">
-                      <div className="loading-spinner w-8 h-8 mx-auto mb-3" />
-                      <p className="text-text-tertiary font-medium">Creating artwork for this scene...</p>
-                      <p className="text-text-tertiary/70 text-sm mt-1">This may take a few moments</p>
+                      {generatingImage === currentSegment.id ? (
+                        <>
+                          <div className="loading-spinner w-8 h-8 mx-auto mb-3" />
+                          <p className="text-text-tertiary font-medium">Creating artwork for this scene...</p>
+                          <p className="text-text-tertiary/70 text-sm mt-1">This may take a few moments</p>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-12 h-12 text-primary/50 mx-auto mb-3" />
+                          <p className="text-text-tertiary font-medium">No image available</p>
+                          <Button
+                            onClick={() => generateSegmentImage(currentSegment)}
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            disabled={generatingImage === currentSegment.id}
+                          >
+                            Generate Image
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}

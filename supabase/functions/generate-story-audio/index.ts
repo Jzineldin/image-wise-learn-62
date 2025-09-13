@@ -66,6 +66,14 @@ serve(async (req) => {
       modelId 
     });
 
+    // Mark generation as in progress
+    if (segmentId) {
+      await supabase
+        .from('story_segments')
+        .update({ audio_generation_status: 'generating' })
+        .eq('id', segmentId);
+    }
+
     if (!text || text.trim().length === 0) {
       throw new Error('Text is required for audio generation');
     }
@@ -138,15 +146,20 @@ serve(async (req) => {
 
       // Update database with audio URL
       if (segmentId) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('story_segments')
           .update({ 
             audio_url: audioUrl,
             audio_generation_status: 'completed'
           })
           .eq('id', segmentId);
+        
+        if (updateError) {
+          console.error('Failed to update segment with audio URL:', updateError);
+          throw new Error('Failed to save audio URL to database');
+        }
       } else {
-        await supabase
+        const { error: updateError } = await supabase
           .from('stories')
           .update({ 
             full_story_audio_url: audioUrl,
@@ -155,13 +168,22 @@ serve(async (req) => {
             selected_voice_name: selectedVoice.name
           })
           .eq('id', storyId);
+        
+        if (updateError) {
+          console.error('Failed to update story with audio URL:', updateError);
+          throw new Error('Failed to save audio URL to database');
+        }
       }
     }
 
-    // Convert to base64 for immediate playback option
-    const base64Audio = btoa(
-      String.fromCharCode(...audioArray)
-    );
+    // Convert to base64 for immediate playback option (chunked to prevent stack overflow)
+    let binaryString = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < audioArray.length; i += chunkSize) {
+      const chunk = audioArray.slice(i, i + chunkSize);
+      binaryString += String.fromCharCode(...chunk);
+    }
+    const base64Audio = btoa(binaryString);
 
     // Estimate duration (rough calculation)
     const estimatedDuration = Math.ceil(text.length / 14); // ~14 chars per second
