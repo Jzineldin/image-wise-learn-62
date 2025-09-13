@@ -48,6 +48,7 @@ const StoryViewer = () => {
   const [loading, setLoading] = useState(true);
   const [generatingSegment, setGeneratingSegment] = useState(false);
   const [generatingAudio, setGeneratingAudio] = useState(false);
+  const [generatingEnding, setGeneratingEnding] = useState(false);
   const [generatingImage, setGeneratingImage] = useState<string | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [retryAttempts, setRetryAttempts] = useState<{[key: string]: number}>({});
@@ -447,8 +448,64 @@ const StoryViewer = () => {
     }
   }, [currentSegmentIndex, isAutoPlaying, isReadingMode, autoPlaySpeed]);
 
-  const handleEndStory = () => {
-    navigate(`/story/${id}/end`);
+  const handleEndStory = async () => {
+    if (!story || !user) return;
+
+    // Show confirmation dialog before generating ending
+    const confirmed = window.confirm(
+      "This will generate an AI ending for your story and mark it as complete. This action cannot be undone. Continue?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setGeneratingEnding(true);
+      
+      toast({
+        title: "Generating story ending...",
+        description: "Our AI is crafting the perfect conclusion to your adventure.",
+      });
+
+      // Call the generate ending function
+      const { data, error } = await supabase.functions.invoke('generate-story-ending', {
+        body: {
+          storyId: story.id,
+          currentSegments: segments.map(s => ({
+            segment_number: s.segment_number,
+            content: s.content || ''
+          })),
+          genre: story.genre,
+          ageGroup: story.age_group,
+          characters: story.metadata?.characters || []
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to generate ending');
+      }
+
+      toast({
+        title: "Story ending generated!",
+        description: "Your adventure now has a perfect conclusion.",
+      });
+
+      // Navigate to the story end page
+      navigate(`/story/${id}/end`);
+
+    } catch (error) {
+      console.error('Error generating story ending:', error);
+      toast({
+        title: "Failed to generate ending",
+        description: error.message || "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingEnding(false);
+    }
   };
 
   if (loading) {
@@ -661,9 +718,22 @@ const StoryViewer = () => {
               <p className="text-text-secondary mb-6">
                 What an amazing adventure! Your story is complete.
               </p>
-              <Button onClick={handleEndStory} className="btn-primary text-lg px-8">
-                <Sparkles className="w-5 h-5 mr-2" />
-                Finish Story
+              <Button 
+                onClick={handleEndStory} 
+                disabled={generatingEnding}
+                className="btn-primary text-lg px-8"
+              >
+                {generatingEnding ? (
+                  <>
+                    <div className="loading-spinner w-5 h-5 mr-2" />
+                    Generating Ending...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5 mr-2" />
+                    Finish Story
+                  </>
+                )}
               </Button>
             </div>
           )}
@@ -687,11 +757,21 @@ const StoryViewer = () => {
               {!currentSegment?.is_ending && (
                 <Button
                   onClick={handleEndStory}
+                  disabled={generatingEnding}
                   variant="outline"
                   className="btn-secondary"
                 >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  End Story
+                  {generatingEnding ? (
+                    <>
+                      <div className="loading-spinner w-4 h-4 mr-2" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="w-4 h-4 mr-2" />
+                      End Story
+                    </>
+                  )}
                 </Button>
               )}
             </div>
