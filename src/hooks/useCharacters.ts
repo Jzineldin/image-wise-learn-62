@@ -25,11 +25,16 @@ export const useCharacters = () => {
 
       if (error) throw error;
 
+      // Remove duplicates based on name (keep the most recent)
+      const uniqueCharacters = data ? data.filter((character, index, arr) => 
+        arr.findIndex(c => c.name === character.name) === index
+      ) : [];
+
       // If user has no characters, create default ones
-      if (!data || data.length === 0) {
+      if (!uniqueCharacters || uniqueCharacters.length === 0) {
         await createDefaultCharacters();
       } else {
-        setCharacters(data);
+        setCharacters(uniqueCharacters);
       }
     } catch (err) {
       console.error('Error fetching characters:', err);
