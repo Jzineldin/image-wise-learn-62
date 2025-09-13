@@ -113,7 +113,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: langConfig.primary_model || 'gpt-4o-mini',
         messages: messages,
-        max_completion_tokens: Math.min(2000, content.length * 2), // Allow for language expansion
+        max_tokens: Math.min(2000, content.length * 2), // Allow for language expansion
         temperature: 0.3, // Lower temperature for more consistent translations
       }),
     });

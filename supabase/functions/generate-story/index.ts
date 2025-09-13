@@ -60,7 +60,7 @@ class AIService {
       body: JSON.stringify({
         model: 'gpt-4o',
         messages,
-        max_completion_tokens: 2000,
+        max_tokens: 2000,
         temperature,
         response_format: {
           type: "json_schema",

@@ -105,7 +105,7 @@ Return format: { "titles": ["Title 1", "Title 2", ...], "recommended": "Title 1"
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
-          max_completion_tokens: 300,
+          max_tokens: 300,
           temperature: 0.9, // Higher creativity for titles
           response_format: {
             type: "json_schema",

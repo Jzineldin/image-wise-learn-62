@@ -12,9 +12,11 @@ const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/auth/Auth"));
 const SignIn = lazy(() => import("./pages/auth/SignIn"));
 const SignUp = lazy(() => import("./pages/auth/SignUp"));
-const Create = lazy(() => import("./pages/CreateStoryFlow"));
-const StoryGeneration = lazy(() => import("./pages/StoryGeneration"));
+const Create = lazy(() => import("./pages/Create"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Characters = lazy(() => import("./pages/Characters"));
+const MyStories = lazy(() => import("./pages/MyStories"));
+const Settings = lazy(() => import("./pages/Settings"));
 const Discover = lazy(() => import("./pages/Discover"));
 const StoryViewer = lazy(() => import("./pages/StoryViewer"));
 const About = lazy(() => import("./pages/About"));
@@ -53,7 +55,10 @@ const App = () => {
                 <Route path="/auth/signin" element={<SignIn />} />
                 <Route path="/auth/signup" element={<SignUp />} />
                <Route path="/create" element={<ProtectedRoute><Create /></ProtectedRoute>} />
-              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+               <Route path="/characters" element={<ProtectedRoute><Characters /></ProtectedRoute>} />
+               <Route path="/my-stories" element={<ProtectedRoute><MyStories /></ProtectedRoute>} />
+               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/discover" element={<Discover />} />
                 <Route path="/story/:id" element={<StoryViewer />} />
                 <Route path="/about" element={<About />} />

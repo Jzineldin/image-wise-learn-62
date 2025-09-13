@@ -59,7 +59,7 @@ class SegmentAIService {
         body: JSON.stringify({
           model: 'gpt-4o',
           messages,
-          max_completion_tokens: 1000,
+          max_tokens: 1000,
           temperature: 0.8,
           response_format: {
             type: "json_schema",
