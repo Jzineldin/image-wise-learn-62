@@ -56,193 +56,60 @@ const Index = () => {
     <div className="min-h-screen">
       <Navigation />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 md:py-32">
+      {/* Hero Section - Simplified & Prominent */}
+      <section className="relative overflow-hidden min-h-[90vh] flex items-center justify-center">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="text-center lg:text-left">
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-heading font-bold mb-6">
-                Create <span className="text-gradient">Magical</span> Stories with AI
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <h1 className="text-6xl md:text-8xl lg:text-9xl font-heading font-bold mb-8 text-gradient leading-tight">
+                TALE FORGE
               </h1>
-              <p className="text-xl md:text-2xl text-text-secondary mb-8 max-w-2xl">
-                Unleash your imagination with AI-powered storytelling. Create personalized, interactive tales 
-                that adapt to any age group and bring characters to life.
+              <p className="text-xl md:text-2xl text-text-secondary mb-12 max-w-3xl mx-auto">
+                Where imagination meets AI to create magical stories that come to life
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+              <div className="flex flex-col sm:flex-row gap-6 justify-center max-w-md mx-auto">
                 <Link to="/create">
-                  <Button className="btn-primary text-lg px-8 py-4 glow-amber">
-                    Start Creating
+                  <Button className="btn-primary text-lg px-10 py-4 glow-amber hover-scale w-full sm:w-auto">
+                    Start Creating Magic
                     <Sparkles className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
                 <Link to="/discover">
-                  <Button variant="outline" className="btn-secondary text-lg px-8 py-4">
+                  <Button variant="outline" className="btn-secondary text-lg px-10 py-4 w-full sm:w-auto">
                     Explore Stories
-                    <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
               </div>
             </div>
-            
-            <div className="relative">
-              <div className="glass-card-elevated p-8 glow-strong">
-                <img 
-                  src={heroBookImage} 
-                  alt="Magical floating book with golden light"
-                  className="w-full h-auto rounded-xl"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Features Section */}
-      <section className="py-20 bg-surface/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-heading font-bold mb-6">
-              Why Choose <span className="text-gradient">Tale Forge</span>?
-            </h2>
-            <p className="text-xl text-text-secondary max-w-3xl mx-auto">
-              Experience the future of storytelling with our cutting-edge AI technology 
-              that creates unique, engaging narratives tailored to you.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
-              <div key={index} className="glass-card-interactive p-8 text-center group">
-                <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-primary/30 transition-colors glow-amber">
-                  {feature.icon}
+            {/* Featured Story Card - Right Side */}
+            <div className="flex justify-center lg:justify-end">
+              <div className="glass-card-elevated p-8 max-w-md glow-strong hover-scale animate-float">
+                <div className="relative overflow-hidden rounded-lg mb-6">
+                  <div className="w-full h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                    <img 
+                      src={heroBookImage} 
+                      alt="Featured story preview"
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  </div>
                 </div>
-                <h3 className="text-xl font-heading font-semibold mb-4 group-hover:text-primary transition-colors">
-                  {feature.title}
+                <h3 className="text-xl font-heading font-bold mb-3 text-primary">
+                  A YOUNG WIZARD FINDS A MAP LEADING TO A...
                 </h3>
-                <p className="text-text-secondary group-hover:text-text-primary transition-colors">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-heading font-bold mb-6">
-              How It <span className="text-gradient">Works</span>
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <div className="space-y-8">
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white font-bold text-lg glow-amber">
-                  1
-                </div>
-                <div>
-                  <h3 className="text-xl font-heading font-semibold mb-2">Choose Your Adventure</h3>
-                  <p className="text-text-secondary">Select age group and genres that spark your imagination</p>
+                <div className="flex gap-3">
+                  <Link to="/story/preview">
+                    <Button variant="outline" className="btn-secondary text-sm px-4 py-2">
+                      Read Story
+                    </Button>
+                  </Link>
+                  <Link to="/auth">
+                    <Button className="btn-primary text-sm px-4 py-2">
+                      Create Your Own
+                    </Button>
+                  </Link>
                 </div>
               </div>
-
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white font-bold text-lg glow-amber">
-                  2
-                </div>
-                <div>
-                  <h3 className="text-xl font-heading font-semibold mb-2">Create Characters</h3>
-                  <p className="text-text-secondary">Design unique characters with personalities and backstories</p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white font-bold text-lg glow-amber">
-                  3
-                </div>
-                <div>
-                  <h3 className="text-xl font-heading font-semibold mb-2">AI Generates Magic</h3>
-                  <p className="text-text-secondary">Watch as our AI crafts your personalized story with images and narration</p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white font-bold text-lg glow-amber">
-                  4
-                </div>
-                <div>
-                  <h3 className="text-xl font-heading font-semibold mb-2">Share & Explore</h3>
-                  <p className="text-text-secondary">Share your creations and discover amazing stories from others</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="glass-card-elevated p-8">
-              <img 
-                src={aiStorytellingImage} 
-                alt="AI brain creating magical stories"
-                className="w-full h-auto rounded-xl"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-20 bg-surface/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-heading font-bold mb-6">
-              What People Are <span className="text-gradient">Saying</span>
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div key={index} className="glass-card-elevated p-8">
-                <div className="flex items-center mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-primary fill-current" />
-                  ))}
-                </div>
-                <p className="text-text-secondary mb-6 italic">
-                  "{testimonial.content}"
-                </p>
-                <div>
-                  <p className="font-semibold text-text-primary">{testimonial.name}</p>
-                  <p className="text-text-tertiary text-sm">{testimonial.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20">
-        <div className="container mx-auto px-4 text-center">
-          <div className="glass-card-elevated p-12 max-w-4xl mx-auto glow-strong">
-            <h2 className="text-3xl md:text-5xl font-heading font-bold mb-6">
-              Ready to Create Your <span className="text-gradient">First Story</span>?
-            </h2>
-            <p className="text-xl text-text-secondary mb-8 max-w-2xl mx-auto">
-              Join thousands of storytellers and start crafting magical tales that will captivate and inspire.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/auth/signup">
-                <Button className="btn-primary text-lg px-8 py-4 glow-amber">
-                  Start Free Trial
-                  <Sparkles className="w-5 h-5 ml-2" />
-                </Button>
-              </Link>
-              <Link to="/discover">
-                <Button variant="outline" className="btn-secondary text-lg px-8 py-4">
-                  Explore Stories
-                </Button>
-              </Link>
             </div>
           </div>
         </div>

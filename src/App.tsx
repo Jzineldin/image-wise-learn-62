@@ -5,9 +5,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Lazy load components for better performance
 const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/auth/Auth"));
 const SignIn = lazy(() => import("./pages/auth/SignIn"));
 const SignUp = lazy(() => import("./pages/auth/SignUp"));
 const Create = lazy(() => import("./pages/Create"));
@@ -40,12 +42,13 @@ const App = () => {
               <Toaster />
               <Sonner />
               <Routes>
-                <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={<Index />} />
                 <Route path="/auth/signin" element={<SignIn />} />
                 <Route path="/auth/signup" element={<SignUp />} />
-                <Route path="/create" element={<Create />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/discover" element={<Discover />} />
+              <Route path="/create" element={<ProtectedRoute><Create /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/discover" element={<Discover />} />
                 <Route path="/story/:id" element={<StoryViewer />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/pricing" element={<Pricing />} />

@@ -49,25 +49,36 @@ const Create = () => {
               Create Your Story
             </h1>
             <p className="text-xl text-text-secondary">
-              Let's craft a magical tale together
+              Let's craft a magical tale together in just 3 simple steps
             </p>
           </div>
 
-          {/* Progress Steps */}
+          {/* Enhanced Progress Steps */}
           <div className="flex items-center justify-center mb-12">
-            <div className="flex items-center space-x-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium transition-all duration-300 ${
-                    i <= step 
-                      ? 'bg-primary text-white glow-amber' 
-                      : 'bg-surface border border-primary/30 text-text-tertiary'
-                  }`}>
-                    {i}
+            <div className="flex items-center space-x-2 md:space-x-4">
+              {[
+                { num: 1, label: 'Age Group' },
+                { num: 2, label: 'Genres' },
+                { num: 3, label: 'Create' }
+              ].map((stepInfo, index) => (
+                <div key={stepInfo.num} className="flex items-center">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center font-medium transition-all duration-300 ${
+                      stepInfo.num <= step 
+                        ? 'bg-primary text-white glow-amber' 
+                        : 'bg-surface border border-primary/30 text-text-tertiary'
+                    }`}>
+                      {stepInfo.num}
+                    </div>
+                    <span className={`text-xs md:text-sm mt-2 transition-colors ${
+                      stepInfo.num <= step ? 'text-primary' : 'text-text-tertiary'
+                    }`}>
+                      {stepInfo.label}
+                    </span>
                   </div>
-                  {i < 3 && (
-                    <div className={`w-16 h-0.5 mx-2 transition-colors duration-300 ${
-                      i < step ? 'bg-primary' : 'bg-surface'
+                  {index < 2 && (
+                    <div className={`w-8 md:w-16 h-0.5 mx-2 transition-colors duration-300 ${
+                      stepInfo.num < step ? 'bg-primary' : 'bg-surface'
                     }`} />
                   )}
                 </div>
@@ -75,18 +86,21 @@ const Create = () => {
             </div>
           </div>
 
-          {/* Step 1: Age Selection */}
+          {/* Step 1: Age Selection - Enhanced */}
           {step === 1 && (
-            <div className="glass-card-elevated p-8">
-              <h2 className="text-2xl font-heading font-semibold text-center mb-8">
+            <div className="glass-card-elevated p-8 animate-fade-in">
+              <h2 className="text-2xl font-heading font-semibold text-center mb-4">
                 Who is this story for?
               </h2>
+              <p className="text-text-secondary text-center mb-8">
+                Choose the age group to personalize vocabulary and themes
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {AGE_GROUPS.map((age) => (
                   <button
                     key={age.value}
                     onClick={() => handleAgeSelect(age.value)}
-                    className="glass-card-interactive p-6 text-left group"
+                    className="glass-card-interactive p-6 text-left group hover-scale"
                   >
                     <h3 className="text-xl font-semibold text-primary group-hover:text-primary-hover mb-2 transition-colors">
                       {age.label}
@@ -100,12 +114,15 @@ const Create = () => {
             </div>
           )}
 
-          {/* Step 2: Genre Selection */}
+          {/* Step 2: Genre Selection - Enhanced */}
           {step === 2 && (
-            <div className="glass-card-elevated p-8">
-              <h2 className="text-2xl font-heading font-semibold text-center mb-8">
+            <div className="glass-card-elevated p-8 animate-fade-in">
+              <h2 className="text-2xl font-heading font-semibold text-center mb-4">
                 What genre would you like?
               </h2>
+              <p className="text-text-secondary text-center mb-8">
+                Select one or more genres to shape your story's adventure
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                 {GENRES.map((genre) => (
                   <button
@@ -145,9 +162,9 @@ const Create = () => {
             </div>
           )}
 
-          {/* Step 3: Ready to Create */}
+          {/* Step 3: Ready to Create - Enhanced */}
           {step === 3 && (
-            <div className="glass-card-elevated p-8 text-center">
+            <div className="glass-card-elevated p-8 text-center animate-fade-in">
               <div className="mb-8">
                 <Sparkles className="w-16 h-16 text-primary mx-auto mb-4 glow-amber" />
                 <h2 className="text-2xl font-heading font-semibold mb-4">

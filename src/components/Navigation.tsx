@@ -33,12 +33,12 @@ const Navigation = ({ className = "" }: NavigationProps) => {
           </div>
 
           <div className="flex items-center space-x-4">
-            <Link to="/auth/signin">
+            <Link to="/auth">
               <Button variant="outline" className="btn-secondary">
                 Sign In
               </Button>
             </Link>
-            <Link to="/auth/signup">
+            <Link to="/auth">
               <Button className="btn-primary">
                 Get Started
               </Button>

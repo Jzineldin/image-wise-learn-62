@@ -113,10 +113,10 @@
   }
 
   .hover-scale {
-    @apply transition-transform duration-200 hover:scale-105;
+    @apply transition-all duration-300 hover:scale-105 hover:shadow-lg;
   }
 
-  /* Glass Card Component */
+  /* Enhanced Glass Card Components */
   .glass-card {
     @apply bg-black/60 backdrop-blur-md border border-orange-500/20 rounded-xl shadow-xl;
   }
@@ -129,13 +129,13 @@
     @apply bg-black/40 backdrop-blur-sm border border-orange-500/20 rounded-lg hover:border-orange-500/40 hover:bg-orange-500/5 transition-all duration-300 cursor-pointer hover-scale;
   }
 
-  /* Button Components */
+  /* Enhanced Button Components */
   .btn-primary {
-    @apply px-6 py-3 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-glow;
+    @apply px-6 py-3 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-glow transform hover:-translate-y-0.5;
   }
 
   .btn-secondary {
-    @apply px-6 py-3 bg-transparent border-2 border-primary/50 hover:border-primary text-primary hover:text-primary-hover font-semibold rounded-lg transition-all duration-300;
+    @apply px-6 py-3 bg-transparent border-2 border-primary/50 hover:border-primary text-primary hover:text-primary-hover font-semibold rounded-lg transition-all duration-300 hover:bg-primary/5;
   }
 
   .btn-ghost {
@@ -146,17 +146,18 @@
     @apply p-2 text-white/70 hover:text-primary hover:bg-white/10 rounded-full transition-all duration-300;
   }
 
-  /* Form Components */
+  /* Enhanced Form Components */
   .input-field {
-    @apply w-full px-4 py-3 bg-black/40 border border-white/20 rounded-lg text-white placeholder-white/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-300;
+    @apply w-full px-4 py-3 bg-black/40 border border-white/20 rounded-lg text-white placeholder-white/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-300 hover:border-white/30;
   }
 
-  /* Text Styles */
+  /* Enhanced Text Styles */
   .text-gradient {
-    background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--secondary)));
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    filter: drop-shadow(0 0 10px hsl(var(--primary) / 0.3));
   }
 
   /* Loading Animation */
@@ -164,13 +165,57 @@
     @apply animate-spin rounded-full border-4 border-primary border-t-transparent;
   }
 
-  /* Glow Effects */
+  /* Enhanced Glow Effects */
   .glow-amber {
     box-shadow: var(--shadow-glow);
   }
 
   .glow-strong {
     box-shadow: var(--shadow-glow-strong);
+  }
+
+  /* Fade In Animation */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Floating Animation */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Pulse Glow Animation */
+  .animate-pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% {
+      box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px hsl(var(--primary) / 0.6);
+    }
   }
 }
 
