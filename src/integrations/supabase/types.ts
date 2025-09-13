@@ -644,6 +644,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_characters: {
+        Row: {
+          backstory: string | null
+          character_type: string | null
+          created_at: string | null
+          description: string
+          id: string
+          image_url: string | null
+          is_public: boolean | null
+          name: string
+          personality_traits: string[] | null
+          updated_at: string | null
+          usage_count: number | null
+          user_id: string
+        }
+        Insert: {
+          backstory?: string | null
+          character_type?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          image_url?: string | null
+          is_public?: boolean | null
+          name: string
+          personality_traits?: string[] | null
+          updated_at?: string | null
+          usage_count?: number | null
+          user_id: string
+        }
+        Update: {
+          backstory?: string | null
+          character_type?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          image_url?: string | null
+          is_public?: boolean | null
+          name?: string
+          personality_traits?: string[] | null
+          updated_at?: string | null
+          usage_count?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_credits: {
         Row: {
           created_at: string | null
