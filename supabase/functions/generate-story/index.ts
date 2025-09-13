@@ -50,7 +50,7 @@ class AIService {
     this.ovhToken = ovhToken;
   }
 
-  async generateWithGPT4o(messages: any[], temperature = 0.7): Promise<any> {
+  async generateWithGPT4o(messages: any[], temperature = 0.7, isInitialGeneration = false): Promise<any> {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -156,11 +156,11 @@ class AIService {
     }
   }
 
-  async generateStory(messages: any[], temperature = 0.7): Promise<{ data: StoryResponse; model: string }> {
+  async generateStory(messages: any[], temperature = 0.7, isInitialGeneration = false): Promise<{ data: StoryResponse; model: string }> {
     console.log('Attempting GPT-4o generation...');
     
     try {
-      const response = await this.generateWithGPT4o(messages, temperature);
+      const response = await this.generateWithGPT4o(messages, temperature, isInitialGeneration);
       const storyData = JSON.parse(response.choices[0].message.content);
       return { data: storyData, model: 'gpt-4o' };
     } catch (error) {
@@ -286,7 +286,7 @@ Generate a complete story structure with title, description, and multiple segmen
       { role: 'user', content: userPrompt }
     ];
 
-    const { data: storyData, model } = await aiService.generateStory(messages, 0.8);
+    const { data: storyData, model } = await aiService.generateStory(messages, 0.8, isInitialGeneration);
 
     console.log('Story generated successfully with model:', model);
 

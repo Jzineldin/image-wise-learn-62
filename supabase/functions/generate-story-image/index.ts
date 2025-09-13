@@ -72,6 +72,8 @@ serve(async (req) => {
     console.log('Generated image prompt:', visualPrompt);
 
     // Generate image using OVH SDXL
+    console.log('Calling OVH SDXL API with prompt:', visualPrompt.prompt);
+    
     const imageResponse = await fetch('https://stable-diffusion-xl.endpoints.kepler.ai.cloud.ovh.net/api/text2image', {
       method: 'POST',
       headers: {
@@ -82,6 +84,10 @@ serve(async (req) => {
       body: JSON.stringify({
         prompt: visualPrompt.prompt,
         negative_prompt: visualPrompt.negativePrompt,
+        width: 1024,
+        height: 1024,
+        steps: 20,
+        guidance_scale: 7.5
       }),
     });
 
