@@ -117,7 +117,7 @@ const Discover = () => {
                     <Book className="w-16 h-16 text-primary/50" />
                   </div>
                   <div className="absolute top-4 right-4">
-                    <span className="bg-primary text-white px-2 py-1 rounded-full text-xs font-medium">
+                    <span className="bg-primary text-primary-foreground px-2 py-1 rounded-full text-xs font-medium">
                       {story.age_group}
                     </span>
                   </div>

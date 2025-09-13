@@ -120,11 +120,11 @@
 
   /* Enhanced Glass Card Components */
   .glass-card {
-    @apply bg-black/60 backdrop-blur-md border border-orange-500/20 rounded-xl shadow-xl;
+    @apply bg-black/60 backdrop-blur-md border border-primary/20 rounded-xl shadow-xl;
   }
 
   .glass-card-elevated {
-    @apply bg-black/70 backdrop-blur-lg border border-orange-500/30 rounded-xl shadow-2xl;
+    @apply bg-black/70 backdrop-blur-lg border border-primary/30 rounded-xl shadow-2xl;
   }
 
   .glass-card-dark {
@@ -132,7 +132,7 @@
   }
 
   .glass-card-interactive {
-    @apply bg-black/40 backdrop-blur-sm border border-orange-500/20 rounded-lg hover:border-orange-500/40 hover:bg-orange-500/5 transition-all duration-300 cursor-pointer hover-scale;
+    @apply bg-black/40 backdrop-blur-sm border border-primary/20 rounded-lg hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 cursor-pointer hover-scale;
   }
 
   /* Enhanced Button Components */

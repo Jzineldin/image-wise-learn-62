@@ -90,14 +90,14 @@ const Index = () => {
               <div className="glass-card-dark p-8 max-w-md w-full rounded-2xl">
                 <div className="text-center space-y-6">
                   <div className="w-16 h-16 mx-auto bg-white/10 rounded-full flex items-center justify-center">
-                    <BookOpen className="w-8 h-8 text-white" />
+                    <BookOpen className="w-8 h-8 text-foreground" />
                   </div>
                   
-                  <h3 className="text-2xl font-heading font-bold text-white">
+                  <h3 className="text-2xl font-heading font-bold text-foreground">
                     DISCOVER AMAZING STORIES
                   </h3>
                   
-                  <p className="text-white/80 leading-relaxed">
+                  <p className="text-foreground/80 leading-relaxed">
                     Start your magical journey by creating your own personalized story
                   </p>
                   
