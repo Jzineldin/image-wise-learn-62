@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, RotateCcw, ThumbsUp } from 'lucide-react';
+import { Play, Pause, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, RotateCcw, ThumbsUp, BookOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { VoiceSelector } from '@/components/VoiceSelector';
+import { ReadingModeControls } from '@/components/ReadingModeControls';
 
 interface StorySegment {
   id: string;
@@ -49,6 +51,13 @@ const StoryViewer = () => {
   const [generatingImage, setGeneratingImage] = useState<string | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [retryAttempts, setRetryAttempts] = useState<{[key: string]: number}>({});
+  const [selectedVoice, setSelectedVoice] = useState('9BWtsMINqrJLrRacOk9x'); // Default Aria
+  const [isReadingMode, setIsReadingMode] = useState(false);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fontSize, setFontSize] = useState(18);
+  const [autoPlaySpeed, setAutoPlaySpeed] = useState(5);
+  const [autoPlayTimeout, setAutoPlayTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -267,7 +276,7 @@ const StoryViewer = () => {
       const { data, error } = await supabase.functions.invoke('generate-story-audio', {
         body: {
           text: content,
-          voiceId: '9BWtsMINqrJLrRacOk9x', // Default Aria voice
+          voiceId: selectedVoice,
           storyId: story?.id,
           segmentId,
           modelId: 'eleven_multilingual_v2'
@@ -359,7 +368,84 @@ const StoryViewer = () => {
       audioElement.pause();
       setIsPlaying(false);
     }
+
+    // Handle auto-play in reading mode
+    if (isAutoPlaying && isReadingMode) {
+      startAutoPlayTimer();
+    }
   };
+
+  const jumpToSegment = (segmentIndex: number) => {
+    if (segmentIndex >= 0 && segmentIndex < segments.length) {
+      setCurrentSegmentIndex(segmentIndex);
+      
+      // Stop current audio
+      if (audioElement) {
+        audioElement.pause();
+        setIsPlaying(false);
+      }
+
+      // Handle auto-play in reading mode
+      if (isAutoPlaying && isReadingMode) {
+        startAutoPlayTimer();
+      }
+    }
+  };
+
+  const toggleAutoPlay = () => {
+    setIsAutoPlaying(!isAutoPlaying);
+    if (!isAutoPlaying && isReadingMode) {
+      startAutoPlayTimer();
+    } else {
+      clearAutoPlayTimer();
+    }
+  };
+
+  const startAutoPlayTimer = () => {
+    clearAutoPlayTimer();
+    if (currentSegmentIndex < segments.length - 1) {
+      const timeout = setTimeout(() => {
+        navigateSegment('next');
+      }, autoPlaySpeed * 1000);
+      setAutoPlayTimeout(timeout);
+    }
+  };
+
+  const clearAutoPlayTimer = () => {
+    if (autoPlayTimeout) {
+      clearTimeout(autoPlayTimeout);
+      setAutoPlayTimeout(null);
+    }
+  };
+
+  const toggleReadingMode = () => {
+    setIsReadingMode(!isReadingMode);
+    if (!isReadingMode) {
+      // Entering reading mode
+      setIsAutoPlaying(false);
+      clearAutoPlayTimer();
+    }
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
+  // Clear auto-play timer on unmount
+  useEffect(() => {
+    return () => {
+      clearAutoPlayTimer();
+    };
+  }, []);
+
+  // Handle auto-play timer when dependencies change
+  useEffect(() => {
+    if (isAutoPlaying && isReadingMode) {
+      startAutoPlayTimer();
+    } else {
+      clearAutoPlayTimer();
+    }
+  }, [currentSegmentIndex, isAutoPlaying, isReadingMode, autoPlaySpeed]);
 
   const handleEndStory = () => {
     navigate(`/story/${id}/end`);
@@ -389,7 +475,7 @@ const StoryViewer = () => {
   const currentSegment = segments[currentSegmentIndex];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen ${isFullscreen ? 'fixed inset-0 z-40 overflow-auto' : ''}`}>
       {/* Header */}
       <div className="glass-card border-b border-primary/20">
         <div className="container mx-auto px-4 py-6">
@@ -404,6 +490,18 @@ const StoryViewer = () => {
             </div>
             
             <div className="flex items-center space-x-4">
+              <VoiceSelector
+                selectedVoice={selectedVoice}
+                onVoiceChange={setSelectedVoice}
+                className="hidden sm:block"
+              />
+              <Button
+                onClick={toggleReadingMode}
+                variant="outline"
+                className={`btn-icon ${isReadingMode ? 'text-primary bg-primary/10' : 'text-text-secondary'}`}
+              >
+                <BookOpen className="w-5 h-5" />
+              </Button>
               <Button
                 onClick={() => setIsLiked(!isLiked)}
                 variant="outline"
@@ -502,7 +600,10 @@ const StoryViewer = () => {
 
               {/* Story Text */}
               <div className="prose prose-lg max-w-none">
-                <div className="text-text-primary leading-relaxed text-lg">
+                <div 
+                  className="text-text-primary leading-relaxed transition-all duration-300"
+                  style={{ fontSize: `${fontSize}px` }}
+                >
                   {currentSegment.content.split('\n\n').map((paragraph, index) => (
                     <p key={index} className="mb-6">
                       {paragraph}
@@ -607,6 +708,24 @@ const StoryViewer = () => {
           </div>
         </div>
       </div>
+
+      {/* Reading Mode Controls */}
+      {isReadingMode && (
+        <ReadingModeControls
+          isAutoPlaying={isAutoPlaying}
+          onAutoPlayToggle={toggleAutoPlay}
+          currentSegment={currentSegmentIndex}
+          totalSegments={segments.length}
+          onNavigate={navigateSegment}
+          onJumpToSegment={jumpToSegment}
+          isFullscreen={isFullscreen}
+          onFullscreenToggle={toggleFullscreen}
+          fontSize={fontSize}
+          onFontSizeChange={setFontSize}
+          autoPlaySpeed={autoPlaySpeed}
+          onAutoPlaySpeedChange={setAutoPlaySpeed}
+        />
+      )}
     </div>
   );
 };
