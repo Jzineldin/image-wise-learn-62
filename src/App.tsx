@@ -12,8 +12,7 @@ const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/auth/Auth"));
 const SignIn = lazy(() => import("./pages/auth/SignIn"));
 const SignUp = lazy(() => import("./pages/auth/SignUp"));
-const Create = lazy(() => import("./pages/Create"));
-const CreateStoryFlow = lazy(() => import("./pages/CreateStoryFlow"));
+const Create = lazy(() => import("./pages/CreateStoryFlow"));
 const StoryGeneration = lazy(() => import("./pages/StoryGeneration"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Discover = lazy(() => import("./pages/Discover"));
@@ -54,7 +53,6 @@ const App = () => {
                 <Route path="/auth/signin" element={<SignIn />} />
                 <Route path="/auth/signup" element={<SignUp />} />
                <Route path="/create" element={<ProtectedRoute><Create /></ProtectedRoute>} />
-               <Route path="/create/story" element={<ProtectedRoute><CreateStoryFlow /></ProtectedRoute>} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/discover" element={<Discover />} />
                 <Route path="/story/:id" element={<StoryViewer />} />

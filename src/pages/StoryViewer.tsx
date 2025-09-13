@@ -63,9 +63,12 @@ const StoryViewer = () => {
         .from('stories')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (storyError) throw storyError;
+      if (!storyData) {
+        throw new Error('Story not found');
+      }
       setStory(storyData);
 
       // Load story segments

@@ -99,12 +99,12 @@ Return as a JSON array of exactly 3 seeds with this structure:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        max_completion_tokens: 1000,
+        max_tokens: 1000,
         response_format: { type: "json_object" }
       }),
     });
