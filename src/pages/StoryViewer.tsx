@@ -1,51 +1,285 @@
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, Heart, Share, ChevronLeft, ChevronRight, Volume2 } from 'lucide-react';
+import { Play, Pause, Heart, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, RotateCcw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+
+interface StorySegment {
+  id: string;
+  segment_number: number;
+  content: string;
+  image_url?: string;
+  audio_url?: string;
+  choices: Array<{
+    id: number;
+    text: string;
+    impact?: string;
+  }>;
+  is_ending?: boolean;
+}
+
+interface Story {
+  id: string;
+  title: string;
+  description: string;
+  author_id: string;
+  genre: string;
+  age_group: string;
+  status: string;
+  metadata: any;
+  cover_image?: string;
+}
 
 const StoryViewer = () => {
   const { id } = useParams();
-  const [currentSegment, setCurrentSegment] = useState(0);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  const [story, setStory] = useState<Story | null>(null);
+  const [segments, setSegments] = useState<StorySegment[]>([]);
+  const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [generatingSegment, setGeneratingSegment] = useState(false);
+  const [generatingAudio, setGeneratingAudio] = useState(false);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
-  // Mock story data
-  const story = {
-    id: id,
-    title: 'The Dragon\'s Secret Garden',
-    author: 'Sarah Johnson',
-    segments: [
-      {
-        id: '1',
-        content: `Once upon a time, in a kingdom far beyond the misty mountains, there lived a young girl named Luna who possessed an extraordinary gift - she could speak to dragons. One sunny morning, while exploring the ancient forest near her village, Luna stumbled upon a hidden pathway covered in glowing moss.
+  useEffect(() => {
+    if (id) {
+      loadStory();
+    }
+  }, [id]);
 
-The pathway led to a magnificent garden unlike anything she had ever seen. Flowers of every color imaginable bloomed in perfect harmony, their petals shimmering with magical light. In the center of the garden stood an enormous, gentle dragon with scales that sparkled like emeralds.
+  const loadStory = async () => {
+    try {
+      setLoading(true);
+      
+      // Load story details
+      const { data: storyData, error: storyError } = await supabase
+        .from('stories')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-"Welcome, young one," the dragon spoke in a voice as soft as velvet. "I am Verdania, guardian of this secret garden. For centuries, I have tended to these magical plants, but I have grown lonely."`,
-        image_url: '/api/placeholder/800/600',
-        choices: [
-          { id: 1, text: "Ask the dragon about the magical plants" },
-          { id: 2, text: "Offer to help tend the garden" },
-          { id: 3, text: "Explore the garden on your own" }
-        ]
-      }
-    ]
+      if (storyError) throw storyError;
+      setStory(storyData);
+
+      // Load story segments
+      const { data: segmentsData, error: segmentsError } = await supabase
+        .from('story_segments')
+        .select('*')
+        .eq('story_id', id)
+        .order('segment_number', { ascending: true });
+
+      if (segmentsError) throw segmentsError;
+      setSegments((segmentsData || []).map(s => ({
+        ...s,
+        choices: Array.isArray(s.choices) ? s.choices : []
+      })));
+
+    } catch (error) {
+      console.error('Error loading story:', error);
+      toast({
+        title: "Error loading story",
+        description: "Failed to load the story. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleChoice = (choiceId: number) => {
-    // Mock progression to next segment
-    console.log('Selected choice:', choiceId);
+  const handleChoice = async (choiceId: number, choiceText: string) => {
+    if (!story || !user) return;
+    
+    const currentSegment = segments[currentSegmentIndex];
+    if (!currentSegment) return;
+
+    setGeneratingSegment(true);
+    try {
+      // Generate next segment based on choice
+      const { data, error } = await supabase.functions.invoke('generate-story-segment', {
+        body: {
+          storyId: story.id,
+          choiceId,
+          choiceText,
+          previousSegmentContent: currentSegment.content,
+          storyContext: {
+            title: story.title,
+            description: story.description,
+            ageGroup: story.age_group,
+            genre: story.genre,
+            characters: story.metadata?.characters || []
+          },
+          segmentNumber: segments.length + 1
+        }
+      });
+
+      if (error) throw error;
+
+      const newSegment = data.segment;
+      setSegments(prev => [...prev, newSegment]);
+      setCurrentSegmentIndex(segments.length);
+
+      // Generate image for new segment
+      generateSegmentImage(newSegment);
+
+      toast({
+        title: "Story continues!",
+        description: "Your choice has shaped the adventure.",
+      });
+
+    } catch (error) {
+      console.error('Error generating segment:', error);
+      toast({
+        title: "Generation failed",
+        description: "Failed to continue the story. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingSegment(false);
+    }
+  };
+
+  const generateSegmentImage = async (segment: StorySegment) => {
+    if (!story) return;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-story-image', {
+        body: {
+          storyContent: segment.content,
+          storyTitle: story.title,
+          ageGroup: story.age_group,
+          genre: story.genre,
+          segmentNumber: segment.segment_number,
+          storyId: story.id,
+          segmentId: segment.id,
+          characters: story.metadata?.characters || []
+        }
+      });
+
+      if (error) {
+        console.error('Image generation error:', error);
+        return;
+      }
+
+      // Update segment with image URL
+      setSegments(prev => prev.map(s => 
+        s.id === segment.id 
+          ? { ...s, image_url: data.imageUrl }
+          : s
+      ));
+
+    } catch (error) {
+      console.error('Error generating image:', error);
+    }
+  };
+
+  const generateAudio = async (segmentId: string, content: string) => {
+    setGeneratingAudio(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-story-audio', {
+        body: {
+          text: content,
+          voiceId: '9BWtsMINqrJLrRacOk9x', // Default Aria voice
+          storyId: story?.id,
+          segmentId,
+          modelId: 'eleven_multilingual_v2'
+        }
+      });
+
+      if (error) throw error;
+
+      // Update segment with audio URL
+      setSegments(prev => prev.map(s => 
+        s.id === segmentId 
+          ? { ...s, audio_url: data.audioUrl }
+          : s
+      ));
+
+      toast({
+        title: "Audio generated!",
+        description: "You can now listen to this segment.",
+      });
+
+    } catch (error) {
+      console.error('Error generating audio:', error);
+      toast({
+        title: "Audio generation failed",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingAudio(false);
+    }
   };
 
   const toggleAudio = () => {
-    setIsPlaying(!isPlaying);
+    const currentSegment = segments[currentSegmentIndex];
+    if (!currentSegment?.audio_url) return;
+
+    if (isPlaying && audioElement) {
+      audioElement.pause();
+      setIsPlaying(false);
+    } else {
+      if (audioElement) {
+        audioElement.pause();
+      }
+      
+      const audio = new Audio(currentSegment.audio_url);
+      audio.onended = () => setIsPlaying(false);
+      audio.onplay = () => setIsPlaying(true);
+      audio.onpause = () => setIsPlaying(false);
+      
+      setAudioElement(audio);
+      audio.play();
+    }
   };
 
-  const toggleLike = () => {
-    setIsLiked(!isLiked);
+  const navigateSegment = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && currentSegmentIndex > 0) {
+      setCurrentSegmentIndex(currentSegmentIndex - 1);
+    } else if (direction === 'next' && currentSegmentIndex < segments.length - 1) {
+      setCurrentSegmentIndex(currentSegmentIndex + 1);
+    }
+    
+    // Stop current audio
+    if (audioElement) {
+      audioElement.pause();
+      setIsPlaying(false);
+    }
   };
 
-  const currentSegmentData = story.segments[currentSegment];
+  const handleEndStory = () => {
+    navigate(`/story/${id}/end`);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="loading-spinner h-8 w-8" />
+      </div>
+    );
+  }
+
+  if (!story) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-heading mb-4">Story not found</h2>
+          <Button onClick={() => navigate('/dashboard')}>
+            Return to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const currentSegment = segments[currentSegmentIndex];
 
   return (
     <div className="min-h-screen bg-background">
@@ -57,12 +291,14 @@ The pathway led to a magnificent garden unlike anything she had ever seen. Flowe
               <h1 className="text-2xl md:text-3xl font-heading font-bold text-gradient">
                 {story.title}
               </h1>
-              <p className="text-text-secondary">by {story.author}</p>
+              <p className="text-text-secondary">
+                {story.genre} • {story.age_group} • Segment {currentSegmentIndex + 1} of {segments.length}
+              </p>
             </div>
             
             <div className="flex items-center space-x-4">
               <Button
-                onClick={toggleLike}
+                onClick={() => setIsLiked(!isLiked)}
                 variant="outline"
                 className={`btn-icon ${isLiked ? 'text-red-400' : 'text-text-secondary'}`}
               >
@@ -79,91 +315,158 @@ The pathway led to a magnificent garden unlike anything she had ever seen. Flowe
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Story Content */}
-          <div className="glass-card-elevated p-8 mb-8">
-            {/* Image */}
-            <div className="mb-8">
-              <div className="w-full h-64 md:h-96 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl flex items-center justify-center">
-                <p className="text-text-tertiary">Story Image</p>
+          {currentSegment && (
+            <div className="glass-card-elevated p-8 mb-8">
+              {/* Image */}
+              <div className="mb-8">
+                {currentSegment.image_url ? (
+                  <img 
+                    src={currentSegment.image_url} 
+                    alt={`Story segment ${currentSegment.segment_number}`}
+                    className="w-full h-64 md:h-96 object-cover rounded-xl"
+                  />
+                ) : (
+                  <div className="w-full h-64 md:h-96 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl flex items-center justify-center">
+                    <div className="text-center">
+                      <Sparkles className="w-12 h-12 text-text-tertiary mx-auto mb-2" />
+                      <p className="text-text-tertiary">Image generating...</p>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
 
-            {/* Audio Controls */}
-            <div className="flex items-center justify-center mb-8">
-              <div className="glass-card p-4 flex items-center space-x-4">
-                <Button
-                  onClick={toggleAudio}
-                  className="btn-primary"
-                  size="sm"
-                >
-                  {isPlaying ? (
-                    <Pause className="w-5 h-5" />
+              {/* Audio Controls */}
+              <div className="flex items-center justify-center mb-8">
+                <div className="glass-card p-4 flex items-center space-x-4">
+                  {currentSegment.audio_url ? (
+                    <Button
+                      onClick={toggleAudio}
+                      className="btn-primary"
+                      size="sm"
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-5 h-5" />
+                      ) : (
+                        <Play className="w-5 h-5" />
+                      )}
+                    </Button>
                   ) : (
-                    <Play className="w-5 h-5" />
+                    <Button
+                      onClick={() => generateAudio(currentSegment.id, currentSegment.content)}
+                      disabled={generatingAudio}
+                      className="btn-primary"
+                      size="sm"
+                    >
+                      {generatingAudio ? (
+                        <div className="loading-spinner w-5 h-5" />
+                      ) : (
+                        <Volume2 className="w-5 h-5" />
+                      )}
+                    </Button>
                   )}
-                </Button>
-                <Volume2 className="w-5 h-5 text-text-secondary" />
-                <div className="w-32 h-2 bg-surface rounded-full">
-                  <div className="w-1/3 h-full bg-primary rounded-full"></div>
+                  <span className="text-text-secondary text-sm">
+                    {currentSegment.audio_url ? 'Listen' : 'Generate Audio'}
+                  </span>
                 </div>
-                <span className="text-text-secondary text-sm">2:34</span>
               </div>
-            </div>
 
-            {/* Story Text */}
-            <div className="prose prose-lg max-w-none">
-              <div className="text-text-primary leading-relaxed text-lg">
-                {currentSegmentData.content.split('\n\n').map((paragraph, index) => (
-                  <p key={index} className="mb-6">
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Choices */}
-          {currentSegmentData.choices && (
-            <div className="glass-card-elevated p-8">
-              <h3 className="text-xl font-heading font-semibold mb-6 text-center">
-                What happens next?
-              </h3>
-              <div className="space-y-4">
-                {currentSegmentData.choices.map((choice) => (
-                  <button
-                    key={choice.id}
-                    onClick={() => handleChoice(choice.id)}
-                    className="glass-card-interactive w-full p-6 text-left group"
-                  >
-                    <p className="text-text-primary group-hover:text-primary transition-colors">
-                      {choice.text}
+              {/* Story Text */}
+              <div className="prose prose-lg max-w-none">
+                <div className="text-text-primary leading-relaxed text-lg">
+                  {currentSegment.content.split('\n\n').map((paragraph, index) => (
+                    <p key={index} className="mb-6">
+                      {paragraph}
                     </p>
-                  </button>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
+          {/* Choices or End Story */}
+          {currentSegment && !currentSegment.is_ending && currentSegment.choices && currentSegmentIndex === segments.length - 1 && (
+            <div className="glass-card-elevated p-8 mb-8">
+              <h3 className="text-xl font-heading font-semibold mb-6 text-center">
+                What happens next?
+              </h3>
+              {generatingSegment ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="loading-spinner w-8 h-8 mr-3" />
+                  <span className="text-text-secondary">Generating next part of your story...</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {currentSegment.choices.map((choice) => (
+                    <button
+                      key={choice.id}
+                      onClick={() => handleChoice(choice.id, choice.text)}
+                      className="glass-card-interactive w-full p-6 text-left group"
+                    >
+                      <p className="text-text-primary group-hover:text-primary transition-colors">
+                        {choice.text}
+                      </p>
+                      {choice.impact && (
+                        <p className="text-sm text-text-secondary mt-2">
+                          {choice.impact}
+                        </p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* End Story Button */}
+          {currentSegment?.is_ending && (
+            <div className="glass-card-elevated p-8 mb-8 text-center">
+              <Sparkles className="w-16 h-16 text-primary mx-auto mb-4 glow-amber" />
+              <h3 className="text-2xl font-heading font-semibold mb-4">
+                The End
+              </h3>
+              <p className="text-text-secondary mb-6">
+                What an amazing adventure! Your story is complete.
+              </p>
+              <Button onClick={handleEndStory} className="btn-primary text-lg px-8">
+                <Sparkles className="w-5 h-5 mr-2" />
+                Finish Story
+              </Button>
+            </div>
+          )}
+
           {/* Navigation */}
-          <div className="flex justify-between items-center mt-8">
+          <div className="flex justify-between items-center">
             <Button
+              onClick={() => navigateSegment('prev')}
               variant="outline"
               className="btn-secondary"
-              disabled={currentSegment === 0}
+              disabled={currentSegmentIndex === 0}
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
               Previous
             </Button>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-4">
               <span className="text-text-secondary">
-                Segment {currentSegment + 1} of {story.segments.length}
+                Segment {currentSegmentIndex + 1} of {segments.length}
               </span>
+              {!currentSegment?.is_ending && (
+                <Button
+                  onClick={handleEndStory}
+                  variant="outline"
+                  className="btn-secondary"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  End Story
+                </Button>
+              )}
             </div>
 
             <Button
+              onClick={() => navigateSegment('next')}
               variant="outline"
               className="btn-secondary"
-              disabled={currentSegment === story.segments.length - 1}
+              disabled={currentSegmentIndex === segments.length - 1}
             >
               Next
               <ChevronRight className="w-4 h-4 ml-2" />

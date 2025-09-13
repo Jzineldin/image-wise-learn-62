@@ -88,19 +88,38 @@ const StoryGeneration = () => {
 
     setIsGenerating(true);
     try {
-      // Create story in database with proper user authentication
-      const { data: story, error } = await supabase
+      // Generate initial story with AI
+      const { data: storyData, error: aiError } = await supabase.functions.invoke('generate-story', {
+        body: {
+          prompt: storySeed,
+          ageGroup: creationState.age_group,
+          genre: creationState.genres[0] || 'fantasy',
+          characters: characters.map(c => ({
+            name: c.name,
+            description: c.description,
+            role: c.role
+          })),
+          languageCode: 'en',
+          storyLength: 'medium',
+          isInitialGeneration: true
+        }
+      });
+
+      if (aiError) throw aiError;
+
+      // Create story in database
+      const { data: story, error: dbError } = await supabase
         .from('stories')
         .insert({
-          title: `A ${creationState.genres.join(' & ')} Adventure`,
-          description: storySeed,
+          title: storyData.title,
+          description: storyData.description || storySeed,
           genre: creationState.genres[0] || 'fantasy',
           age_group: creationState.age_group,
           prompt: storySeed,
           visibility: 'private',
-          status: 'draft',
-          user_id: user.id, // Critical: Set the user_id for RLS policies
-          author_id: user.id, // Also set author_id if needed by schema
+          status: 'in_progress',
+          user_id: user.id,
+          author_id: user.id,
           metadata: {
             characters: characters.map(c => ({
               name: c.name,
@@ -108,13 +127,53 @@ const StoryGeneration = () => {
               role: c.role
             })),
             genres: creationState.genres,
-            storySeed: storySeed
-          } as any
+            storySeed: storySeed,
+            model_used: storyData.model_used
+          }
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (dbError) throw dbError;
+
+      // Create initial story segments
+      const segments = storyData.segments || [];
+      if (segments.length > 0) {
+        const segmentInserts = segments.map((segment: any) => ({
+          story_id: story.id,
+          segment_number: segment.segment_number,
+          content: segment.content,
+          choices: segment.choices || [],
+          is_ending: segment.is_ending || false
+        }));
+
+        const { error: segmentsError } = await supabase
+          .from('story_segments')
+          .insert(segmentInserts);
+
+        if (segmentsError) {
+          console.error('Error creating segments:', segmentsError);
+        } else {
+          // Generate image for first segment
+          const firstSegment = segments[0];
+          supabase.functions.invoke('generate-story-image', {
+            body: {
+              storyContent: firstSegment.content,
+              storyTitle: storyData.title,
+              ageGroup: creationState.age_group,
+              genre: creationState.genres[0] || 'fantasy',
+              segmentNumber: 1,
+              storyId: story.id,
+              characters: characters.map(c => ({
+                name: c.name,
+                description: c.description
+              }))
+            }
+          }).catch(error => {
+            console.error('Error generating initial image:', error);
+          });
+        }
+      }
 
       // Navigate to story viewer
       navigate(`/story/${story.id}`);

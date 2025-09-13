@@ -9,47 +9,62 @@ const corsHeaders = {
 
 interface GenerateAudioRequest {
   text: string;
-  voice?: string;
+  voiceId?: string;
   languageCode?: string;
   storyId?: string;
   segmentId?: string;
+  modelId?: string;
+  settings?: {
+    stability?: number;
+    similarity_boost?: number;
+    style?: number;
+  };
 }
 
-// Voice mapping for different languages
+// ElevenLabs voice mapping with high-quality voices
 const voiceMapping = {
-  en: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
-  sv: ['alloy', 'nova'], // Swedish works better with these voices
-  // Add more language-specific voice mappings as needed
+  en: [
+    { id: '9BWtsMINqrJLrRacOk9x', name: 'Aria', description: 'Young, clear female voice' },
+    { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger', description: 'Warm male narrator' },
+    { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Gentle female storyteller' },
+    { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', description: 'Friendly young male' },
+    { id: 'XB0fDUnXU5powFXDhCwa', name: 'Charlotte', description: 'Calm female narrator' }
+  ],
+  // Add more languages as needed
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     const elevenLabsApiKey = Deno.env.get('ELEVENLABS_API_KEY');
     
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    if (!elevenLabsApiKey) {
+      throw new Error('ElevenLabs API key not configured');
     }
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { 
       text, 
-      voice = 'alloy',
+      voiceId = '9BWtsMINqrJLrRacOk9x', // Default to Aria
       languageCode = 'en',
       storyId,
-      segmentId
+      segmentId,
+      modelId = 'eleven_multilingual_v2',
+      settings = {}
     }: GenerateAudioRequest = await req.json();
 
-    console.log('Audio generation request:', { textLength: text.length, voice, languageCode });
+    console.log('Audio generation request:', { 
+      textLength: text.length, 
+      voiceId, 
+      languageCode,
+      modelId 
+    });
 
     if (!text || text.trim().length === 0) {
       throw new Error('Text is required for audio generation');
@@ -57,28 +72,37 @@ serve(async (req) => {
 
     // Validate voice for language
     const availableVoices = voiceMapping[languageCode as keyof typeof voiceMapping] || voiceMapping.en;
-    const selectedVoice = availableVoices.includes(voice) ? voice : availableVoices[0];
+    const selectedVoice = availableVoices.find(v => v.id === voiceId) || availableVoices[0];
 
-    // Generate speech using OpenAI
-    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+    // ElevenLabs TTS settings optimized for children's content
+    const audioSettings = {
+      stability: settings.stability || 0.5,
+      similarity_boost: settings.similarity_boost || 0.75,
+      style: settings.style || 0.0,
+      use_speaker_boost: true
+    };
+
+    console.log('Using ElevenLabs voice:', selectedVoice.name, selectedVoice.id);
+
+    // Generate speech using ElevenLabs
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice.id}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Accept': 'audio/mpeg',
         'Content-Type': 'application/json',
+        'xi-api-key': elevenLabsApiKey,
       },
       body: JSON.stringify({
-        model: 'tts-1-hd', // Use HD model for better quality
-        input: text,
-        voice: selectedVoice,
-        response_format: 'mp3',
-        speed: 0.9 // Slightly slower for children's content
+        text: text,
+        model_id: modelId,
+        voice_settings: audioSettings
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI TTS error:', errorText);
-      throw new Error(`TTS generation failed: ${response.status}`);
+      console.error('ElevenLabs TTS error:', errorText);
+      throw new Error(`TTS generation failed: ${response.status} - ${errorText}`);
     }
 
     // Get audio data
@@ -126,7 +150,9 @@ serve(async (req) => {
           .from('stories')
           .update({ 
             full_story_audio_url: audioUrl,
-            audio_generation_status: 'completed'
+            audio_generation_status: 'completed',
+            selected_voice_id: selectedVoice.id,
+            selected_voice_name: selectedVoice.name
           })
           .eq('id', storyId);
       }
@@ -137,14 +163,23 @@ serve(async (req) => {
       String.fromCharCode(...audioArray)
     );
 
-    console.log('Audio generated successfully');
+    // Estimate duration (rough calculation)
+    const estimatedDuration = Math.ceil(text.length / 14); // ~14 chars per second
+
+    console.log('Audio generated successfully with ElevenLabs');
 
     return new Response(JSON.stringify({ 
       audioContent: base64Audio,
       audioUrl: audioUrl,
-      voice: selectedVoice,
+      voice: {
+        id: selectedVoice.id,
+        name: selectedVoice.name,
+        description: selectedVoice.description
+      },
       language: languageCode,
-      duration: Math.ceil(text.length / 15) // Rough estimate: ~15 chars per second
+      duration: estimatedDuration,
+      model: modelId,
+      settings: audioSettings
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -160,3 +195,8 @@ serve(async (req) => {
     });
   }
 });
+
+// Helper function to get available voices for a language
+export function getAvailableVoices(languageCode: string) {
+  return voiceMapping[languageCode as keyof typeof voiceMapping] || voiceMapping.en;
+}
