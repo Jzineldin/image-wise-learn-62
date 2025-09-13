@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Heart, Eye, Star, Filter, Book } from 'lucide-react';
+import { Search, ThumbsUp, Eye, Star, Filter, Book } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 
@@ -130,7 +130,8 @@ const Discover = () => {
                       {story.title}
                     </h3>
                     <div className="flex items-center text-primary text-sm font-medium">
-                      ★ {story.rating}
+                      <Star className="w-4 h-4 mr-1 fill-current" />
+                      {story.rating}
                     </div>
                   </div>
 
@@ -148,7 +149,7 @@ const Discover = () => {
                         {story.views}
                       </span>
                       <span className="flex items-center">
-                        <Heart className="w-4 h-4 mr-1" />
+                        <ThumbsUp className="w-4 h-4 mr-1" />
                         {story.likes}
                       </span>
                     </div>

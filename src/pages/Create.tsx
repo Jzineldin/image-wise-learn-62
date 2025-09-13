@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ArrowRight, Sparkles, Users, BookOpen, Wand2, Home, User, Settings, Heart } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, Users, BookOpen, Wand2, Home, User, Settings } from 'lucide-react';
 import { AGE_GROUPS, GENRES } from '@/types';
 import { UserCharacter, StorySeed, StoryCreationFlow } from '@/types/character';
 import { CharacterSelector } from '@/components/story-creation/CharacterSelector';
@@ -195,7 +195,7 @@ export default function CreateStoryFlow() {
   const progress = (flow.step / STEPS.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+    <div className="min-h-screen">
       {/* Navigation Header */}
       <nav className="glass-card border-b border-primary/10 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
@@ -222,7 +222,7 @@ export default function CreateStoryFlow() {
                 Characters
               </Link>
               <Link to="/my-stories" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow flex items-center gap-2">
-                <Heart className="h-4 w-4" />
+                <BookOpen className="h-4 w-4" />
                 My Stories
               </Link>
             </div>

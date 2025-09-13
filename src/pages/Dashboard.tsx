@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Plus, Book, Heart, Users, TrendingUp } from 'lucide-react';
+import { Plus, Book, Users, TrendingUp } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 
@@ -89,7 +89,7 @@ const Dashboard = () => {
                 <p className="text-text-secondary text-sm font-medium">Total Likes</p>
                 <p className="text-3xl font-bold text-primary">{stats.totalLikes}</p>
               </div>
-              <Heart className="w-8 h-8 text-primary" />
+              <TrendingUp className="w-8 h-8 text-primary" />
             </div>
           </div>
 

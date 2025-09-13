@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Sparkles, BookOpen, Users, Star, ArrowRight, Play, Heart } from 'lucide-react';
+import { Sparkles, BookOpen, Users, ArrowRight, Play } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import heroBookImage from '@/assets/hero-book.jpg';

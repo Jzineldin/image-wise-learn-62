@@ -33,7 +33,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
           </div>
 
           <div className="flex items-center space-x-4">
-            <Link to="/auth">
+            <Link to="/auth" className="hidden sm:block">
               <Button variant="outline" className="btn-secondary">
                 Sign In
               </Button>

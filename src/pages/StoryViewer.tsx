@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, Heart, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, RotateCcw } from 'lucide-react';
+import { Play, Pause, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, RotateCcw, ThumbsUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -407,9 +407,9 @@ const StoryViewer = () => {
               <Button
                 onClick={() => setIsLiked(!isLiked)}
                 variant="outline"
-                className={`btn-icon ${isLiked ? 'text-red-400' : 'text-text-secondary'}`}
+                className={`btn-icon ${isLiked ? 'text-primary' : 'text-text-secondary'}`}
               >
-                <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+                <ThumbsUp className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
               </Button>
               <Button variant="outline" className="btn-icon">
                 <Share className="w-5 h-5" />
