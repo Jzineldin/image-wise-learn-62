@@ -145,16 +145,40 @@ export default function CreateStoryFlow() {
 
       if (generationError) throw generationError;
 
-      // Update story with generated title if available
-      if (generationResult?.title) {
-        await supabase
-          .from('stories')
-          .update({ 
-            title: generationResult.title,
-            status: 'draft'
-          })
-          .eq('id', story.id);
+      // Save generated segments to database
+      if (generationResult?.segments && generationResult.segments.length > 0) {
+        const segmentsToInsert = generationResult.segments.map((segment: any, index: number) => ({
+          story_id: story.id,
+          segment_number: index + 1,
+          content: segment.content,
+          choices: segment.choices || [],
+          is_ending: segment.isEnding || false,
+          image_prompt: segment.imagePrompt
+        }));
+
+        const { error: segmentsError } = await supabase
+          .from('story_segments')
+          .insert(segmentsToInsert);
+
+        if (segmentsError) {
+          console.error('Error saving segments:', segmentsError);
+          throw new Error('Failed to save story segments');
+        }
       }
+
+      // Update story with generated title and status
+      const storyUpdates: any = {
+        status: 'draft'
+      };
+      
+      if (generationResult?.title) {
+        storyUpdates.title = generationResult.title;
+      }
+
+      await supabase
+        .from('stories')
+        .update(storyUpdates)
+        .eq('id', story.id);
 
       toast.success('Story created successfully!');
       navigate(`/story/${story.id}`);
