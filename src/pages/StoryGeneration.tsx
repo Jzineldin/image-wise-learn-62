@@ -9,6 +9,9 @@ import { ArrowRight, ArrowLeft, Plus, X, Sparkles, Users, Lightbulb } from 'luci
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
+import LanguageSelector from '@/components/LanguageSelector';
+import { generateStory, createStoryWithLocalization } from '@/utils/storyGeneration';
 
 interface Character {
   id: string;
