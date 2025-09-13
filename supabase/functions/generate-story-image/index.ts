@@ -149,10 +149,14 @@ serve(async (req) => {
       }
     }
 
-    // Convert to base64 for immediate display
-    const base64Image = btoa(
-      String.fromCharCode(...imageArray)
-    );
+    // Convert to base64 for immediate display (in chunks to avoid stack overflow)
+    let binaryString = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < imageArray.length; i += chunkSize) {
+      const chunk = imageArray.slice(i, i + chunkSize);
+      binaryString += String.fromCharCode(...chunk);
+    }
+    const base64Image = btoa(binaryString);
 
     console.log('Image generated successfully');
 
