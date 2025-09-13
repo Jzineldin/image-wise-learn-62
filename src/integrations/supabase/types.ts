@@ -38,6 +38,50 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_prompt_templates: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          language_code: string
+          template_content: string
+          template_key: string
+          updated_at: string | null
+          variables: Json | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          language_code: string
+          template_content: string
+          template_key: string
+          updated_at?: string | null
+          variables?: Json | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          language_code?: string
+          template_content?: string
+          template_key?: string
+          updated_at?: string | null
+          variables?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_prompt_templates_language_code_fkey"
+            columns: ["language_code"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       credit_transactions: {
         Row: {
           amount: number
@@ -127,6 +171,42 @@ export type Database = {
           },
         ]
       }
+      languages: {
+        Row: {
+          ai_model_config: Json | null
+          code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          native_name: string
+          prompt_templates: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          ai_model_config?: Json | null
+          code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          native_name: string
+          prompt_templates?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          ai_model_config?: Json | null
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          native_name?: string
+          prompt_templates?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -138,6 +218,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_admin: boolean | null
+          preferred_language: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           subscription_status: string | null
@@ -155,6 +236,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_admin?: boolean | null
+          preferred_language?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_status?: string | null
@@ -172,6 +254,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_admin?: boolean | null
+          preferred_language?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_status?: string | null
@@ -179,7 +262,15 @@ export type Database = {
           updated_at?: string | null
           username?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_preferred_language_fkey"
+            columns: ["preferred_language"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       reading_history: {
         Row: {
@@ -235,7 +326,9 @@ export type Database = {
           is_complete: boolean | null
           is_completed: boolean | null
           is_public: boolean | null
+          language_code: string | null
           metadata: Json | null
+          original_language_code: string | null
           prompt: string | null
           selected_voice_id: string | null
           selected_voice_name: string | null
@@ -264,7 +357,9 @@ export type Database = {
           is_complete?: boolean | null
           is_completed?: boolean | null
           is_public?: boolean | null
+          language_code?: string | null
           metadata?: Json | null
+          original_language_code?: string | null
           prompt?: string | null
           selected_voice_id?: string | null
           selected_voice_name?: string | null
@@ -293,7 +388,9 @@ export type Database = {
           is_complete?: boolean | null
           is_completed?: boolean | null
           is_public?: boolean | null
+          language_code?: string | null
           metadata?: Json | null
+          original_language_code?: string | null
           prompt?: string | null
           selected_voice_id?: string | null
           selected_voice_name?: string | null
@@ -307,7 +404,22 @@ export type Database = {
           user_id?: string | null
           visibility?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stories_language_code_fkey"
+            columns: ["language_code"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "stories_original_language_code_fkey"
+            columns: ["original_language_code"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       story_analytics: {
         Row: {
@@ -337,6 +449,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "story_analytics_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_content_i18n: {
+        Row: {
+          content: Json | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_primary: boolean | null
+          language_code: string
+          story_id: string
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          content?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_primary?: boolean | null
+          language_code: string
+          story_id: string
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          content?: Json | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_primary?: boolean | null
+          language_code?: string
+          story_id?: string
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_content_i18n_language_code_fkey"
+            columns: ["language_code"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "story_content_i18n_story_id_fkey"
             columns: ["story_id"]
             isOneToOne: false
             referencedRelation: "stories"
@@ -402,6 +565,51 @@ export type Database = {
             columns: ["story_id"]
             isOneToOne: false
             referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_segments_i18n: {
+        Row: {
+          audio_url: string | null
+          choices: Json | null
+          content: string | null
+          created_at: string | null
+          id: string
+          language_code: string
+          segment_id: string
+        }
+        Insert: {
+          audio_url?: string | null
+          choices?: Json | null
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          language_code: string
+          segment_id: string
+        }
+        Update: {
+          audio_url?: string | null
+          choices?: Json | null
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          language_code?: string
+          segment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_segments_i18n_language_code_fkey"
+            columns: ["language_code"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "story_segments_i18n_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "story_segments"
             referencedColumns: ["id"]
           },
         ]
@@ -673,6 +881,10 @@ export type Database = {
           title: string
         }[]
       }
+      get_prompt_template: {
+        Args: { language_code?: string; template_key: string }
+        Returns: string
+      }
       get_user_credits: {
         Args: { user_uuid: string }
         Returns: {
@@ -694,6 +906,10 @@ export type Database = {
           title: string
           type: string
         }[]
+      }
+      get_user_language: {
+        Args: { user_uuid?: string }
+        Returns: string
       }
       get_user_transactions: {
         Args: { p_limit?: number }
