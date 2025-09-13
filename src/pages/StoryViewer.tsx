@@ -76,10 +76,25 @@ const StoryViewer = () => {
         .order('segment_number', { ascending: true });
 
       if (segmentsError) throw segmentsError;
-      setSegments((segmentsData || []).map(s => ({
-        ...s,
-        choices: Array.isArray(s.choices) ? s.choices : []
-      })));
+      
+      // Transform Supabase data to match our interface
+      const transformedSegments: StorySegment[] = (segmentsData || []).map(segment => ({
+        id: segment.id,
+        segment_number: segment.segment_number,
+        content: segment.content || '',
+        image_url: segment.image_url,
+        audio_url: segment.audio_url,
+        choices: Array.isArray(segment.choices) 
+          ? (segment.choices as any[]).map((choice: any) => ({
+              id: choice.id || 0,
+              text: choice.text || '',
+              impact: choice.impact
+            }))
+          : [],
+        is_ending: segment.is_ending || false
+      }));
+      
+      setSegments(transformedSegments);
 
     } catch (error) {
       console.error('Error loading story:', error);
