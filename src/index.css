@@ -66,11 +66,13 @@
     --gradient-primary: linear-gradient(135deg, hsl(39 100% 50%), hsl(51 100% 50%));
     --gradient-surface: linear-gradient(135deg, hsl(240 25% 7%), hsl(240 25% 11%));
     --gradient-glass: linear-gradient(135deg, hsl(0 0% 0% / 0.6), hsl(0 0% 0% / 0.3));
+    --gradient-fire: linear-gradient(135deg, #ff4500, #ff6b00, #ff8c00, #ffa500, #ffb347, #ffd700);
 
     /* Shadows */
     --shadow-glow: 0 0 20px hsl(39 100% 50% / 0.3);
     --shadow-glow-strong: 0 0 40px hsl(39 100% 50% / 0.5);
     --shadow-glass: 0 20px 25px -5px hsl(0 0% 0% / 0.4);
+    --shadow-fire: 0 0 20px rgba(255, 140, 0, 0.4), 0 0 40px rgba(255, 165, 0, 0.3), 0 0 60px rgba(255, 215, 0, 0.2);
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -125,6 +127,10 @@
     @apply bg-black/70 backdrop-blur-lg border border-orange-500/30 rounded-xl shadow-2xl;
   }
 
+  .glass-card-dark {
+    @apply bg-black/70 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl;
+  }
+
   .glass-card-interactive {
     @apply bg-black/40 backdrop-blur-sm border border-orange-500/20 rounded-lg hover:border-orange-500/40 hover:bg-orange-500/5 transition-all duration-300 cursor-pointer hover-scale;
   }
@@ -136,6 +142,10 @@
 
   .btn-secondary {
     @apply px-6 py-3 bg-transparent border-2 border-primary/50 hover:border-primary text-primary hover:text-primary-hover font-semibold rounded-lg transition-all duration-300 hover:bg-primary/5;
+  }
+
+  .btn-accent {
+    @apply px-6 py-3 bg-gradient-to-r from-accent to-secondary text-black font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-glow transform hover:-translate-y-0.5;
   }
 
   .btn-ghost {
@@ -158,6 +168,17 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  }
+
+  .text-fire-gradient {
+    background: var(--gradient-fire);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow-fire {
+    text-shadow: var(--shadow-fire);
   }
 
   /* Text Visibility Enhancements */

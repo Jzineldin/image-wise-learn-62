@@ -56,64 +56,60 @@ const Index = () => {
     <div className="min-h-screen">
       <Navigation />
 
-      {/* Hero Section - Simplified & Prominent */}
-      <section className="relative overflow-hidden min-h-[90vh] flex items-center justify-center">
+      {/* Hero Section - Split Layout */}
+      <section className="relative overflow-hidden min-h-screen flex items-center justify-center">
         <div className="container mx-auto px-4">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              <h1 className="text-6xl md:text-8xl lg:text-9xl font-heading font-bold mb-8 text-gradient leading-tight">
-                TALE FORGE
+          <div className="grid lg:grid-cols-2 gap-12 items-center max-w-7xl mx-auto">
+            
+            {/* Left Side - Main Content */}
+            <div className="space-y-8">
+              <h1 className="text-7xl md:text-8xl lg:text-9xl font-heading font-bold text-fire-gradient leading-tight glow-fire">
+                TALE<br />FORGE
               </h1>
-              <div className="text-container max-w-4xl mx-auto">
-                <p className="text-xl md:text-2xl text-text-secondary">
-                  Where imagination meets AI to create magical stories that come to life
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-6 justify-center max-w-md mx-auto mt-8">
+              
+              <p className="text-xl md:text-2xl text-text-secondary max-w-lg">
+                Where imagination meets AI to create magical stories that come to life
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 max-w-md">
                 <Link to="/create">
-                  <Button className="btn-primary text-lg px-10 py-4 glow-amber hover-scale w-full sm:w-auto">
+                  <Button className="btn-primary text-lg px-8 py-4 w-full sm:w-auto">
                     Start Creating Magic
                   </Button>
                 </Link>
                 <Link to="/discover">
-                  <Button variant="outline" className="btn-secondary text-lg px-10 py-4 w-full sm:w-auto">
+                  <Button variant="outline" className="btn-secondary text-lg px-8 py-4 w-full sm:w-auto">
                     Explore Stories
                   </Button>
                 </Link>
               </div>
             </div>
 
-            {/* Featured Story Card - Right Side */}
+            {/* Right Side - Discovery Card */}
             <div className="flex justify-center lg:justify-end">
-              <div className="glass-card-elevated p-8 max-w-md glow-strong hover-scale animate-float">
-                <div className="relative overflow-hidden rounded-lg mb-6">
-                  <div className="w-full h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                    <img 
-                      src={heroBookImage} 
-                      alt="Featured story preview"
-                      className="w-full h-full object-cover rounded-lg"
-                    />
+              <div className="glass-card-dark p-8 max-w-md w-full rounded-2xl">
+                <div className="text-center space-y-6">
+                  <div className="w-16 h-16 mx-auto bg-white/10 rounded-full flex items-center justify-center">
+                    <BookOpen className="w-8 h-8 text-white" />
                   </div>
-                </div>
-                <div className="content-overlay">
-                  <h3 className="text-xl font-heading font-bold mb-3 text-primary">
-                    A YOUNG WIZARD FINDS A MAP LEADING TO A...
+                  
+                  <h3 className="text-2xl font-heading font-bold text-white">
+                    DISCOVER AMAZING STORIES
                   </h3>
-                  <div className="flex gap-3">
-                    <Link to="/story/preview">
-                      <Button variant="outline" className="btn-secondary text-sm px-4 py-2">
-                        Read Story
-                      </Button>
-                    </Link>
-                    <Link to="/auth">
-                      <Button className="btn-primary text-sm px-4 py-2">
-                        Create Your Own
-                      </Button>
-                    </Link>
-                  </div>
+                  
+                  <p className="text-white/80 leading-relaxed">
+                    Start your magical journey by creating your own personalized story
+                  </p>
+                  
+                  <Link to="/create">
+                    <Button className="btn-accent w-full text-lg py-3">
+                      Create Your First Story
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </div>
+            
           </div>
         </div>
       </section>
