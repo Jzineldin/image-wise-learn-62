@@ -61,7 +61,7 @@ const Create = () => {
               {[
                 { num: 1, label: 'Age Group' },
                 { num: 2, label: 'Genres' },
-                { num: 3, label: 'Create' }
+                { num: 3, label: 'Continue' }
               ].map((stepInfo, index) => (
                 <div key={stepInfo.num} className="flex items-center">
                   <div className="flex flex-col items-center">
@@ -169,11 +169,12 @@ const Create = () => {
             <div className="glass-card-elevated p-8 text-center animate-fade-in">
               <div className="mb-8">
                 <h2 className="text-2xl font-heading font-semibold mb-4 text-with-shadow">
-                  Ready to Create Magic!
+                  Ready to Continue!
                 </h2>
                 <p className="text-text-secondary mb-6">
                   You've selected <strong className="text-primary">{creationState.age_group}</strong> age group
                   with <strong className="text-primary">{creationState.genres.join(', ')}</strong> genres.
+                  Let's add characters and create your story seed!
                 </p>
               </div>
               
@@ -183,7 +184,7 @@ const Create = () => {
                   Back
                 </Button>
                 <Button onClick={handleStartCreating} className="btn-primary text-lg px-8">
-                  Start Creating
+                  Continue to Characters
                 </Button>
               </div>
             </div>
