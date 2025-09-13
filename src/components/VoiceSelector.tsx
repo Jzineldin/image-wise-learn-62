@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -30,7 +30,7 @@ const availableVoices: Voice[] = [
   { id: 'SAz9YHcvj6GT2YYXdXww', name: 'River', description: 'Calm and soothing narrator', gender: 'Non-binary', accent: 'American' },
 ];
 
-export const VoiceSelector = ({ selectedVoice, onVoiceChange, className }: VoiceSelectorProps) => {
+export const VoiceSelector = memo(({ selectedVoice, onVoiceChange, className }: VoiceSelectorProps) => {
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const { toast } = useToast();
@@ -160,4 +160,6 @@ export const VoiceSelector = ({ selectedVoice, onVoiceChange, className }: Voice
       </Dialog>
     </div>
   );
-};
+});
+
+VoiceSelector.displayName = 'VoiceSelector';
