@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sparkles, BookOpen, Users, Star, ArrowRight, Play, Heart } from 'lucide-react';
+import Navigation from '@/components/Navigation';
+import Footer from '@/components/Footer';
 import heroBookImage from '@/assets/hero-book.jpg';
 import childrenStoriesImage from '@/assets/children-stories.jpg';
 import aiStorytellingImage from '@/assets/ai-storytelling.jpg';
@@ -52,42 +54,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="glass-card border-b border-primary/10 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Sparkles className="w-8 h-8 text-primary glow-amber" />
-              <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
-            </div>
-            
-            <div className="hidden md:flex items-center space-x-8">
-              <Link to="/discover" className="text-text-secondary hover:text-primary transition-colors">
-                Discover
-              </Link>
-              <Link to="/about" className="text-text-secondary hover:text-primary transition-colors">
-                About
-              </Link>
-              <Link to="/pricing" className="text-text-secondary hover:text-primary transition-colors">
-                Pricing
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <Link to="/auth/signin">
-                <Button variant="outline" className="btn-secondary">
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/auth/signup">
-                <Button className="btn-primary">
-                  Get Started
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden py-20 md:py-32">
@@ -281,70 +248,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="glass-card border-t border-primary/10 py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Sparkles className="w-6 h-6 text-primary" />
-                <span className="text-xl font-heading font-bold text-gradient">Tale Forge</span>
-              </div>
-              <p className="text-text-secondary">
-                Creating magical stories with the power of AI.
-              </p>
-            </div>
-            
-            <div>
-              <h3 className="font-semibold mb-4">Product</h3>
-              <div className="space-y-2">
-                <Link to="/create" className="block text-text-secondary hover:text-primary transition-colors">
-                  Create Story
-                </Link>
-                <Link to="/discover" className="block text-text-secondary hover:text-primary transition-colors">
-                  Discover
-                </Link>
-                <Link to="/pricing" className="block text-text-secondary hover:text-primary transition-colors">
-                  Pricing
-                </Link>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">Company</h3>
-              <div className="space-y-2">
-                <Link to="/about" className="block text-text-secondary hover:text-primary transition-colors">
-                  About
-                </Link>
-                <Link to="/contact" className="block text-text-secondary hover:text-primary transition-colors">
-                  Contact
-                </Link>
-                <Link to="/blog" className="block text-text-secondary hover:text-primary transition-colors">
-                  Blog
-                </Link>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4">Legal</h3>
-              <div className="space-y-2">
-                <Link to="/privacy" className="block text-text-secondary hover:text-primary transition-colors">
-                  Privacy
-                </Link>
-                <Link to="/terms" className="block text-text-secondary hover:text-primary transition-colors">
-                  Terms
-                </Link>
-              </div>
-            </div>
-          </div>
-          
-          <div className="border-t border-primary/10 mt-8 pt-8 text-center">
-            <p className="text-text-tertiary">
-              © 2024 Tale Forge. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Heart, Eye, Star, Filter, Book } from 'lucide-react';
+import Navigation from '@/components/Navigation';
+import Footer from '@/components/Footer';
 
 const Discover = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,6 +56,7 @@ const Discover = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Navigation />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -181,6 +184,8 @@ const Discover = () => {
           </div>
         </section>
       </div>
+      
+      <Footer />
     </div>
   );
 };

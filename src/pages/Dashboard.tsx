@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Book, Heart, Users, TrendingUp } from 'lucide-react';
+import Navigation from '@/components/Navigation';
+import Footer from '@/components/Footer';
 
 const Dashboard = () => {
   // Mock data for demo
@@ -40,6 +42,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Navigation />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12">
@@ -178,6 +181,8 @@ const Dashboard = () => {
           </Link>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 };

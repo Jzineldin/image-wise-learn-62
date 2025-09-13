@@ -90,8 +90,14 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background: hsl(var(--background));
-    color: hsl(var(--foreground));
+    background-image: 
+      linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6)),
+      url('./assets/main-astronaut.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    min-height: 100vh;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -101,6 +107,15 @@
 }
 
 @layer components {
+  /* Interactive Animations */
+  .story-link {
+    @apply relative inline-block after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-0.5 after:bottom-0 after:left-0 after:bg-primary after:origin-bottom-right after:transition-transform after:duration-300 hover:after:scale-x-100 hover:after:origin-bottom-left;
+  }
+
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-105;
+  }
+
   /* Glass Card Component */
   .glass-card {
     @apply bg-black/60 backdrop-blur-md border border-orange-500/20 rounded-xl shadow-xl;
@@ -111,7 +126,7 @@
   }
 
   .glass-card-interactive {
-    @apply bg-black/40 backdrop-blur-sm border border-orange-500/20 rounded-lg hover:border-orange-500/40 hover:bg-orange-500/5 transition-all duration-300 cursor-pointer;
+    @apply bg-black/40 backdrop-blur-sm border border-orange-500/20 rounded-lg hover:border-orange-500/40 hover:bg-orange-500/5 transition-all duration-300 cursor-pointer hover-scale;
   }
 
   /* Button Components */
@@ -159,12 +174,3 @@
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground;
-  }
-}
