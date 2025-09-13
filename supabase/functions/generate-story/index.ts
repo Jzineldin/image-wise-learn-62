@@ -238,6 +238,8 @@ REQUIREMENTS FOR FIRST SEGMENT:
 6. Include vivid, descriptive language that sets up the story world
 7. Make choices that significantly impact future story direction
 8. Set "is_ending": false for this segment
+9. NEVER include questions or direct reader address in the story content - story content should be pure narrative
+10. ALL questions and interactivity should only appear in the structured choices array
 ` : `
 REQUIREMENTS FOR COMPLETE STORY:
 1. Return JSON with title, description, and multiple segments
@@ -247,6 +249,8 @@ REQUIREMENTS FOR COMPLETE STORY:
 5. Include vivid, descriptive language
 6. Choices should lead to meaningfully different story directions
 7. Mark the final segment with "is_ending": true
+8. NEVER include questions or direct reader address in the story content - story content should be pure narrative
+9. ALL questions and interactivity should only appear in the structured choices array
 `}`;
 
     const userPrompt = isInitialGeneration ? `Create the opening segment of an interactive ${genre} story for ${ageGroup} age group.
@@ -263,6 +267,8 @@ Requirements:
 - The 3 choices should lead to meaningfully different story paths
 - Include rich sensory details and emotional setup
 - Leave the main adventure/conflict unresolved - this is just the beginning
+- NEVER include questions in the story content itself - only pure narrative storytelling
+- Questions like "What should they do?" belong only in the choices, not in the story text
 
 Generate the story opening with title, description, and the first segment with choices.` : `Create a complete interactive ${genre} story for ${ageGroup} age group.
 
@@ -278,6 +284,8 @@ Requirements:
 - Make choices that significantly impact the story direction
 - Include rich sensory details and emotional moments
 - Ensure age-appropriate content and themes
+- NEVER include questions in the story content itself - only pure narrative storytelling
+- Questions like "What should they do?" belong only in the choices, not in the story text
 
 Generate a complete story structure with title, description, and multiple segments with choices.`;
 

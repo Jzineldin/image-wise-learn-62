@@ -194,7 +194,10 @@ CRITICAL REQUIREMENTS:
 4. Build naturally from the previous segment and chosen path
 5. ${shouldBeEnding ? 'This should be a satisfying ending to the story' : 'Include a compelling cliffhanger'}
 6. ${shouldBeEnding ? 'Set "is_ending": true and provide fewer/final choices' : 'Provide exactly 3 meaningful choices that lead to different directions'}
-7. Maintain story consistency and character development`;
+7. Maintain story consistency and character development
+8. NEVER include questions or direct reader address in the story content - story content should be pure narrative
+9. ALL questions and interactivity should only appear in the structured choices array
+10. Cliffhangers should be dramatic situations or moments, not questions posed to the reader`;
 
     const userPrompt = `Continue this ${storyContext.genre} story for ${storyContext.ageGroup} age group:
 
@@ -211,6 +214,8 @@ ${previousSegmentContent}
 USER'S CHOICE: ${choiceText}
 
 Continue the story from this choice. ${shouldBeEnding ? 'Create a satisfying conclusion.' : 'Build tension and create a compelling cliffhanger.'} Maintain the story's tone and ensure smooth narrative flow.
+
+IMPORTANT: Write pure narrative content without questions. Instead of ending with "What should they do?" create dramatic moments like "The door creaked open, revealing..." or "Suddenly, three paths appeared before them..." - let the choices provide the interactivity.
 
 Segment Number: ${segmentNumber}
 ${shouldBeEnding ? 'This should be the final segment.' : ''}`;
