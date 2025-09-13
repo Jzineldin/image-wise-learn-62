@@ -35,7 +35,7 @@ const Create = () => {
   };
 
   const handleStartCreating = () => {
-    // Navigate to story creation with prompt input
+    // Navigate to new streamlined story creation flow
     navigate('/create/story');
   };
 
