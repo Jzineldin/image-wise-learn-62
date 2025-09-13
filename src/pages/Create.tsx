@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ArrowRight, Sparkles, Users, BookOpen, Wand2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, Users, BookOpen, Wand2, Home, User, Settings, Heart } from 'lucide-react';
 import { AGE_GROUPS, GENRES } from '@/types';
 import { UserCharacter, StorySeed, StoryCreationFlow } from '@/types/character';
 import { CharacterSelector } from '@/components/story-creation/CharacterSelector';
@@ -12,6 +12,7 @@ import { StorySeedGenerator } from '@/components/story-creation/StorySeedGenerat
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 
 const STEPS = [
   { id: 1, title: 'Age & Genre', icon: BookOpen },
@@ -195,18 +196,52 @@ export default function CreateStoryFlow() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+      {/* Navigation Header */}
+      <nav className="glass-card border-b border-primary/10 sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <Link to="/dashboard" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+              <img 
+                src={taleForgeLogoImage} 
+                alt="Tale Forge Logo" 
+                className="w-10 h-10 object-contain"
+              />
+              <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
+            </Link>
+            
+            <div className="hidden md:flex items-center space-x-8">
+              <Link to="/dashboard" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow flex items-center gap-2">
+                <Home className="h-4 w-4" />
+                Dashboard
+              </Link>
+              <Link to="/discover" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
+                Discover
+              </Link>
+              <Link to="/characters" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Characters
+              </Link>
+              <Link to="/my-stories" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow flex items-center gap-2">
+                <Heart className="h-4 w-4" />
+                My Stories
+              </Link>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <Link to="/settings">
+                <Button variant="outline" className="btn-secondary flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Button>
           <div className="flex-1">
             <h1 className="text-2xl font-bold">Create Your Story</h1>
             <p className="text-muted-foreground">Let's build an amazing interactive story together!</p>
