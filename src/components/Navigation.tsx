@@ -11,14 +11,14 @@ const Navigation = ({ className = "" }: NavigationProps) => {
     <nav className={`glass-card border-b border-primary/10 sticky top-0 z-50 ${className}`}>
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
             <img 
               src={taleForgeLogoImage} 
               alt="Tale Forge Logo" 
               className="w-10 h-10 object-contain"
             />
             <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
-          </div>
+          </Link>
           
           <div className="hidden md:flex items-center space-x-8">
             <Link to="/discover" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
