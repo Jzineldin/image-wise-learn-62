@@ -7,6 +7,7 @@ import { Sparkles, Download, Share2, BookOpen, Volume2, RefreshCw } from 'lucide
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { logger, generateRequestId } from '@/lib/debug';
 
 interface Story {
   id: string;
@@ -89,9 +90,19 @@ const StoryEnd = () => {
   };
 
   const generateTitleSuggestions = async (storyData: Story, segmentsData: StorySegment[]) => {
+    const requestId = generateRequestId();
     setGeneratingTitles(true);
+    
     try {
       const fullStoryContent = segmentsData.map(s => s.content).join('\n\n');
+      
+      logger.info('🎭 Starting title generation', {
+        requestId,
+        storyId: storyData.id,
+        contentLength: fullStoryContent.length,
+        ageGroup: storyData.age_group,
+        genre: storyData.genre
+      });
       
       const { data, error } = await supabase.functions.invoke('generate-story-title', {
         body: {
@@ -99,23 +110,57 @@ const StoryEnd = () => {
           ageGroup: storyData.age_group,
           genre: storyData.genre,
           characters: storyData.metadata?.characters || [],
-          currentTitle: storyData.title
+          currentTitle: storyData.title,
+          requestId
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        logger.error('❌ Title generation failed', error, { requestId, storyId: storyData.id });
+        throw error;
+      }
 
-      setTitleSuggestions(data.titles);
+      logger.debug('🎭 Title generation response', { requestId, data });
       
-    } catch (error) {
-      console.error('Error generating titles:', error);
-      setTitleSuggestions([
+      // Defensive parsing of response
+      const titles = Array.isArray(data?.titles) ? data.titles : 
+                    Array.isArray(data?.suggested_titles) ? data.suggested_titles :
+                    Array.isArray(data) ? data : [];
+      
+      if (titles.length === 0) {
+        logger.warn('⚠️ No titles returned from API, using fallbacks', { requestId, responseData: data });
+      }
+      
+      const safeTitles = titles.length > 0 ? titles : [
         storyData.title,
         `The ${storyData.genre.charAt(0).toUpperCase() + storyData.genre.slice(1)} Adventure`,
         `A Magical Tale`,
         `The Great Journey`,
         `An Unforgettable Story`
-      ]);
+      ];
+      
+      setTitleSuggestions(safeTitles);
+      logger.info('✅ Title suggestions set', { requestId, count: safeTitles.length });
+      
+    } catch (error) {
+      logger.error('❌ Error generating titles', error, { requestId, storyId: storyData.id });
+      
+      // Fallback titles
+      const fallbackTitles = [
+        storyData.title,
+        `The ${storyData.genre.charAt(0).toUpperCase() + storyData.genre.slice(1)} Adventure`,
+        `A Magical Tale`,
+        `The Great Journey`,
+        `An Unforgettable Story`
+      ];
+      
+      setTitleSuggestions(fallbackTitles);
+      
+      toast({
+        title: "Title generation partially failed",
+        description: "Using suggested titles instead. Your story is still ready!",
+        variant: "default",
+      });
     } finally {
       setGeneratingTitles(false);
     }
@@ -178,9 +223,22 @@ const StoryEnd = () => {
   const finalizeStory = async () => {
     if (!story || !user) return;
 
+    const requestId = generateRequestId();
     setFinalizing(true);
+    
     try {
       const finalTitle = customTitle.trim() || selectedTitle;
+      
+      logger.info('📚 Finalizing story', {
+        requestId,
+        storyId: story.id,
+        finalTitle,
+        segmentCount: segments.length,
+        hasMetadata: !!story.metadata
+      });
+      
+      // Safely handle metadata - ensure it's an object
+      const safeMetadata = story.metadata && typeof story.metadata === 'object' ? story.metadata : {};
       
       // Update story with final title and mark as completed
       const { error: updateError } = await supabase
@@ -192,7 +250,7 @@ const StoryEnd = () => {
           is_complete: true,
           visibility: 'private', // Can be changed later
           metadata: {
-            ...story.metadata,
+            ...safeMetadata,
             completion_date: new Date().toISOString(),
             final_segment_count: segments.length,
             has_audio: segments.some(s => s.audio_url)
@@ -200,8 +258,13 @@ const StoryEnd = () => {
         })
         .eq('id', story.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        logger.error('❌ Story finalization failed', updateError, { requestId, storyId: story.id });
+        throw updateError;
+      }
 
+      logger.info('✅ Story finalized successfully', { requestId, storyId: story.id });
+      
       toast({
         title: "Story completed!",
         description: "Your adventure has been saved successfully.",
@@ -211,7 +274,7 @@ const StoryEnd = () => {
       navigate('/dashboard');
 
     } catch (error) {
-      console.error('Error finalizing story:', error);
+      logger.error('❌ Error finalizing story', error, { requestId, storyId: story?.id });
       toast({
         title: "Finalization failed",
         description: "Failed to complete the story. Please try again.",
@@ -337,7 +400,7 @@ const StoryEnd = () => {
                 )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {titleSuggestions.map((title, index) => (
+                {(titleSuggestions || []).map((title, index) => (
                   <Card
                     key={index}
                     className={`glass-card-interactive p-4 cursor-pointer transition-all ${
