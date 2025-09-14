@@ -66,7 +66,7 @@
     --gradient-primary: linear-gradient(135deg, hsl(39 100% 50%), hsl(51 100% 50%));
     --gradient-surface: linear-gradient(135deg, hsl(240 25% 7%), hsl(240 25% 11%));
     --gradient-glass: linear-gradient(135deg, hsl(0 0% 0% / 0.6), hsl(0 0% 0% / 0.3));
-    --gradient-fire: linear-gradient(135deg, #ff4500, #ff6b00, #ff8c00, #ffa500, #ffb347, #ffd700);
+    --gradient-fire: linear-gradient(135deg, #ff8c00, #ffa500, #ffb347, #ffd700, #ffdd4a, #ffe135);
 
     /* Shadows */
     --shadow-glow: 0 0 20px hsl(39 100% 50% / 0.3);

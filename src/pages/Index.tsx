@@ -58,9 +58,9 @@ const Index = () => {
       <Navigation />
 
       {/* Hero Section - Split Layout */}
-      <section className="relative overflow-hidden min-h-screen flex items-center justify-center">
+      <section className="relative overflow-hidden min-h-screen flex items-center justify-center pt-16">
         <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center max-w-7xl mx-auto -mt-16">
             
             {/* Left Side - Main Content */}
             <div className="space-y-8 lg:space-y-10 flex flex-col justify-center min-h-[500px]">
