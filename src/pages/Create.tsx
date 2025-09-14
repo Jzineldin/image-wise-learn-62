@@ -151,9 +151,9 @@ export default function CreateStoryFlow() {
         const segmentsToInsert = generationResult.segments.map((segment: any, index: number) => ({
           story_id: story.id,
           segment_number: index + 1,
-          content: segment.content,
-          choices: segment.choices || [],
-          is_ending: segment.isEnding || false,
+          content: segment.content || segment.text || '',
+          choices: Array.isArray(segment.choices) ? segment.choices : [],
+          is_ending: (segment.isEnding ?? segment.is_ending ?? false),
           image_prompt: segment.imagePrompt
         }));
 

@@ -349,23 +349,66 @@ Generate a complete story structure with title, description, and multiple segmen
 
     console.log('Story generated successfully with model:', model);
 
-    // Ensure consistent property names and structure
-    const normalizedStoryData = {
-      title: storyData.title,
-      description: storyData.description,
-      segments: storyData.segments?.map((segment: any) => ({
-        segment_number: segment.segment_number,
-        content: segment.content,
-        choices: segment.choices || [],
-        is_ending: segment.is_ending || segment.isEnding || false
-      })) || [],
-      model_used: model,
-      language: languageCode
-    };
+    // Ensure consistent property names and structure with robust normalization
+    const candidates: any[] = [];
+    try {
+      const sd: any = storyData || {};
+      if (Array.isArray(sd.segments)) candidates.push(sd.segments);
+      if (Array.isArray(sd.segment)) candidates.push(sd.segment);
+      if (sd.segment && typeof sd.segment === 'object' && !Array.isArray(sd.segment)) candidates.push([sd.segment]);
+      ['chapters','parts','items','entries'].forEach((k) => {
+        const v = sd[k];
+        if (Array.isArray(v)) candidates.push(v);
+      });
+      // Pick the first array that looks like segments (objects with content/text)
+      let chosen: any[] | null = candidates.find((arr) => Array.isArray(arr) && arr.length > 0 && typeof arr[0] === 'object' && (('content' in arr[0]) || ('text' in arr[0]) || ('segment' in arr[0])) ) || null;
+      if (!chosen && sd.content) {
+        chosen = [{ content: sd.content }];
+      }
 
-    return new Response(JSON.stringify(normalizedStoryData), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      const normalizedSegments = (chosen || []).map((seg: any, idx: number) => {
+        const content = seg.content || seg.text || seg.segment || '';
+        const rawChoices = Array.isArray(seg.choices)
+          ? seg.choices
+          : Array.isArray(seg.options)
+            ? seg.options
+            : [];
+        const choices = rawChoices.map((c: any, i: number) => ({
+          id: c?.id ?? (i + 1),
+          text: c?.text ?? c?.label ?? '',
+          impact: c?.impact ?? c?.outcome ?? ''
+        }));
+        const segment_number = seg.segment_number ?? seg.number ?? seg.index ?? (idx + 1);
+        const is_ending = seg.is_ending ?? seg.isEnding ?? false;
+        return { segment_number, content, choices, is_ending };
+      });
+
+      console.log(`Normalized segments count: ${normalizedSegments.length}`);
+
+      const normalizedStoryData = {
+        title: sd.title || 'Untitled Story',
+        description: sd.description || '',
+        segments: normalizedSegments,
+        model_used: model,
+        language: languageCode
+      };
+
+      return new Response(JSON.stringify(normalizedStoryData), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } catch (normErr) {
+      console.error('Normalization error:', normErr);
+      const fallback = {
+        title: storyData?.title || 'Untitled Story',
+        description: storyData?.description || '',
+        segments: [],
+        model_used: model,
+        language: languageCode
+      };
+      return new Response(JSON.stringify(fallback), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
   } catch (error) {
     console.error('Error in generate-story function:', error);
