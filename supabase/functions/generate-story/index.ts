@@ -349,11 +349,21 @@ Generate a complete story structure with title, description, and multiple segmen
 
     console.log('Story generated successfully with model:', model);
 
-    return new Response(JSON.stringify({ 
-      ...storyData,
+    // Ensure consistent property names and structure
+    const normalizedStoryData = {
+      title: storyData.title,
+      description: storyData.description,
+      segments: storyData.segments?.map((segment: any) => ({
+        segment_number: segment.segment_number,
+        content: segment.content,
+        choices: segment.choices || [],
+        is_ending: segment.is_ending || segment.isEnding || false
+      })) || [],
       model_used: model,
-      language: languageCode 
-    }), {
+      language: languageCode
+    };
+
+    return new Response(JSON.stringify(normalizedStoryData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
