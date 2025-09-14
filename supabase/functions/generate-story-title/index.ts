@@ -29,11 +29,12 @@ serve(async (req) => {
   }
 
   try {
+    const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     const ovhToken = Deno.env.get('OVH_AI_ENDPOINTS_ACCESS_TOKEN');
     
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    if (!openRouterApiKey || !openAIApiKey) {
+      throw new Error('AI API keys not configured');
     }
 
     const { 
@@ -87,63 +88,107 @@ Generate titles that are:
 
 Return format: { "titles": ["Title 1", "Title 2", ...], "recommended": "Title 1" }`;
 
-    // Try GPT-4o first
-    let response, data, titleData, model = 'gpt-4o';
+    // Try OpenRouter first, then OpenAI, then OVH as fallbacks
+    let response, data, titleData, model = 'openrouter/sonoma-dusk-alpha';
 
     try {
-      console.log('Attempting GPT-4o title generation...');
+      console.log('Attempting OpenRouter Sonoma Dusk Alpha title generation...');
       
-      response = await fetch('https://api.openai.com/v1/chat/completions', {
+      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
+          'Authorization': `Bearer ${openRouterApiKey}`,
           'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://taleforge.app',
+          'X-Title': 'Tale Forge - AI Story Generator'
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: 'openrouter/sonoma-dusk-alpha',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
           ],
           max_tokens: 300,
           temperature: 0.9, // Higher creativity for titles
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "title_suggestions",
-              schema: {
-                type: "object",
-                properties: {
-                  titles: {
-                    type: "array",
-                    items: { type: "string" },
-                    minItems: 5,
-                    maxItems: 5
-                  },
-                  recommended: { type: "string" }
-                },
-                required: ["titles", "recommended"]
-              }
-            }
-          }
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`GPT-4o failed: ${response.status}`);
+        throw new Error(`OpenRouter failed: ${response.status}`);
       }
 
       data = await response.json();
-      titleData = JSON.parse(data.choices[0].message.content);
+      const content = data.choices[0].message.content;
+      
+      // Parse JSON from OpenRouter response
+      try {
+        titleData = JSON.parse(content);
+      } catch {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          titleData = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No valid JSON found in OpenRouter response');
+        }
+      }
       
     } catch (error) {
-      console.error('GPT-4o failed, trying OVH Llama fallback:', error.message);
+      console.error('OpenRouter failed, trying OpenAI fallback:', error.message);
+      model = 'gpt-4o-mini';
       
-      if (!ovhToken) {
-        throw new Error('OVH token not available for fallback');
-      }
-
       try {
+        response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openAIApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            max_tokens: 300,
+            temperature: 0.9,
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "title_suggestions",
+                schema: {
+                  type: "object",
+                  properties: {
+                    titles: {
+                      type: "array",
+                      items: { type: "string" },
+                      minItems: 5,
+                      maxItems: 5
+                    },
+                    recommended: { type: "string" }
+                  },
+                  required: ["titles", "recommended"]
+                }
+              }
+            }
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`OpenAI failed: ${response.status}`);
+        }
+
+        data = await response.json();
+        titleData = JSON.parse(data.choices[0].message.content);
+        
+      } catch (openAIError) {
+        console.error('OpenAI failed, trying OVH Llama fallback:', openAIError.message);
+        
+        if (!ovhToken) {
+          throw new Error('OVH token not available for fallback');
+        }
+
+        model = 'Meta-Llama-3_3-70B-Instruct';
+        
         response = await fetch('https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -171,14 +216,13 @@ Return format: { "titles": ["Title 1", "Title 2", ...], "recommended": "Title 1"
         
         if (jsonMatch) {
           titleData = JSON.parse(jsonMatch[0]);
-          model = 'Meta-Llama-3_3-70B-Instruct';
         } else {
           throw new Error('No valid JSON found in OVH response');
         }
         
       } catch (fallbackError) {
         // Generate fallback titles based on content analysis
-        console.error('Both AI services failed, generating fallback titles');
+        console.error('All AI services failed, generating fallback titles');
         titleData = generateFallbackTitles(storyContent, ageGroup, genre, characterNames);
         model = 'fallback-generator';
       }

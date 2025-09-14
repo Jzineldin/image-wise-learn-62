@@ -26,94 +26,144 @@ interface StorySeed {
 
 // AI Service for seeds generation
 class SeedsAIService {
+  private openRouterKey: string;
   private openAIKey: string;
   private ovhToken: string;
 
-  constructor(openAIKey: string, ovhToken: string) {
+  constructor(openRouterKey: string, openAIKey: string, ovhToken: string) {
+    this.openRouterKey = openRouterKey;
     this.openAIKey = openAIKey;
     this.ovhToken = ovhToken;
   }
 
   async generateSeeds(messages: any[]): Promise<{ seeds: StorySeed[]; model: string }> {
-    console.log('Attempting gpt-4o-mini seeds generation...');
+    console.log('Attempting OpenRouter Sonoma Dusk Alpha seeds generation...');
     
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.openAIKey}`,
+          'Authorization': `Bearer ${this.openRouterKey}`,
           'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://taleforge.app',
+          'X-Title': 'Tale Forge - AI Story Generator'
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'openrouter/sonoma-dusk-alpha',
           messages,
           max_tokens: 1000,
-          response_format: { type: "json_object" }
+          temperature: 0.7,
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('OpenAI API error:', response.status, errorText);
-        throw new Error(`gpt-4o-mini failed: ${response.status} ${errorText}`);
+        console.error('OpenRouter API error:', response.status, errorText);
+        throw new Error(`OpenRouter failed: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
       const content = data.choices[0].message.content;
-      const parsedResponse = JSON.parse(content);
       
-      if (!parsedResponse.seeds || !Array.isArray(parsedResponse.seeds)) {
-        throw new Error('Invalid seeds structure from gpt-4o-mini');
+      // Parse JSON from OpenRouter response
+      let parsedResponse;
+      try {
+        parsedResponse = JSON.parse(content);
+      } catch {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsedResponse = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No valid JSON found in OpenRouter response');
+        }
       }
       
-      return { seeds: parsedResponse.seeds, model: 'gpt-4o-mini' };
+      if (!parsedResponse.seeds || !Array.isArray(parsedResponse.seeds)) {
+        throw new Error('Invalid seeds structure from OpenRouter');
+      }
+      
+      return { seeds: parsedResponse.seeds, model: 'openrouter/sonoma-dusk-alpha' };
     } catch (error) {
-      console.error('gpt-4o-mini failed, trying OVH Llama fallback:', error.message);
+      console.error('OpenRouter failed, trying OpenAI fallback:', error.message);
       
       try {
-        const systemPrompt = messages.find(m => m.role === 'system')?.content || '';
-        const userPrompt = messages.find(m => m.role === 'user')?.content || '';
-        
-        const response = await fetch('https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${this.ovhToken}`,
+            'Authorization': `Bearer ${this.openAIKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'Meta-Llama-3_3-70B-Instruct',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt + '\n\nReturn only valid JSON with exactly 3 story seeds.' }
-            ],
+            model: 'gpt-4o-mini',
+            messages,
             max_tokens: 1000,
-            temperature: 0.7,
+            response_format: { type: "json_object" }
           }),
         });
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('OVH Llama API error:', response.status, errorText);
-          throw new Error(`OVH Llama failed: ${response.status}`);
+          console.error('OpenAI API error:', response.status, errorText);
+          throw new Error(`OpenAI failed: ${response.status} ${errorText}`);
         }
 
         const data = await response.json();
         const content = data.choices[0].message.content;
+        const parsedResponse = JSON.parse(content);
         
-        // Extract JSON from response
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsedResponse = JSON.parse(jsonMatch[0]);
-          if (!parsedResponse.seeds || !Array.isArray(parsedResponse.seeds)) {
-            throw new Error('Invalid seeds structure from OVH Llama');
-          }
-          return { seeds: parsedResponse.seeds, model: 'Meta-Llama-3_3-70B-Instruct' };
+        if (!parsedResponse.seeds || !Array.isArray(parsedResponse.seeds)) {
+          throw new Error('Invalid seeds structure from OpenAI');
         }
         
-        throw new Error('No valid JSON found in OVH response');
-      } catch (fallbackError) {
-        console.error('OVH Llama fallback failed:', fallbackError.message);
-        throw new Error(`All AI services failed: ${error.message}, ${fallbackError.message}`);
+        return { seeds: parsedResponse.seeds, model: 'gpt-4o-mini' };
+      } catch (openAIError) {
+        console.error('OpenAI failed, trying OVH Llama fallback:', openAIError.message);
+        
+        try {
+          const systemPrompt = messages.find(m => m.role === 'system')?.content || '';
+          const userPrompt = messages.find(m => m.role === 'user')?.content || '';
+          
+          const response = await fetch('https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${this.ovhToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'Meta-Llama-3_3-70B-Instruct',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt + '\n\nReturn only valid JSON with exactly 3 story seeds.' }
+              ],
+              max_tokens: 1000,
+              temperature: 0.7,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('OVH Llama API error:', response.status, errorText);
+            throw new Error(`OVH Llama failed: ${response.status}`);
+          }
+
+          const data = await response.json();
+          const content = data.choices[0].message.content;
+          
+          // Extract JSON from response
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsedResponse = JSON.parse(jsonMatch[0]);
+            if (!parsedResponse.seeds || !Array.isArray(parsedResponse.seeds)) {
+              throw new Error('Invalid seeds structure from OVH Llama');
+            }
+            return { seeds: parsedResponse.seeds, model: 'Meta-Llama-3_3-70B-Instruct' };
+          }
+          
+          throw new Error('No valid JSON found in OVH response');
+        } catch (fallbackError) {
+          console.error('OVH Llama fallback failed:', fallbackError.message);
+          throw new Error(`All AI services failed: ${error.message}, ${openAIError.message}, ${fallbackError.message}`);
+        }
       }
     }
   }
@@ -126,10 +176,11 @@ serve(async (req) => {
   }
 
   try {
+    const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     const ovhToken = Deno.env.get('OVH_AI_ENDPOINTS_ACCESS_TOKEN');
     
-    if (!openAIApiKey || !ovhToken) {
+    if (!openRouterApiKey || !openAIApiKey || !ovhToken) {
       throw new Error('AI API keys not configured');
     }
 
@@ -188,7 +239,7 @@ Return as a JSON array of exactly 3 seeds with this structure:
   ]
 }`;
 
-    const aiService = new SeedsAIService(openAIApiKey, ovhToken);
+    const aiService = new SeedsAIService(openRouterApiKey, openAIApiKey, ovhToken);
 
     const messages = [
       { role: 'system', content: systemPrompt },

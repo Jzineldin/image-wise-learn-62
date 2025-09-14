@@ -38,105 +38,149 @@ interface StorySegment {
 
 // AI Service for segment generation
 class SegmentAIService {
+  private openRouterKey: string;
   private openAIKey: string;
   private ovhToken: string;
 
-  constructor(openAIKey: string, ovhToken: string) {
+  constructor(openRouterKey: string, openAIKey: string, ovhToken: string) {
+    this.openRouterKey = openRouterKey;
     this.openAIKey = openAIKey;
     this.ovhToken = ovhToken;
   }
 
   async generateSegment(messages: any[]): Promise<{ data: StorySegment; model: string }> {
-    console.log('Attempting GPT-4o segment generation...');
+    console.log('Attempting OpenRouter Sonoma Dusk Alpha segment generation...');
     
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.openAIKey}`,
+          'Authorization': `Bearer ${this.openRouterKey}`,
           'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://taleforge.app',
+          'X-Title': 'Tale Forge - AI Story Generator'
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: 'openrouter/sonoma-dusk-alpha',
           messages,
           max_tokens: 1000,
           temperature: 0.8,
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "story_segment",
-              schema: {
-                type: "object",
-                properties: {
-                  content: { type: "string", minLength: 200 },
-                  choices: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "integer" },
-                        text: { type: "string" },
-                        impact: { type: "string" }
-                      },
-                      required: ["id", "text", "impact"]
-                    }
-                  },
-                  is_ending: { type: "boolean" }
-                },
-                required: ["content", "choices"]
-              }
-            }
-          }
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`GPT-4o failed: ${response.status}`);
+        throw new Error(`OpenRouter failed: ${response.status}`);
       }
 
       const data = await response.json();
-      const segmentData = JSON.parse(data.choices[0].message.content);
-      return { data: segmentData, model: 'gpt-4o' };
+      const content = data.choices[0].message.content;
+      
+      // Parse JSON from OpenRouter response
+      let segmentData;
+      try {
+        segmentData = JSON.parse(content);
+      } catch {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          segmentData = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No valid JSON found in OpenRouter response');
+        }
+      }
+      
+      return { data: segmentData, model: 'openrouter/sonoma-dusk-alpha' };
     } catch (error) {
-      console.error('GPT-4o failed, trying OVH Llama fallback:', error.message);
+      console.error('OpenRouter failed, trying OpenAI fallback:', error.message);
       
       try {
-        const systemPrompt = messages.find(m => m.role === 'system')?.content || '';
-        const userPrompt = messages.find(m => m.role === 'user')?.content || '';
-        
-        const response = await fetch('https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${this.ovhToken}`,
+            'Authorization': `Bearer ${this.openAIKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'Meta-Llama-3_3-70B-Instruct',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt + '\n\nReturn only valid JSON.' }
-            ],
+            model: 'gpt-4o-mini',
+            messages,
             max_tokens: 1000,
             temperature: 0.8,
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "story_segment",
+                schema: {
+                  type: "object",
+                  properties: {
+                    content: { type: "string", minLength: 200 },
+                    choices: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          id: { type: "integer" },
+                          text: { type: "string" },
+                          impact: { type: "string" }
+                        },
+                        required: ["id", "text", "impact"]
+                      }
+                    },
+                    is_ending: { type: "boolean" }
+                  },
+                  required: ["content", "choices"]
+                }
+              }
+            }
           }),
         });
 
         if (!response.ok) {
-          throw new Error(`OVH Llama failed: ${response.status}`);
+          throw new Error(`OpenAI failed: ${response.status}`);
         }
 
         const data = await response.json();
-        const content = data.choices[0].message.content;
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        const segmentData = JSON.parse(data.choices[0].message.content);
+        return { data: segmentData, model: 'gpt-4o-mini' };
+      } catch (openAIError) {
+        console.error('OpenAI failed, trying OVH Llama fallback:', openAIError.message);
         
-        if (jsonMatch) {
-          const segmentData = JSON.parse(jsonMatch[0]);
-          return { data: segmentData, model: 'Meta-Llama-3_3-70B-Instruct' };
+        try {
+          const systemPrompt = messages.find(m => m.role === 'system')?.content || '';
+          const userPrompt = messages.find(m => m.role === 'user')?.content || '';
+          
+          const response = await fetch('https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${this.ovhToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'Meta-Llama-3_3-70B-Instruct',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt + '\n\nReturn only valid JSON.' }
+              ],
+              max_tokens: 1000,
+              temperature: 0.8,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`OVH Llama failed: ${response.status}`);
+          }
+
+          const data = await response.json();
+          const content = data.choices[0].message.content;
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          
+          if (jsonMatch) {
+            const segmentData = JSON.parse(jsonMatch[0]);
+            return { data: segmentData, model: 'Meta-Llama-3_3-70B-Instruct' };
+          }
+          
+          throw new Error('No valid JSON found in OVH response');
+        } catch (fallbackError) {
+          throw new Error(`All AI services failed: ${error.message}, ${openAIError.message}, ${fallbackError.message}`);
         }
-        
-        throw new Error('No valid JSON found in OVH response');
-      } catch (fallbackError) {
-        throw new Error(`All AI services failed: ${error.message}, ${fallbackError.message}`);
       }
     }
   }
@@ -148,10 +192,11 @@ serve(async (req) => {
   }
 
   try {
+    const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     const ovhToken = Deno.env.get('OVH_AI_ENDPOINTS_ACCESS_TOKEN');
     
-    if (!openAIApiKey || !ovhToken) {
+    if (!openRouterApiKey || !openAIApiKey || !ovhToken) {
       throw new Error('AI API keys not configured');
     }
 
@@ -175,7 +220,7 @@ serve(async (req) => {
       choiceText: choiceText.substring(0, 50) + '...'
     });
 
-    const aiService = new SegmentAIService(openAIApiKey, ovhToken);
+    const aiService = new SegmentAIService(openRouterApiKey, openAIApiKey, ovhToken);
 
     // Build character description
     const characterDesc = storyContext.characters.map(char => 

@@ -42,10 +42,12 @@ interface StoryResponse {
 
 // AI Service abstraction for easy vendor switching
 class AIService {
+  private openRouterKey: string;
   private openAIKey: string;
   private ovhToken: string;
 
-  constructor(openAIKey: string, ovhToken: string) {
+  constructor(openRouterKey: string, openAIKey: string, ovhToken: string) {
+    this.openRouterKey = openRouterKey;
     this.openAIKey = openAIKey;
     this.ovhToken = ovhToken;
   }
@@ -57,11 +59,11 @@ class AIService {
         'Authorization': `Bearer ${this.openAIKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages,
-        max_tokens: 2000,
-        temperature,
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages,
+          max_tokens: 2000,
+          temperature,
         response_format: {
           type: "json_schema",
           json_schema: {
@@ -156,22 +158,70 @@ class AIService {
     }
   }
 
+  async generateWithOpenRouter(messages: any[], temperature = 0.7): Promise<any> {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.openRouterKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://taleforge.app',
+        'X-Title': 'Tale Forge - AI Story Generator'
+      },
+      body: JSON.stringify({
+        model: 'openrouter/sonoma-dusk-alpha',
+        messages,
+        max_tokens: 2000,
+        temperature,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenRouter API error:', response.status, errorText);
+      throw new Error(`OpenRouter failed: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
   async generateStory(messages: any[], temperature = 0.7, isInitialGeneration = false): Promise<{ data: StoryResponse; model: string }> {
-    console.log('Attempting GPT-4o generation...');
+    console.log('Attempting OpenRouter Sonoma Dusk Alpha generation...');
     
     try {
-      const response = await this.generateWithGPT4o(messages, temperature, isInitialGeneration);
-      const storyData = JSON.parse(response.choices[0].message.content);
-      return { data: storyData, model: 'gpt-4o' };
+      const response = await this.generateWithOpenRouter(messages, temperature);
+      const content = response.choices[0].message.content;
+      
+      // Parse JSON from OpenRouter response
+      let storyData;
+      try {
+        storyData = JSON.parse(content);
+      } catch {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          storyData = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No valid JSON found in OpenRouter response');
+        }
+      }
+      
+      return { data: storyData, model: 'openrouter/sonoma-dusk-alpha' };
     } catch (error) {
-      console.error('GPT-4o failed, trying OVH Llama fallback:', error.message);
+      console.error('OpenRouter failed, trying OpenAI fallback:', error.message);
       
       try {
-        const response = await this.generateWithOVHLlama(messages, temperature);
-        return { data: response.choices[0].message.content, model: 'Meta-Llama-3_3-70B-Instruct' };
-      } catch (fallbackError) {
-        console.error('Both AI services failed:', fallbackError.message);
-        throw new Error(`All AI services failed. Primary: ${error.message}, Fallback: ${fallbackError.message}`);
+        const response = await this.generateWithGPT4o(messages, temperature, isInitialGeneration);
+        const storyData = JSON.parse(response.choices[0].message.content);
+        return { data: storyData, model: 'gpt-4o-mini' };
+      } catch (openAIError) {
+        console.error('OpenAI failed, trying OVH Llama fallback:', openAIError.message);
+        
+        try {
+          const response = await this.generateWithOVHLlama(messages, temperature);
+          return { data: response.choices[0].message.content, model: 'Meta-Llama-3_3-70B-Instruct' };
+        } catch (fallbackError) {
+          console.error('All AI services failed:', fallbackError.message);
+          throw new Error(`All AI services failed. OpenRouter: ${error.message}, OpenAI: ${openAIError.message}, OVH: ${fallbackError.message}`);
+        }
       }
     }
   }
@@ -183,10 +233,11 @@ serve(async (req) => {
   }
 
   try {
+    const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     const ovhToken = Deno.env.get('OVH_AI_ENDPOINTS_ACCESS_TOKEN');
     
-    if (!openAIApiKey || !ovhToken) {
+    if (!openRouterApiKey || !openAIApiKey || !ovhToken) {
       throw new Error('AI API keys not configured');
     }
 
@@ -206,7 +257,7 @@ serve(async (req) => {
 
     console.log('Story generation request:', { prompt, ageGroup, genre, languageCode, storyLength, isInitialGeneration });
 
-    const aiService = new AIService(openAIApiKey, ovhToken);
+    const aiService = new AIService(openRouterApiKey, openAIApiKey, ovhToken);
 
     // Build enhanced prompt for structured story generation
     const characterDesc = characters?.map(char => 

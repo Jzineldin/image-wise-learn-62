@@ -32,11 +32,13 @@ serve(async (req) => {
   try {
     console.log('Generate ending request received');
     
+    const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    const ovhToken = Deno.env.get('OVH_AI_ENDPOINTS_ACCESS_TOKEN');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!openAIApiKey || !supabaseUrl || !supabaseServiceKey) {
+    if (!openRouterApiKey || !openAIApiKey || !ovhToken || !supabaseUrl || !supabaseServiceKey) {
       throw new Error('Missing required environment variables');
     }
 
@@ -98,50 +100,81 @@ Create an ending that feels like a natural conclusion to this adventure.`;
       { role: 'user', content: userPrompt }
     ];
 
-    // Try GPT-4o first, then fallback to GPT-4o-mini
+    // Try OpenRouter first, then OpenAI, then OVH as fallbacks
     let response;
-    let model = 'gpt-4o';
+    let model = 'openrouter/sonoma-dusk-alpha';
     
     try {
-      response = await fetch('https://api.openai.com/v1/chat/completions', {
+      console.log('Trying OpenRouter Sonoma Dusk Alpha for ending generation...');
+      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
+          'Authorization': `Bearer ${openRouterApiKey}`,
           'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://taleforge.app',
+          'X-Title': 'Tale Forge - AI Story Generator'
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
+          model: 'openrouter/sonoma-dusk-alpha',
           messages,
           temperature: 0.8,
           max_tokens: 500,
-          response_format: { type: "json_object" }
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`GPT-4o failed: ${response.status}`);
+        throw new Error(`OpenRouter failed: ${response.status}`);
       }
     } catch (error) {
-      console.log('GPT-4o failed, trying GPT-4o-mini:', error);
+      console.log('OpenRouter failed, trying OpenAI fallback:', error);
       model = 'gpt-4o-mini';
       
-      response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages,
-          temperature: 0.8,
-          max_tokens: 500,
-          response_format: { type: "json_object" }
-        }),
-      });
+      try {
+        response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openAIApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages,
+            temperature: 0.8,
+            max_tokens: 500,
+            response_format: { type: "json_object" }
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`Both models failed. GPT-4o-mini error: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`OpenAI failed: ${response.status}`);
+        }
+      } catch (openAIError) {
+        console.log('OpenAI failed, trying OVH Llama fallback:', openAIError);
+        model = 'Meta-Llama-3_3-70B-Instruct';
+        
+        const systemPrompt = messages.find(m => m.role === 'system')?.content || '';
+        const userPrompt = messages.find(m => m.role === 'user')?.content || '';
+        
+        response = await fetch('https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${ovhToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'Meta-Llama-3_3-70B-Instruct',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt + '\n\nReturn only valid JSON.' }
+            ],
+            temperature: 0.8,
+            max_tokens: 500,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`All AI services failed. OVH error: ${response.status}`);
+        }
       }
     }
 
@@ -149,7 +182,25 @@ Create an ending that feels like a natural conclusion to this adventure.`;
     let endingData: StorySegment;
     
     try {
-      endingData = JSON.parse(data.choices[0].message.content);
+      const content = data.choices[0].message.content;
+      
+      // Handle different response formats based on the model used
+      if (model === 'openrouter/sonoma-dusk-alpha' || model === 'Meta-Llama-3_3-70B-Instruct') {
+        // For OpenRouter and OVH, try to extract JSON from the response
+        try {
+          endingData = JSON.parse(content);
+        } catch {
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            endingData = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error('No valid JSON found in response');
+          }
+        }
+      } else {
+        // For OpenAI with json_object format
+        endingData = JSON.parse(content);
+      }
     } catch (parseError) {
       console.error('JSON parsing failed, creating fallback ending');
       // Fallback ending if JSON parsing fails
