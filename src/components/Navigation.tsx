@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
-import { LogOut, Settings, User, Shield } from 'lucide-react';
+import { LogOut, Settings, User, Shield, HelpCircle } from 'lucide-react';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import CreditDisplay from './CreditDisplay';
+import { useOnboarding } from './OnboardingTour';
 
 interface NavigationProps {
   className?: string;
@@ -14,6 +16,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
   const { user, signOut } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const { startTour } = useOnboarding();
 
   useEffect(() => {
     checkAdminStatus();
@@ -34,6 +37,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
     await signOut();
     setShowUserMenu(false);
   };
+
   return (
     <nav className={`glass-card border-b border-primary/10 sticky top-0 z-50 ${className}`}>
       <div className="container mx-auto px-4 py-4">
@@ -71,48 +75,61 @@ const Navigation = ({ className = "" }: NavigationProps) => {
 
           <div className="flex items-center space-x-4">
             {user ? (
-              <div className="relative">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2"
-                >
-                  <User className="w-4 h-4" />
-                  {user.email?.split('@')[0]}
-                </Button>
+              <>
+                <CreditDisplay compact showActions={false} />
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center gap-2"
+                  >
+                    <User className="w-4 h-4" />
+                    {user.email?.split('@')[0]}
+                  </Button>
                 
-                {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-48 glass-card-elevated rounded-lg shadow-lg z-50">
-                    <div className="py-2">
-                      <Link
-                        to="/settings"
-                        className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted/50 transition-colors"
-                        onClick={() => setShowUserMenu(false)}
-                      >
-                        <Settings className="w-4 h-4" />
-                        Settings
-                      </Link>
-                      {isAdmin && (
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-48 glass-card-elevated rounded-lg shadow-lg z-50">
+                      <div className="py-2">
                         <Link
-                          to="/admin"
-                          className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted/50 transition-colors text-primary"
+                          to="/settings"
+                          className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted/50 transition-colors"
                           onClick={() => setShowUserMenu(false)}
                         >
-                          <Shield className="w-4 h-4" />
-                          Admin Panel
+                          <Settings className="w-4 h-4" />
+                          Settings
                         </Link>
-                      )}
-                      <button
-                        onClick={handleSignOut}
-                        className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted/50 transition-colors w-full text-left"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Sign Out
-                      </button>
+                        <button
+                          onClick={() => {
+                            setShowUserMenu(false);
+                            startTour();
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted/50 transition-colors w-full text-left"
+                        >
+                          <HelpCircle className="w-4 h-4" />
+                          Take Tour
+                        </button>
+                        {isAdmin && (
+                          <Link
+                            to="/admin"
+                            className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted/50 transition-colors text-primary"
+                            onClick={() => setShowUserMenu(false)}
+                          >
+                            <Shield className="w-4 h-4" />
+                            Admin Panel
+                          </Link>
+                        )}
+                        <button
+                          onClick={handleSignOut}
+                          className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted/50 transition-colors w-full text-left"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Sign Out
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              </>
             ) : (
               <>
                 <Link to="/auth" className="hidden sm:block">

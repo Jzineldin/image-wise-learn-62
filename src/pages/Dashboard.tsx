@@ -1,22 +1,31 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Plus, Book, Users, TrendingUp } from 'lucide-react';
+import { Plus, Book, Users, TrendingUp, Zap, Crown } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
+import CreditDisplay from '@/components/CreditDisplay';
+import SubscriptionStatus from '@/components/SubscriptionStatus';
+import UsageAnalytics from '@/components/UsageAnalytics';
+import OnboardingTour, { useOnboarding } from '@/components/OnboardingTour';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
     storiesCreated: 0,
     totalViews: 0,
     totalLikes: 0,
-    followers: 0
+    followers: 0,
+    creditsUsed: 0,
+    voiceMinutes: 0
   });
   const [recentStories, setRecentStories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { tier, subscribed } = useSubscription();
+  const { showTour, closeTour } = useOnboarding();
 
   useEffect(() => {
     if (user) {
@@ -38,15 +47,20 @@ const Dashboard = () => {
 
       if (storiesError) throw storiesError;
       
+      // Get current month usage statistics
+      const { data: usageStats, error: usageError } = await supabase.rpc('get_current_month_usage');
+      
       // Calculate stats
-      const completedStories = stories?.filter(s => s.status === 'completed') || [];
       const totalStories = stories?.length || 0;
+      const monthlyStats = usageStats?.[0] || { credits_used: 0, voice_minutes_used: 0 };
       
       setStats({
         storiesCreated: totalStories,
         totalViews: 0, // Would need analytics table
         totalLikes: 0, // Would need likes table  
-        followers: 0  // Would need followers table
+        followers: 0,  // Would need followers table
+        creditsUsed: monthlyStats.credits_used || 0,
+        voiceMinutes: monthlyStats.voice_minutes_used || 0
       });
 
       setRecentStories(stories || []);
@@ -62,7 +76,7 @@ const Dashboard = () => {
       <Navigation />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div className="content-overlay flex-1">
             <h1 className="text-4xl font-heading font-bold text-gradient mb-2">
               Welcome Back, Storyteller!
@@ -78,13 +92,43 @@ const Dashboard = () => {
           </Link>
         </div>
 
-        {/* Stats Grid */}
+        {/* Subscription & Credits Overview */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <SubscriptionStatus />
+          <CreditDisplay />
+        </div>
+
+        {/* Upgrade Prompt for Free Users */}
+        {tier === 'free' && (
+          <div className="glass-card-primary p-6 mb-8 border border-primary/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-primary/10 rounded-full">
+                  <Crown className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Unlock Premium Features</h3>
+                  <p className="text-text-secondary">Get more credits, priority generation, and voice narration</p>
+                </div>
+              </div>
+              <Link to="/pricing">
+                <Button className="btn-primary">
+                  <Zap className="w-4 h-4 mr-2" />
+                  Upgrade Now
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           <div className="glass-card-primary p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm font-medium">Stories Created</p>
                 <p className="text-3xl font-bold text-primary">{stats.storiesCreated}</p>
+                <p className="text-xs text-text-secondary mt-1">Total in library</p>
               </div>
               <Book className="w-8 h-8 text-primary" />
             </div>
@@ -93,18 +137,20 @@ const Dashboard = () => {
           <div className="glass-card-info p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-text-secondary text-sm font-medium">Total Views</p>
-                <p className="text-3xl font-bold text-primary">{stats.totalViews}</p>
+                <p className="text-text-secondary text-sm font-medium">Credits Used</p>
+                <p className="text-3xl font-bold text-primary">{stats.creditsUsed}</p>
+                <p className="text-xs text-text-secondary mt-1">This month</p>
               </div>
-              <TrendingUp className="w-8 h-8 text-primary" />
+              <Zap className="w-8 h-8 text-primary" />
             </div>
           </div>
 
           <div className="glass-card-success p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-text-secondary text-sm font-medium">Total Likes</p>
-                <p className="text-3xl font-bold text-primary">{stats.totalLikes}</p>
+                <p className="text-text-secondary text-sm font-medium">Voice Minutes</p>
+                <p className="text-3xl font-bold text-primary">{stats.voiceMinutes}</p>
+                <p className="text-xs text-text-secondary mt-1">Generated</p>
               </div>
               <TrendingUp className="w-8 h-8 text-primary" />
             </div>
@@ -113,10 +159,13 @@ const Dashboard = () => {
           <div className="glass-card-secondary p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-text-secondary text-sm font-medium">Followers</p>
-                <p className="text-3xl font-bold text-primary">{stats.followers}</p>
+                <p className="text-text-secondary text-sm font-medium">Plan Status</p>
+                <p className="text-3xl font-bold text-primary capitalize">{tier}</p>
+                <p className="text-xs text-text-secondary mt-1">
+                  {subscribed ? 'Active subscription' : 'Free tier'}
+                </p>
               </div>
-              <Users className="w-8 h-8 text-primary" />
+              <Crown className="w-8 h-8 text-primary" />
             </div>
           </div>
         </div>
@@ -186,41 +235,62 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-          <Link to="/discover" className="glass-card-secondary p-6 group text-center">
-            <Book className="w-12 h-12 text-primary mx-auto mb-4 group-hover:scale-110 transition-transform" />
-            <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors">
-              Discover Stories
-            </h3>
-            <p className="text-text-secondary text-sm">
-              Explore amazing stories from the community
-            </p>
-          </Link>
+        {/* Usage Analytics */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+          <UsageAnalytics />
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <div className="grid grid-cols-1 gap-4">
+              <Link to="/discover" className="glass-card-secondary p-4 group flex items-center space-x-4">
+                <div className="p-3 bg-primary/10 rounded-full group-hover:scale-110 transition-transform">
+                  <Book className="w-6 h-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold group-hover:text-primary transition-colors">
+                    Discover Stories
+                  </h3>
+                  <p className="text-text-secondary text-sm">
+                    Explore amazing stories from the community
+                  </p>
+                </div>
+              </Link>
 
-          <Link to="/characters" className="glass-card-primary p-6 group text-center">
-            <Users className="w-12 h-12 text-primary mx-auto mb-4 group-hover:scale-110 transition-transform" />
-            <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors">
-              My Characters
-            </h3>
-            <p className="text-text-secondary text-sm">
-              Manage your character library
-            </p>
-          </Link>
+              <Link to="/characters" className="glass-card-primary p-4 group flex items-center space-x-4">
+                <div className="p-3 bg-primary/10 rounded-full group-hover:scale-110 transition-transform">
+                  <Users className="w-6 h-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold group-hover:text-primary transition-colors">
+                    My Characters
+                  </h3>
+                  <p className="text-text-secondary text-sm">
+                    Manage your character library
+                  </p>
+                </div>
+              </Link>
 
-          <Link to="/settings" className="glass-card-info p-6 group text-center">
-            <TrendingUp className="w-12 h-12 text-primary mx-auto mb-4 group-hover:scale-110 transition-transform" />
-            <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors">
-              Analytics
-            </h3>
-            <p className="text-text-secondary text-sm">
-              Track your story performance
-            </p>
-          </Link>
+              <Link to="/settings" className="glass-card-info p-4 group flex items-center space-x-4">
+                <div className="p-3 bg-primary/10 rounded-full group-hover:scale-110 transition-transform">
+                  <TrendingUp className="w-6 h-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold group-hover:text-primary transition-colors">
+                    Settings & Analytics
+                  </h3>
+                  <p className="text-text-secondary text-sm">
+                    Manage preferences and view detailed stats
+                  </p>
+                </div>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
       
       <Footer />
+      
+      {/* Onboarding Tour */}
+      <OnboardingTour isOpen={showTour} onClose={closeTour} />
     </div>
   );
 };

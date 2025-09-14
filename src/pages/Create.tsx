@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 import { logger } from '@/lib/debug';
+import CreditDisplay from '@/components/CreditDisplay';
 
 const STEPS = [
   { id: 1, title: 'Age & Genre', icon: BookOpen },
@@ -229,6 +230,7 @@ export default function CreateStoryFlow() {
             </div>
 
             <div className="flex items-center space-x-4">
+              <CreditDisplay compact />
               <Link to="/settings">
                 <Button variant="outline" className="btn-secondary flex items-center gap-2">
                   <Settings className="h-4 w-4" />
