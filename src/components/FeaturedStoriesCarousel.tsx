@@ -95,23 +95,28 @@ const FeaturedStoriesCarousel = () => {
   const currentStory = featuredStories[currentIndex];
 
   return (
-    <div className="glass-card-dark p-8 max-w-md w-full rounded-2xl relative">
-      <div className="text-center space-y-6">
-        {/* Story Image */}
-        <div className="relative w-32 h-32 mx-auto rounded-xl overflow-hidden">
-          {currentStory.preview_image_url ? (
-            <img
-              src={currentStory.preview_image_url}
-              alt={currentStory.title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-white/10 flex items-center justify-center">
-              <BookOpen className="w-12 h-12 text-foreground" />
-            </div>
-          )}
+    <div 
+      className="relative max-w-md w-full rounded-2xl overflow-hidden min-h-[400px]"
+      style={currentStory.preview_image_url ? {
+        backgroundImage: `url(${currentStory.preview_image_url})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      } : {}}
+    >
+      {/* Background overlay for text readability */}
+      <div className={`absolute inset-0 ${currentStory.preview_image_url 
+        ? 'bg-gradient-to-t from-black/80 via-black/50 to-black/30' 
+        : 'glass-card-dark'
+      }`} />
+      
+      {/* Fallback icon when no image */}
+      {!currentStory.preview_image_url && (
+        <div className="absolute top-8 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-white/10 rounded-full flex items-center justify-center">
+          <BookOpen className="w-8 h-8 text-foreground" />
         </div>
+      )}
 
+      <div className="relative z-10 p-8 text-center space-y-6 min-h-[400px] flex flex-col justify-center">
         {/* Story Info */}
         <div className="space-y-3">
           <h3 className="text-xl font-heading font-bold text-foreground line-clamp-2">
