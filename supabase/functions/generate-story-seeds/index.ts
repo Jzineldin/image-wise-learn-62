@@ -197,36 +197,71 @@ ${characters.map(char => `- ${char.name}: ${char.description} (${char.character_
     // Create genre context
     const genreContext = genres.join(', ');
 
-    // Age-appropriate instructions
+    // Age-appropriate instructions for concise seeds (1-2 sentences max)
     const ageInstructions = {
-      '4-6': 'Simple vocabulary, gentle themes, focus on friendship and basic emotions. Stories should be 3-5 sentences for the seed.',
-      '7-9': 'Elementary vocabulary, mild adventure themes, problem-solving. Stories should be 4-6 sentences for the seed.',
-      '10-12': 'Intermediate vocabulary, more complex adventures, character development. Stories should be 5-7 sentences for the seed.',
-      '13+': 'Advanced vocabulary, complex themes, deeper character relationships. Stories should be 6-8 sentences for the seed.'
+      '4-6': 'Very simple words, gentle themes, familiar settings. Seeds must be exactly 1 sentence, maximum 15 words.',
+      '7-9': 'Elementary vocabulary, mild adventure themes. Seeds must be 1-2 sentences, maximum 25 words total.',
+      '10-12': 'Intermediate vocabulary, adventure themes. Seeds must be 1-2 sentences, maximum 30 words total.',
+      '13+': 'Advanced vocabulary, complex themes. Seeds must be 1-2 sentences, maximum 35 words total.'
     };
 
-    const systemPrompt = `You are a creative storytelling AI that generates personalized story seeds for interactive children's stories. 
+    // Age-specific vocabulary and themes
+    const ageGuidelines = {
+      '4-6': {
+        vocabulary: 'simple, familiar words like "friend," "play," "help," "happy"',
+        themes: 'friendship, family, pets, playgrounds, home',
+        complexity: 'one clear problem or adventure'
+      },
+      '7-9': {
+        vocabulary: 'elementary words like "discover," "adventure," "mystery," "brave"', 
+        themes: 'school, nature, mild mysteries, teamwork',
+        complexity: 'simple problems with clear solutions'
+      },
+      '10-12': {
+        vocabulary: 'intermediate words like "challenge," "quest," "courage," "friendship"',
+        themes: 'friendship challenges, adventures, self-discovery',
+        complexity: 'meaningful choices and consequences'
+      },
+      '13+': {
+        vocabulary: 'advanced words like "destiny," "conflict," "transformation," "dilemma"',
+        themes: 'identity, complex relationships, moral choices',
+        complexity: 'nuanced problems with multiple solutions'
+      }
+    };
 
-Your task is to create exactly 3 unique, engaging story seeds that:
-1. Are appropriate for ${ageGroup} age group: ${ageInstructions[ageGroup as keyof typeof ageInstructions]}
-2. Incorporate the selected genres: ${genreContext}
-3. ${characters.length > 0 ? `Feature the provided characters prominently by name and personality` : 'Create engaging characters appropriate for the age group'}
-4. Set up an interesting premise that can lead to an interactive, choice-driven story
-5. End with a situation that naturally leads to meaningful choices
+    const ageGuide = ageGuidelines[ageGroup as keyof typeof ageGuidelines] || ageGuidelines['10-12'];
 
-Each seed should be completely different in plot, setting, and approach. Make them creative and inspiring!
+    const systemPrompt = `You are a creative storytelling AI that generates ultra-concise story seeds for interactive children's stories.
+
+CRITICAL REQUIREMENTS:
+1. Each seed description must be ${ageInstructions[ageGroup as keyof typeof ageInstructions]}
+2. Use ${ageGuide.vocabulary} appropriate for ${ageGroup} readers
+3. Focus on ${ageGuide.themes} and ${ageGuide.complexity}
+4. Incorporate the selected genres: ${genreContext}
+5. ${characters.length > 0 ? `Feature these characters prominently: ${characters.map(c => c.name).join(', ')}` : 'Create engaging characters appropriate for the age group'}
+6. Set up ONE clear premise that leads to choices
+7. NO detailed explanations - just the core exciting premise
+8. Each seed must be completely different in plot and setting
 
 ${characterContext}
 
-IMPORTANT: Always reference characters by their actual names if provided. Make the seeds feel personalized to these specific characters.`;
+WORD COUNT IS CRITICAL: Count every word in each description. Do not exceed the limits.
 
-    const userPrompt = `Generate 3 unique story seeds for ${ageGroup} readers in the ${genreContext} genre(s). ${characters.length > 0 ? `Make sure to feature these characters: ${characters.map(c => c.name).join(', ')}` : ''}
+GOOD EXAMPLES:
+- 4-6: "${characters.length > 0 ? characters[0].name : 'Maya'} finds a talking rabbit in her backyard."
+- 7-9: "${characters.length > 0 ? characters[0].name : 'Alex'} discovers a secret door behind the school library that glows with mysterious light."
+- 10-12: "${characters.length > 0 ? characters[0].name : 'Sam'} receives a cryptic message from the future. Time is running out to prevent disaster."
+- 13+: "${characters.length > 0 ? characters[0].name : 'Jordan'} inherits a mansion with rooms that change based on the visitor's deepest fears and desires."`;
 
-Each seed should:
-- Have a compelling title (max 6 words)
-- Include a brief description that sets up the story premise
-- End with a situation that naturally leads to player choices
-- Be completely different from the others in terms of plot and setting
+    const userPrompt = `Generate 3 unique story seeds for ${ageGroup} readers in the ${genreContext} genre(s). ${characters.length > 0 ? `Feature these characters: ${characters.map(c => c.name).join(', ')}` : ''}
+
+CRITICAL REQUIREMENTS:
+- Title: Maximum 4 words, exciting and age-appropriate
+- Description: ${ageInstructions[ageGroup as keyof typeof ageInstructions]}
+- Use ${ageGuide.vocabulary} and focus on ${ageGuide.themes}
+- Each description sets up ${ageGuide.complexity}
+- NO extra details, explanations, or setup - just the core premise
+- Be completely different from each other in plot and setting
 
 Return as a JSON array of exactly 3 seeds with this structure:
 {

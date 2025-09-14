@@ -79,7 +79,7 @@ class AIService {
                       type: "object",
                       properties: {
                         segment_number: { type: "integer" },
-                        content: { type: "string", minLength: 150 },
+                        content: { type: "string", minLength: 20 },
                         choices: {
                           type: "array",
                           items: {
@@ -264,44 +264,103 @@ serve(async (req) => {
       `${char.name} (${char.role}): ${char.description}`
     ).join('\n') || '';
 
-    const lengthSpec = {
-      short: '150-250 words per segment',
-      medium: '250-400 words per segment', 
-      long: '400-600 words per segment'
-    }[storyLength];
+    // Age-appropriate word counts per segment
+    const ageWordLimits = {
+      '4-6': '30-60 words',
+      '7-9': '100-140 words', 
+      '10-12': '150-200 words',
+      '13+': '250-400 words'
+    };
+
+    const lengthSpec = ageWordLimits[ageGroup as keyof typeof ageWordLimits] || '150-200 words';
+    
+    // Age-appropriate vocabulary and complexity
+    const ageGuidelines = {
+      '4-6': {
+        vocabulary: 'very simple words, present tense, basic emotions',
+        sentence: 'short, simple sentences (5-8 words each)',
+        themes: 'friendship, family, animals, familiar places',
+        choices: 'simple A/B choices with clear outcomes'
+      },
+      '7-9': {
+        vocabulary: 'elementary vocabulary, simple past tense, clear cause-effect',
+        sentence: 'medium sentences (8-12 words each)', 
+        themes: 'school adventures, mild mystery, teamwork, problem-solving',
+        choices: '2-3 clear choices with different paths'
+      },
+      '10-12': {
+        vocabulary: 'intermediate vocabulary, varied sentence structure, emotional depth',
+        sentence: 'varied sentence length (8-15 words)',
+        themes: 'friendship challenges, adventure quests, self-discovery, moral choices',
+        choices: '3 meaningful choices with significant story impact'
+      },
+      '13+': {
+        vocabulary: 'advanced vocabulary, complex sentence structure, nuanced themes',
+        sentence: 'complex and varied sentences',
+        themes: 'identity, relationships, moral dilemmas, complex adventures',
+        choices: '3 complex choices with deep story consequences'
+      }
+    };
+
+    const ageGuide = ageGuidelines[ageGroup as keyof typeof ageGuidelines] || ageGuidelines['10-12'];
+    
+    // Genre-specific vocabulary enhancements
+    const genreVocab = {
+      'Fantasy': 'magical, enchanted, mystical, wondrous',
+      'Adventure': 'thrilling, exciting, daring, courageous', 
+      'Mystery': 'puzzling, mysterious, curious, intriguing',
+      'Superhero Stories': 'heroic, powerful, brave, extraordinary',
+      'Animal Stories': 'playful, loyal, wild, gentle',
+      'Fairy Tales': 'magical, wonderful, charming, timeless'
+    };
+
+    const genreWords = genreVocab[genre as keyof typeof genreVocab] || 'engaging, interesting';
 
     // Determine if this is initial generation (first segment only) or full story
     const segmentInstruction = isInitialGeneration 
       ? 'Generate ONLY the first segment of the story with 3 meaningful choices for how the story can continue.'
       : `Generate a complete story with ${storyLength === 'short' ? '2-3' : storyLength === 'medium' ? '3-4' : '4-5'} segments.`;
 
-    const systemPrompt = `You are a master storyteller who creates engaging, interactive stories for children. 
+    const systemPrompt = `You are a master storyteller who creates engaging, interactive stories for children aged ${ageGroup}.
+
+AGE-SPECIFIC WRITING GUIDELINES:
+- Vocabulary: Use ${ageGuide.vocabulary}
+- Sentence Structure: ${ageGuide.sentence}
+- Themes: Focus on ${ageGuide.themes}
+- Choices: Create ${ageGuide.choices}
+- Genre Words: Incorporate ${genreWords} vocabulary naturally
+
+CRITICAL WORD COUNT: Each segment must be EXACTLY ${lengthSpec}. Count every word carefully.
 
 ${isInitialGeneration ? `
 CRITICAL: You are generating ONLY the FIRST SEGMENT of an interactive story.
 
 REQUIREMENTS FOR FIRST SEGMENT:
 1. Return JSON with title, description, and EXACTLY ONE segment
-2. The segment must be ${lengthSpec} and end on a compelling cliffhanger
-3. Include exactly 3 meaningful choices that lead to very different story directions
-4. DO NOT resolve the main conflict - this is just the beginning
-5. Age-appropriate for ${ageGroup} audience
-6. Include vivid, descriptive language that sets up the story world
-7. Make choices that significantly impact future story direction
-8. Set "is_ending": false for this segment
-9. NEVER include questions or direct reader address in the story content - story content should be pure narrative
-10. ALL questions and interactivity should only appear in the structured choices array
+2. The segment must be EXACTLY ${lengthSpec} - count every word
+3. End on a compelling cliffhanger appropriate for ${ageGroup} readers
+4. Include exactly 3 meaningful choices using ${ageGuide.choices}
+5. DO NOT resolve the main conflict - this is just the beginning
+6. Use ${ageGuide.vocabulary} and ${ageGuide.sentence}
+7. Focus on ${ageGuide.themes} appropriate for this age
+8. Make choices that significantly impact future story direction
+9. Set "is_ending": false for this segment
+10. NEVER include questions or direct reader address in the story content - story content should be pure narrative
+11. ALL questions and interactivity should only appear in the structured choices array
+12. Incorporate ${genreWords} vocabulary naturally into the narrative
 ` : `
 REQUIREMENTS FOR COMPLETE STORY:
 1. Return JSON with title, description, and multiple segments
-2. Each segment must be ${lengthSpec}
-3. Each segment (except the last) must have exactly 3 choices
-4. Age-appropriate for ${ageGroup} audience
-5. Include vivid, descriptive language
-6. Choices should lead to meaningfully different story directions
-7. Mark the final segment with "is_ending": true
-8. NEVER include questions or direct reader address in the story content - story content should be pure narrative
-9. ALL questions and interactivity should only appear in the structured choices array
+2. Each segment must be EXACTLY ${lengthSpec} - count every word carefully
+3. Each segment (except the last) must have exactly 3 choices using ${ageGuide.choices}
+4. Use ${ageGuide.vocabulary} and ${ageGuide.sentence} consistently
+5. Focus on ${ageGuide.themes} throughout the story
+6. Include vivid, age-appropriate descriptive language
+7. Choices should lead to meaningfully different story directions
+8. Mark the final segment with "is_ending": true
+9. NEVER include questions or direct reader address in the story content - story content should be pure narrative
+10. ALL questions and interactivity should only appear in the structured choices array
+11. Incorporate ${genreWords} vocabulary naturally throughout
 `}`;
 
     const userPrompt = isInitialGeneration ? `Create the opening segment of an interactive ${genre} story for ${ageGroup} age group.
@@ -313,10 +372,12 @@ ${characterDesc}
 
 Requirements:
 - Create an engaging opening that sets up the story world and introduces the main character(s)
-- Length: ${lengthSpec}
-- End with a compelling situation that requires a choice
-- The 3 choices should lead to meaningfully different story paths
-- Include rich sensory details and emotional setup
+- Length: EXACTLY ${lengthSpec} - count every word carefully
+- Use ${ageGuide.vocabulary} and ${ageGuide.sentence}
+- Focus on ${ageGuide.themes} and incorporate ${genreWords} vocabulary
+- End with a compelling situation that requires a choice appropriate for ${ageGroup} readers
+- Create ${ageGuide.choices} that lead to meaningfully different story paths
+- Include rich sensory details and emotional setup appropriate for the age group
 - Leave the main adventure/conflict unresolved - this is just the beginning
 - NEVER include questions in the story content itself - only pure narrative storytelling
 - Questions like "What should they do?" belong only in the choices, not in the story text
@@ -330,10 +391,12 @@ ${characterDesc}
 
 Requirements:
 - Complete story with multiple segments
-- Each segment: ${lengthSpec}
-- Create compelling cliffhangers between segments
-- Make choices that significantly impact the story direction
-- Include rich sensory details and emotional moments
+- Each segment: EXACTLY ${lengthSpec} - count every word carefully
+- Use ${ageGuide.vocabulary} and ${ageGuide.sentence} consistently
+- Focus on ${ageGuide.themes} and incorporate ${genreWords} vocabulary throughout
+- Create compelling cliffhangers between segments appropriate for ${ageGroup} readers
+- Make ${ageGuide.choices} that significantly impact the story direction
+- Include rich sensory details and emotional moments appropriate for the age group
 - Ensure age-appropriate content and themes
 - NEVER include questions in the story content itself - only pure narrative storytelling
 - Questions like "What should they do?" belong only in the choices, not in the story text
