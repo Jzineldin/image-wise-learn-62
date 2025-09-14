@@ -12,7 +12,7 @@ interface FeaturedStory {
   genre: string;
   age_group: string;
   cover_image_url?: string;
-  position: number;
+  story_position: number;
 }
 
 interface FeaturedStoriesProps {

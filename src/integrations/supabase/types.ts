@@ -138,6 +138,7 @@ export type Database = {
           reason: string | null
           story_id: string
           updated_at: string | null
+          view_count: number | null
         }
         Insert: {
           created_at?: string | null
@@ -149,6 +150,7 @@ export type Database = {
           reason?: string | null
           story_id: string
           updated_at?: string | null
+          view_count?: number | null
         }
         Update: {
           created_at?: string | null
@@ -160,6 +162,7 @@ export type Database = {
           reason?: string | null
           story_id?: string
           updated_at?: string | null
+          view_count?: number | null
         }
         Relationships: [
           {
@@ -921,8 +924,8 @@ export type Database = {
           created_at: string
           description: string
           genre: string
-          position: number
           story_id: string
+          story_position: number
           title: string
         }[]
       }
