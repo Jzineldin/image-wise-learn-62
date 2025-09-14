@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, ThumbsUp, Eye, Star, Filter, Book } from 'lucide-react';
+import { Search, ThumbsUp, Eye, Filter, Book } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import FeaturedStories from '@/components/FeaturedStories';

@@ -78,6 +78,32 @@ export const GENRE_VOCABULARY = {
 export class PromptTemplateManager {
   
   /**
+   * Helper method to determine proper character reference
+   */
+  static getCharacterReference(character: any): string {
+    if (!character?.name) return 'the character';
+    
+    // Check if it's a proper name (starts with capital, no descriptive words)
+    const isProperName = /^[A-Z][a-z]+( [A-Z][a-z]+)*$/.test(character.name.trim()) && 
+                         !character.name.toLowerCase().includes('dragon') && 
+                         !character.name.toLowerCase().includes('cat') && 
+                         !character.name.toLowerCase().includes('wizard') &&
+                         !character.name.toLowerCase().includes('fairy') &&
+                         !character.name.toLowerCase().includes('knight') &&
+                         !character.name.toLowerCase().includes('princess') &&
+                         !character.name.toLowerCase().includes('hero') &&
+                         !character.name.toLowerCase().includes('girl') &&
+                         !character.name.toLowerCase().includes('boy');
+    
+    if (isProperName) {
+      return character.name; // Use as proper name: "Luna", "Max"
+    } else {
+      // Use as descriptive type: "the friendly dragon", "the magic cat"
+      return `the ${character.name.toLowerCase()}`;
+    }
+  }
+
+  /**
    * Generate story seeds prompt
    */
   static generateStorySeeds(context: PromptContext): PromptTemplate {
@@ -87,7 +113,7 @@ export class PromptTemplateManager {
     const characterContext = context.characters && context.characters.length > 0
       ? `Characters to include:\n${context.characters.map(char => 
           `- ${char.name}: ${char.description} (${char.role || 'character'}${char.personality_traits ? `, traits: ${char.personality_traits.join(', ')}` : ''})`
-        ).join('\n')}`
+        ).join('\n')}\n\nCHARACTER REFERENCE RULES:\n- If character name is descriptive (like "Friendly Dragon", "Magic Cat"), use it as a type: "the friendly dragon", "the magic cat"\n- If character name is a proper name (like "Spark", "Luna", "Max"), use it as a name: "Spark", "Luna", "Max"\n- Use pronouns (he/she/they) and "the [character type]" for natural flow\n- Avoid repetitive use of full character names - vary with pronouns and descriptive references`
       : 'No specific characters selected - create engaging characters appropriate for the age group.';
 
     const system = `You are a creative storytelling AI that generates ultra-concise story seeds for interactive children's stories.
@@ -109,13 +135,13 @@ ${characterContext}
 WORD COUNT IS CRITICAL: Count every word in each description. Do not exceed the limits.
 
 GOOD EXAMPLES:
-- 4-6: "${context.characters && context.characters.length > 0 ? context.characters[0].name : 'Maya'} finds a talking rabbit in her backyard."
-- 7-9: "${context.characters && context.characters.length > 0 ? context.characters[0].name : 'Alex'} discovers a secret door behind the school library that glows with mysterious light."
-- 10-12: "${context.characters && context.characters.length > 0 ? context.characters[0].name : 'Sam'} receives a cryptic message from the future. Time is running out to prevent disaster."
-- 13+: "${context.characters && context.characters.length > 0 ? context.characters[0].name : 'Jordan'} inherits a mansion with rooms that change based on the visitor's deepest fears and desires."`;
+- 4-6: "${context.characters && context.characters.length > 0 ? PromptTemplateManager.getCharacterReference(context.characters[0]) : 'Maya'} finds a talking rabbit in her backyard."
+- 7-9: "${context.characters && context.characters.length > 0 ? PromptTemplateManager.getCharacterReference(context.characters[0]) : 'Alex'} discovers a secret door behind the school library that glows with mysterious light."
+- 10-12: "${context.characters && context.characters.length > 0 ? PromptTemplateManager.getCharacterReference(context.characters[0]) : 'Sam'} receives a cryptic message from the future. Time is running out to prevent disaster."
+- 13+: "${context.characters && context.characters.length > 0 ? PromptTemplateManager.getCharacterReference(context.characters[0]) : 'Jordan'} inherits a mansion with rooms that change based on the visitor's deepest fears and desires."`;
 
     const user = `Generate 3 unique story seeds for ${context.ageGroup} readers in the ${context.genre} genre(s). ${context.characters && context.characters.length > 0 
-      ? `Feature these characters: ${context.characters.map(c => c.name).join(', ')}` 
+      ? `Feature these characters: ${context.characters.map(c => PromptTemplateManager.getCharacterReference(c)).join(', ')}` 
       : ''}
 
 CRITICAL REQUIREMENTS:
@@ -178,6 +204,25 @@ Return as a JSON array of exactly 3 seeds with this structure:
       `${char.name} (${char.role || 'character'}): ${char.description}`
     ).join('\n') || '';
 
+    const characterReferenceGuidance = context.characters && context.characters.length > 0 
+      ? `\n\nCHARACTER REFERENCE GUIDELINES:\n${context.characters.map(char => {
+          const isProperName = /^[A-Z][a-z]+( [A-Z][a-z]+)*$/.test(char.name.trim()) && 
+                               !char.name.toLowerCase().includes('dragon') && 
+                               !char.name.toLowerCase().includes('cat') && 
+                               !char.name.toLowerCase().includes('wizard') &&
+                               !char.name.toLowerCase().includes('fairy') &&
+                               !char.name.toLowerCase().includes('knight') &&
+                               !char.name.toLowerCase().includes('princess');
+          
+          if (isProperName) {
+            return `- "${char.name}" is a proper name - use directly: "${char.name}", then vary with pronouns (he/she/they)`;
+          } else {
+            const article = /^[aeiou]/i.test(char.name) ? 'an' : 'a';
+            return `- "${char.name}" is descriptive - use as type: "the ${char.name.toLowerCase()}", "${article} ${char.name.toLowerCase()}", then pronouns`;
+          }
+        }).join('\n')}\n- Use natural pronoun flow and avoid repetitive character names\n- Vary references for engaging, natural storytelling` 
+      : '';
+
     const getChoiceGuidance = (age: string) => {
       const guides = {
         '4-6': 'Provide 2 simple, clear choices with obvious outcomes. Use basic vocabulary and simple sentence structure.',
@@ -227,7 +272,7 @@ GENRE-SPECIFIC ELEMENTS FOR ${context.genre.toUpperCase()}:
     const user = `Continue this ${context.genre} story for ${context.ageGroup} age group:
 
 Characters:
-${characterDesc}
+${characterDesc}${characterReferenceGuidance}
 
 PREVIOUS SEGMENT:
 ${context.previousContent}

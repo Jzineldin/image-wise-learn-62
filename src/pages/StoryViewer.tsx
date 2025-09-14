@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, RotateCcw, ThumbsUp, BookOpen, Edit, Eye, Headphones } from 'lucide-react';
+import { Play, Pause, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, RotateCcw, ThumbsUp, BookOpen, Edit, Eye, Headphones, Home, User, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { VoiceSelector } from '@/components/VoiceSelector';
 import { ReadingModeControls } from '@/components/ReadingModeControls';
 import { logger, generateRequestId } from '@/lib/debug';
+import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 
 type ViewMode = 'read' | 'listen' | 'continue';
 
@@ -87,8 +88,13 @@ const StoryViewer = () => {
         const isUserStory = story.author_id === user.id || story.user_id === user.id;
         setIsOwner(isUserStory);
         
-        if (story.status === 'completed') {
+        // Lock completed stories - force read mode
+        if (story.status === 'completed' || story.is_completed || story.is_complete) {
           setViewMode('read');
+          // If user is trying to continue a completed story, redirect to read mode
+          if (modeParam === 'continue') {
+            setSearchParams({ mode: 'read' });
+          }
         } else if (isUserStory) {
           setViewMode('continue');
         } else {
@@ -96,7 +102,7 @@ const StoryViewer = () => {
         }
       }
     }
-  }, [searchParams, story, user]);
+  }, [searchParams, story, user, setSearchParams]);
 
   const loadStory = async () => {
     try {
@@ -181,6 +187,16 @@ const StoryViewer = () => {
 
   const handleChoice = async (choiceId: number, choiceText: string) => {
     if (!story || !user) return;
+    
+    // Block choices if story is completed
+    if (story.status === 'completed' || story.is_completed || story.is_complete) {
+      toast({
+        title: "Story Completed",
+        description: "This story has already been completed. You can only read it now.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     const currentSegment = segments[currentSegmentIndex];
     if (!currentSegment) return;
@@ -682,7 +698,46 @@ const StoryViewer = () => {
 
   return (
     <div className={`min-h-screen ${isFullscreen ? 'fixed inset-0 z-40 overflow-auto' : ''}`}>
-      {/* Header */}
+      {/* Navigation Header */}
+      <nav className="glass-card border-b border-primary/10 sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <Link to="/dashboard" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+              <img 
+                src={taleForgeLogoImage} 
+                alt="Tale Forge Logo" 
+                className="w-10 h-10 object-contain"
+              />
+              <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
+            </Link>
+            
+            <div className="hidden md:flex items-center space-x-8">
+              <Link to="/dashboard" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow flex items-center gap-2">
+                <Home className="h-4 w-4" />
+                Dashboard
+              </Link>
+              <Link to="/discover" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
+                Discover
+              </Link>
+              <Link to="/my-stories" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                My Stories
+              </Link>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <Link to="/settings">
+                <Button variant="outline" className="btn-secondary flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Story Header */}
       <div className="glass-card border-b border-primary/20">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">

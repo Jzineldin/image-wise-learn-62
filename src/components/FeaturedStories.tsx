@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Book, Star, Eye, ThumbsUp } from 'lucide-react';
+import { Book, Eye, ThumbsUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
@@ -97,8 +97,7 @@ const FeaturedStories: React.FC<FeaturedStoriesProps> = ({
                 </span>
               </div>
               <div className="absolute top-4 left-4">
-                <span className="bg-accent text-accent-foreground px-2 py-1 rounded-full text-xs font-medium flex items-center">
-                  <Star className="w-3 h-3 mr-1 fill-current" />
+                <span className="bg-accent text-accent-foreground px-2 py-1 rounded-full text-xs font-medium">
                   Featured
                 </span>
               </div>
