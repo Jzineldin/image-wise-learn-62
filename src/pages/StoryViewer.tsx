@@ -175,8 +175,14 @@ const StoryViewer = () => {
 
       if (error) throw error;
 
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to generate segment');
+      // Check if the edge function call was successful
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Failed to generate segment');
+      }
+
+      // Extract the segment data from the response
+      if (!data.data || !data.data.segment) {
+        throw new Error('No segment data returned from generation');
       }
 
       // Reload segments from database to ensure state consistency
