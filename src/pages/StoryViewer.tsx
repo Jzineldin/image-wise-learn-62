@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { VoiceSelector } from '@/components/VoiceSelector';
 import { ReadingModeControls } from '@/components/ReadingModeControls';
+import { logger, generateRequestId } from '@/lib/debug';
 
 interface StorySegment {
   id: string;
@@ -153,39 +154,78 @@ const StoryViewer = () => {
     const currentSegment = segments[currentSegmentIndex];
     if (!currentSegment) return;
 
+    const requestId = generateRequestId();
+    
+    logger.group('Story Segment Generation', { requestId, storyId: story.id });
+    logger.storySegmentGeneration(story.id, segments.length + 1, requestId);
+
     setGeneratingSegment(true);
     try {
+      const requestBody = {
+        storyId: story.id,
+        choiceId,
+        choiceText,
+        previousSegmentContent: currentSegment.content,
+        storyContext: {
+          title: story.title,
+          description: story.description,
+          ageGroup: story.age_group,
+          genre: story.genre,
+          characters: story.metadata?.characters || []
+        },
+        segmentNumber: segments.length + 1,
+        requestId
+      };
+
+      logger.edgeFunction('generate-story-segment', requestId, requestBody);
+
       // Generate next segment based on choice
       const { data, error } = await supabase.functions.invoke('generate-story-segment', {
-        body: {
-          storyId: story.id,
-          choiceId,
-          choiceText,
-          previousSegmentContent: currentSegment.content,
-          storyContext: {
-            title: story.title,
-            description: story.description,
-            ageGroup: story.age_group,
-            genre: story.genre,
-            characters: story.metadata?.characters || []
-          },
-          segmentNumber: segments.length + 1
-        }
+        body: requestBody
       });
 
-      if (error) throw error;
+      logger.debug('Raw edge function response', {
+        requestId,
+        data,
+        error,
+        dataType: typeof data
+      });
+
+      if (error) {
+        logger.edgeFunctionResponse('generate-story-segment', requestId, data, error);
+        throw error;
+      }
+
+      logger.edgeFunctionResponse('generate-story-segment', requestId, data);
 
       // Check if the edge function call was successful
       if (!data || !data.success) {
-        throw new Error(data?.error || 'Failed to generate segment');
+        const errorMsg = data?.error || 'Failed to generate segment';
+        logger.error('Edge function returned failure', new Error(errorMsg), {
+          requestId,
+          response: data
+        });
+        throw new Error(`${errorMsg} (Request ID: ${requestId})`);
       }
 
       // Extract the segment data from the response
       if (!data.data || !data.data.segment) {
-        throw new Error('No segment data returned from generation');
+        const errorMsg = 'No segment data returned from generation';
+        logger.error('Invalid response structure', new Error(errorMsg), {
+          requestId,
+          dataStructure: data
+        });
+        throw new Error(`${errorMsg} (Request ID: ${requestId})`);
       }
 
+      logger.info('✅ Segment generated successfully', {
+        requestId,
+        segmentId: data.data.segment.id,
+        contentLength: data.data.segment.content?.length
+      });
+
       // Reload segments from database to ensure state consistency
+      logger.debug('Reloading segments from database', { requestId });
       const updatedSegments = await reloadSegments();
       
       // Navigate to the latest segment (last one in the array)
@@ -195,6 +235,10 @@ const StoryViewer = () => {
         // Generate image for the new segment
         const newSegment = updatedSegments[updatedSegments.length - 1];
         if (newSegment && !newSegment.image_url) {
+          logger.debug('Triggering image generation for new segment', {
+            requestId,
+            segmentId: newSegment.id
+          });
           generateSegmentImage(newSegment);
         }
       }
@@ -205,51 +249,69 @@ const StoryViewer = () => {
       });
 
     } catch (error) {
-      console.error('Error generating segment:', error);
+      logger.error('Story segment generation failed', error, {
+        requestId,
+        storyId: story.id,
+        choiceId,
+        segmentNumber: segments.length + 1
+      });
+      
       toast({
         title: "Generation failed",
-        description: error.message || "Failed to continue the story. Please try again.",
+        description: `${error.message || "Failed to continue the story. Please try again."} (ID: ${requestId})`,
         variant: "destructive",
       });
     } finally {
       setGeneratingSegment(false);
+      logger.groupEnd();
     }
   };
 
   const generateSegmentImage = async (segment: StorySegment) => {
     if (!story) return;
 
+    const requestId = generateRequestId();
     const retryKey = `image-${segment.id}`;
     const currentRetries = retryAttempts[retryKey] || 0;
     
     if (currentRetries >= 3) {
+      logger.warn('Max image generation retries reached', {
+        requestId,
+        segmentId: segment.id,
+        attempts: currentRetries
+      });
       toast({
         title: "Image generation failed",
-        description: "Max retry attempts reached. Please try again later.",
+        description: `Max retry attempts reached. Please try again later. (ID: ${requestId})`,
         variant: "destructive",
       });
       return;
     }
 
-    console.log(`Generating image for segment ${segment.id}, attempt ${currentRetries + 1}`);
+    logger.imageGeneration(segment.id, requestId, currentRetries + 1);
     setGeneratingImage(segment.id);
 
     try {
+      const requestBody = {
+        storyContent: segment.content,
+        storyTitle: story.title,
+        ageGroup: story.age_group,
+        genre: story.genre,
+        segmentNumber: segment.segment_number,
+        storyId: story.id,
+        segmentId: segment.id,
+        characters: story.metadata?.characters || [],
+        requestId
+      };
+
+      logger.edgeFunction('generate-story-image', requestId, requestBody);
+
       const { data, error } = await supabase.functions.invoke('generate-story-image', {
-        body: {
-          storyContent: segment.content,
-          storyTitle: story.title,
-          ageGroup: story.age_group,
-          genre: story.genre,
-          segmentNumber: segment.segment_number,
-          storyId: story.id,
-          segmentId: segment.id,
-          characters: story.metadata?.characters || []
-        }
+        body: requestBody
       });
 
       if (error) {
-        console.error('Image generation error:', error);
+        logger.edgeFunctionResponse('generate-story-image', requestId, data, error);
         setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
         
         setTimeout(() => {
@@ -258,7 +320,7 @@ const StoryViewer = () => {
         return;
       }
 
-      console.log('Image generation successful:', data);
+      logger.edgeFunctionResponse('generate-story-image', requestId, data);
       
       // Update segment with image URL when ready
       setSegments(prev => prev.map(s => 
@@ -280,7 +342,11 @@ const StoryViewer = () => {
       });
 
     } catch (error) {
-      console.error('Error generating image:', error);
+      logger.error('Image generation failed', error, {
+        requestId,
+        segmentId: segment.id,
+        attempt: currentRetries + 1
+      });
       setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
       
       setTimeout(() => {
@@ -292,34 +358,45 @@ const StoryViewer = () => {
   };
 
   const generateAudio = async (segmentId: string, content: string) => {
+    const requestId = generateRequestId();
     const retryKey = `audio-${segmentId}`;
     const currentRetries = retryAttempts[retryKey] || 0;
     
     if (currentRetries >= 3) {
+      logger.warn('Max audio generation retries reached', {
+        requestId,
+        segmentId,
+        attempts: currentRetries
+      });
       toast({
         title: "Audio generation failed",
-        description: "Max retry attempts reached. Please try again later.",
+        description: `Max retry attempts reached. Please try again later. (ID: ${requestId})`,
         variant: "destructive",
       });
       return;
     }
 
-    console.log(`Generating audio for segment ${segmentId}, attempt ${currentRetries + 1}`);
+    logger.audioGeneration(segmentId, requestId, selectedVoice, currentRetries + 1);
     setGeneratingAudio(true);
     
     try {
+      const requestBody = {
+        text: content,
+        voiceId: selectedVoice,
+        storyId: story?.id,
+        segmentId,
+        modelId: 'eleven_multilingual_v2',
+        requestId
+      };
+
+      logger.edgeFunction('generate-story-audio', requestId, requestBody);
+
       const { data, error } = await supabase.functions.invoke('generate-story-audio', {
-        body: {
-          text: content,
-          voiceId: selectedVoice,
-          storyId: story?.id,
-          segmentId,
-          modelId: 'eleven_multilingual_v2'
-        }
+        body: requestBody
       });
 
       if (error) {
-        console.error('Audio generation error:', error);
+        logger.edgeFunctionResponse('generate-story-audio', requestId, data, error);
         setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
         
         // Retry with exponential backoff
@@ -329,7 +406,7 @@ const StoryViewer = () => {
         return;
       }
 
-      console.log('Audio generation successful:', data);
+      logger.edgeFunctionResponse('generate-story-audio', requestId, data);
 
       // Update segment with audio URL
       setSegments(prev => prev.map(s => 
@@ -351,7 +428,12 @@ const StoryViewer = () => {
       });
 
     } catch (error) {
-      console.error('Error generating audio:', error);
+      logger.error('Audio generation failed', error, {
+        requestId,
+        segmentId,
+        attempt: currentRetries + 1,
+        voiceId: selectedVoice
+      });
       setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
       
       // Retry with exponential backoff
@@ -361,7 +443,7 @@ const StoryViewer = () => {
       
       toast({
         title: "Audio generation failed",
-        description: `Retrying... (Attempt ${currentRetries + 1}/3)`,
+        description: `Retrying... (Attempt ${currentRetries + 1}/3) (ID: ${requestId})`,
         variant: "destructive",
       });
     } finally {

@@ -24,6 +24,7 @@ interface GenerateSegmentRequest {
     }>;
   };
   segmentNumber: number;
+  requestId?: string;
 }
 
 // ============= MAIN HANDLER =============
@@ -47,18 +48,29 @@ serve(async (req) => {
       choiceText,
       previousSegmentContent,
       storyContext,
-      segmentNumber
+      segmentNumber,
+      requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     }: GenerateSegmentRequest = await req.json();
 
-    console.log('Generating story segment:', {
+    console.log(`[${requestId}] 🚀 Starting story segment generation:`, {
+      requestId,
       storyId,
       choiceId,
       segmentNumber,
-      choicePreview: choiceText.substring(0, 50) + '...'
+      choicePreview: choiceText.substring(0, 50) + '...',
+      ageGroup: storyContext.ageGroup,
+      genre: storyContext.genre
     });
 
     // Validate input
     if (!storyId || !choiceText || !previousSegmentContent || !storyContext) {
+      console.error(`[${requestId}] ❌ Validation failed: Missing required fields`, {
+        requestId,
+        hasStoryId: !!storyId,
+        hasChoiceText: !!choiceText,
+        hasPreviousContent: !!previousSegmentContent,
+        hasStoryContext: !!storyContext
+      });
       return ResponseHandler.error('Missing required fields', 400);
     }
 
@@ -109,12 +121,15 @@ serve(async (req) => {
       };
     });
 
-    console.log('✅ AI generation completed:', {
+    console.log(`[${requestId}] ✅ AI generation completed:`, {
+      requestId,
       contentLength: result.segmentData.content.length,
       choicesCount: result.segmentData.choices.length,
       isEnding: result.segmentData.is_ending,
       model: result.model_used,
-      duration: `${duration}ms`
+      provider: result.provider,
+      duration: `${duration}ms`,
+      tokensUsed: result.tokensUsed
     });
 
     // Create the segment in the database
@@ -141,7 +156,12 @@ serve(async (req) => {
       .single();
 
     if (segmentError) {
-      console.error('❌ Database error creating segment:', segmentError);
+      console.error(`[${requestId}] ❌ Database error creating segment:`, {
+        requestId,
+        error: segmentError,
+        storyId,
+        segmentNumber
+      });
       return ResponseHandler.error('Failed to save segment to database', 500, segmentError);
     }
 
@@ -158,39 +178,64 @@ serve(async (req) => {
         .eq('id', storyId);
 
       if (updateError) {
-        console.warn('⚠️ Failed to update story completion status:', updateError);
+        console.warn(`[${requestId}] ⚠️ Failed to update story completion status:`, {
+          requestId,
+          error: updateError,
+          storyId
+        });
       } else {
-        console.log('✅ Story marked as completed');
+        console.log(`[${requestId}] ✅ Story marked as completed`, {
+          requestId,
+          storyId
+        });
       }
     }
 
-    console.log('✅ Story segment created successfully:', newSegment.id);
+    console.log(`[${requestId}] ✅ Story segment created successfully:`, {
+      requestId,
+      segmentId: newSegment.id,
+      storyId,
+      segmentNumber: newSegment.segment_number,
+      isEnding: result.segmentData.is_ending || false
+    });
 
     return ResponseHandler.success({
       segment: newSegment,
-      is_ending: result.segmentData.is_ending || false
+      is_ending: result.segmentData.is_ending || false,
+      requestId
     }, result.model_used, {
       tokensUsed: result.tokensUsed,
       processingTime: duration,
-      provider: result.provider
+      provider: result.provider,
+      requestId
     });
 
   } catch (error) {
-    console.error('❌ Story segment generation failed:', error);
+    const requestId = (req as any).requestId || 'unknown';
+    console.error(`[${requestId}] ❌ Story segment generation failed:`, {
+      requestId,
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
 
     // Return appropriate error response
     if (error.message.includes('API keys not configured')) {
-      return ResponseHandler.error('AI services not configured', 503);
+      return ResponseHandler.error('AI services not configured', 503, { requestId });
     }
 
     if (error.message.includes('Invalid response format')) {
-      return ResponseHandler.error('AI generated invalid content format', 502);
+      return ResponseHandler.error('AI generated invalid content format', 502, { requestId });
     }
 
     return ResponseHandler.error(
       error.message || 'Segment generation failed',
       500,
-      { stack: error.stack }
+      { 
+        stack: error.stack,
+        requestId,
+        timestamp: new Date().toISOString()
+      }
     );
   }
 });
