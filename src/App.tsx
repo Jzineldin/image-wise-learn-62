@@ -10,8 +10,6 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 // Lazy load routes for better performance
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/auth/Auth"));
-const SignIn = lazy(() => import("./pages/auth/SignIn"));
-const SignUp = lazy(() => import("./pages/auth/SignUp"));
 const Create = lazy(() => import("./pages/Create"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Characters = lazy(() => import("./pages/Characters"));
@@ -49,8 +47,6 @@ const App = () => {
                 <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<Index />} />
-                <Route path="/auth/signin" element={<SignIn />} />
-                <Route path="/auth/signup" element={<SignUp />} />
                <Route path="/create" element={<ProtectedRoute><Create /></ProtectedRoute>} />
                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                <Route path="/characters" element={<ProtectedRoute><Characters /></ProtectedRoute>} />
@@ -58,8 +54,12 @@ const App = () => {
                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
                <Route path="/discover" element={<Discover />} />
-                <Route path="/story/:id/end" element={<StoryEnd />} />
-                <Route path="/story/:id" element={<StoryViewer />} />
+                 <Route path="/story/:id/end" element={<StoryEnd />} />
+                 <Route path="/story/:id" element={
+                   <ProtectedRoute requiresAuth={false} checkStoryAccess={true}>
+                     <StoryViewer />
+                   </ProtectedRoute>
+                 } />
                 <Route path="/about" element={<About />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/contact" element={<Contact />} />

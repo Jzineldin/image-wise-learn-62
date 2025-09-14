@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { Search, ThumbsUp, Eye, Filter, Book } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
-import FeaturedStories from '@/components/FeaturedStories';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
@@ -121,9 +120,6 @@ const Discover = () => {
             </div>
           </div>
         </div>
-
-        {/* Featured Stories */}
-        <FeaturedStories limit={6} />
 
         {/* Public Stories */}
         <section className="mb-16">

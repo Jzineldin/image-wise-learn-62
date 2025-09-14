@@ -34,7 +34,7 @@ export interface Story {
   tags: string[];
   cover_image_url?: string;
   prompt?: string;
-  is_public: boolean;
+  visibility: 'public' | 'private';
   is_complete: boolean;
   is_featured: boolean;
   featured_until?: string;
