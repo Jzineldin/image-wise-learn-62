@@ -924,6 +924,7 @@ export type Database = {
           created_at: string
           description: string
           genre: string
+          preview_image_url: string
           story_id: string
           story_position: number
           title: string

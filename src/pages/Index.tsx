@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, BookOpen, Users, ArrowRight, Play } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import FeaturedStoriesCarousel from '@/components/FeaturedStoriesCarousel';
 import heroBookImage from '@/assets/hero-book.jpg';
 import childrenStoriesImage from '@/assets/children-stories.jpg';
 import aiStorytellingImage from '@/assets/ai-storytelling.jpg';
@@ -85,29 +86,9 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Right Side - Discovery Card */}
+            {/* Right Side - Featured Stories Carousel */}
             <div className="flex justify-center lg:justify-end">
-              <div className="glass-card-dark p-8 max-w-md w-full rounded-2xl">
-                <div className="text-center space-y-6">
-                  <div className="w-16 h-16 mx-auto bg-white/10 rounded-full flex items-center justify-center">
-                    <BookOpen className="w-8 h-8 text-foreground" />
-                  </div>
-                  
-                  <h3 className="text-2xl font-heading font-bold text-foreground">
-                    DISCOVER AMAZING STORIES
-                  </h3>
-                  
-                  <p className="text-foreground/80 leading-relaxed">
-                    Start your magical journey by creating your own personalized story
-                  </p>
-                  
-                  <Link to="/create">
-                    <Button className="btn-accent w-full text-lg py-3">
-                      Create Your First Story
-                    </Button>
-                  </Link>
-                </div>
-              </div>
+              <FeaturedStoriesCarousel />
             </div>
             
           </div>
