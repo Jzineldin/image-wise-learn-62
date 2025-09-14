@@ -582,6 +582,51 @@ const StoryViewer = () => {
     }
   };
 
+  const handleShare = async () => {
+    if (!story) return;
+    
+    if (story.visibility === 'private') {
+      toast({
+        title: "Story is private",
+        description: "Go to My Stories → Settings to make this story public before sharing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const shareData = {
+      title: story.title,
+      text: `Check out "${story.title}" - ${story.description}`,
+      url: window.location.href
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast({
+          title: "Story shared!",
+          description: "Thank you for sharing this adventure.",
+        });
+      } else {
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(`${shareData.title}\n\n${shareData.text}\n\n${shareData.url}`);
+        toast({
+          title: "Link copied!",
+          description: "Story link has been copied to your clipboard.",
+        });
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Error sharing story:', error);
+        toast({
+          title: "Sharing failed",
+          description: "Please try again or copy the URL manually.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   const toggleReadingMode = () => {
     setIsReadingMode(!isReadingMode);
     if (!isReadingMode) {
@@ -824,7 +869,13 @@ const StoryViewer = () => {
               >
                 <ThumbsUp className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
               </Button>
-              <Button variant="outline" className="btn-icon">
+              <Button 
+                onClick={handleShare}
+                variant="outline" 
+                className="btn-icon"
+                disabled={story?.visibility === 'private'}
+                title={story?.visibility === 'private' ? 'Set story to public in settings to share' : 'Share this story'}
+              >
                 <Share className="w-5 h-5" />
               </Button>
             </div>
