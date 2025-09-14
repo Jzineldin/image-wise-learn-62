@@ -238,6 +238,12 @@ export class StorySegmentValidator extends ResponseValidator<{
     const content = this.coerceContent(response);
     if (!content) {
       errors.push('Missing content field');
+    } else {
+      // Validate character references - look for capitalized character names
+      const capitalizedCharacters = content.match(/\b[A-Z][a-z]+\s+[Cc]at\b|\b[A-Z][a-z]+\s+[Dd]og\b|\b[A-Z][a-z]+\s+[Bb]ear\b|\b[A-Z][a-z]+\s+[Bb]ird\b|\b[A-Z][a-z]+\s+[Rr]abbit\b|\b[A-Z][a-z]+\s+[Ff]ox\b|\b[A-Z][a-z]+\s+[Mm]ouse\b|\b[A-Z][a-z]+\s+[Ww]olf\b|\b[A-Z][a-z]+\s+[Bb]utterfly\b|\b[A-Z][a-z]+\s+[Oo]wl\b/g);
+      if (capitalizedCharacters && capitalizedCharacters.length > 0) {
+        errors.push(`Content contains capitalized character names: ${capitalizedCharacters.join(', ')}. Use lowercase references like 'the curious cat' instead.`);
+      }
     }
 
     const choices = response?.choices;
@@ -258,8 +264,11 @@ export class StorySegmentValidator extends ResponseValidator<{
         // id missing becomes a warning; we'll auto-assign
         const id = typeof choice === 'object' ? choice?.id : undefined;
         if (id === undefined) warnings.push(`Choice ${index}: missing id (will auto-assign)`);
-        if (typeof choice === 'object' && !choice?.impact && !choice?.implications) {
-          warnings.push(`Choice ${index}: missing impact`);
+        
+        // Make impact REQUIRED - this is now an error, not warning
+        const impact = typeof choice === 'object' ? (choice?.impact || choice?.implications) : undefined;
+        if (!impact || impact.trim() === '' || impact.toLowerCase().includes('unknown')) {
+          errors.push(`Choice ${index}: missing or inadequate impact description. Must provide specific consequence description.`);
         }
       });
     }
@@ -272,16 +281,23 @@ export class StorySegmentValidator extends ResponseValidator<{
   }
 
   normalize(response: any) {
-    const content = this.coerceContent(response) || '';
+    let content = this.coerceContent(response) || '';
     const choicesArr = Array.isArray(response?.choices) ? response.choices : [];
+
+    // Auto-correct character references in content
+    content = content
+      .replace(/\b([A-Z][a-z]+)\s+(cat|dog|bear|bird|rabbit|fox|mouse|wolf|butterfly|owl)\b/gi, 
+               (match, adjective, animal) => `the ${adjective.toLowerCase()} ${animal.toLowerCase()}`)
+      .replace(/\b(Curious|Brave|Wise|Friendly|Clever|Bold|Gentle|Swift|Playful|Kind)\s+(Cat|Dog|Bear|Bird|Rabbit|Fox|Mouse|Wolf|Butterfly|Owl)\b/g,
+               (match, adjective, animal) => `the ${adjective.toLowerCase()} ${animal.toLowerCase()}`);
 
     const normalizedChoices = choicesArr.map((choice: any, index: number) => {
       const text = this.extractChoiceText(choice) || `Choice ${index + 1}`;
       const idRaw = typeof choice === 'object' ? choice?.id : undefined;
       const id = Number.isFinite(Number(idRaw)) ? Number(idRaw) : index + 1;
       const impact = typeof choice === 'object'
-        ? (choice?.impact || choice?.implications || 'Unknown consequence')
-        : 'Unknown consequence';
+        ? (choice?.impact || choice?.implications || 'This leads to new adventures')
+        : 'This leads to new adventures';
       return { id, text: String(text), impact: String(impact) };
     });
 

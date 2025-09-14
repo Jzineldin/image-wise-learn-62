@@ -222,9 +222,6 @@ Return as a JSON array of exactly 3 seeds with this structure:
     };
   }
 
-  /**
-   * Generate story segment prompt
-   */
   static generateStorySegment(context: PromptContext & {
     previousContent: string;
     choiceText: string;
@@ -232,115 +229,107 @@ Return as a JSON array of exactly 3 seeds with this structure:
     shouldBeEnding?: boolean;
   }): PromptTemplate {
     const ageGuide = AGE_GUIDELINES[context.ageGroup as keyof typeof AGE_GUIDELINES] || AGE_GUIDELINES['10-12'];
-    
-    const characterDesc = context.characters?.map(char => 
-      `${char.name} (${char.role || 'character'}): ${char.description}`
-    ).join('\n') || '';
-
-    const characterReferenceGuidance = context.characters && context.characters.length > 0 
-      ? `\n\nCHARACTER REFERENCE GUIDELINES:\n${context.characters.map(char => {
-          const isProperName = /^[A-Z][a-z]+( [A-Z][a-z]+)*$/.test(char.name.trim()) && 
-                               !char.name.toLowerCase().includes('dragon') && 
-                               !char.name.toLowerCase().includes('cat') && 
-                               !char.name.toLowerCase().includes('wizard') &&
-                               !char.name.toLowerCase().includes('fairy') &&
-                               !char.name.toLowerCase().includes('knight') &&
-                               !char.name.toLowerCase().includes('princess');
-          
-          if (isProperName) {
-            return `- "${char.name}" is a proper name - use directly: "${char.name}", then vary with pronouns (he/she/they)`;
-          } else {
-            const article = /^[aeiou]/i.test(char.name) ? 'an' : 'a';
-            return `- "${char.name}" is descriptive - use as type: "the ${char.name.toLowerCase()}", "${article} ${char.name.toLowerCase()}", then pronouns`;
-          }
-        }).join('\n')}\n- Use natural pronoun flow and avoid repetitive character names\n- Vary references for engaging, natural storytelling` 
-      : '';
-
-    const getChoiceGuidance = (age: string) => {
-      const guides = {
-        '4-6': 'Provide 2 simple, clear choices with obvious outcomes. Use basic vocabulary and simple sentence structure.',
-        '7-9': 'Provide 2-3 choices with clear but slightly more complex outcomes. Use age-appropriate vocabulary.',
-        '10-12': 'Provide 3 meaningful choices with interesting consequences. Use varied vocabulary and sentence structure.',
-        '13+': 'Provide 3 sophisticated choices with nuanced outcomes and character development implications.'
-      };
-      return guides[age as keyof typeof guides] || guides['10-12'];
+    const genreWords = GENRE_VOCABULARY[context.genre as keyof typeof GENRE_VOCABULARY] || ['engaging', 'interesting'];
+    const wordCount = ageGuide.wordCount;
+    const guidelines = {
+      vocabulary: ageGuide.vocabulary,
+      sentences: ageGuide.sentence,
+      themes: ageGuide.themes,
+      complexity: ageGuide.complexity
     };
 
-    const system = `You are a master storyteller continuing an interactive story with deep expertise in child development and age-appropriate literature. Create the next segment based on the user's choice.
+    // Pre-process character references using the same logic as story seeds
+    const characterReferences = context.characters && context.characters.length > 0
+      ? `🚨 MANDATORY CHARACTER REFERENCE RULES:\n${context.characters.map(char => {
+          const reference = PromptTemplateManager.getCharacterReference(char);
+          return `- NEVER use "${char.name}" - ALWAYS use "${reference}"\n  ❌ WRONG: "${char.name} discovers..."\n  ✅ CORRECT: "${reference} discovers..."`;
+        }).join('\n')}\n\nTHESE RULES ARE ABSOLUTE - Responses with capitalized character names will be REJECTED.`
+      : 'No specific characters - create appropriate character references for the age group.';
 
-CRITICAL AGE-SPECIFIC REQUIREMENTS FOR ${context.ageGroup}:
+    const systemPrompt = `You are an expert children's story writer specializing in ${context.ageGroup} stories. Create an engaging story segment that continues from the user's choice.
 
-WORD COUNT: Content must be exactly ${ageGuide.wordCount}
-- This is NON-NEGOTIABLE. Count every word carefully.
-- For 4-6 years: Focus on simple actions and basic emotions
-- For 7-9 years: Include more descriptive language and simple plot development  
-- For 10-12 years: Add character development and moderate complexity
-- For 13+ years: Include sophisticated themes and complex character interactions
+🚨 CRITICAL CHARACTER REFERENCE RULES - FOLLOW EXACTLY:
+${characterReferences}
 
-VOCABULARY & LANGUAGE STANDARDS:
-- Use ${ageGuide.vocabulary}
-- ${ageGuide.sentence}
-- Focus on ${ageGuide.themes}
+DO NOT use capitalized character names like "Curious Cat" or "Brave Dog". 
+ALWAYS use lowercase references like "the curious cat" or "the brave dog".
+This is MANDATORY and responses with capitalized character names will be REJECTED.
 
-CHOICE COMPLEXITY: ${getChoiceGuidance(context.ageGroup)}
+STORY REQUIREMENTS:
+- Write exactly ${wordCount} words for ${context.ageGroup} reading level
+- Use vocabulary appropriate for ${context.ageGroup}: ${guidelines.vocabulary}
+- Sentence structure: ${guidelines.sentences}  
+- Themes: ${guidelines.themes}
+- Complexity: ${guidelines.complexity}
+- Genre: ${context.genre} - Use relevant vocabulary: ${genreWords.join(', ')}
 
-CONTENT STRUCTURE REQUIREMENTS:
-1. Return ONLY valid JSON matching the exact schema
-2. Age-appropriate for ${context.ageGroup} audience with precise word count adherence
-3. Build naturally from the previous segment and chosen path
-4. ${context.shouldBeEnding ? 'This should be a satisfying ending to the story' : 'Include a compelling cliffhanger'}
-5. ${context.shouldBeEnding ? 'Set "is_ending": true and provide fewer/final choices' : 'Create age-appropriate choices as specified above'}
-6. Maintain story consistency and character development
-7. NEVER include questions or direct reader address in the story content - story content should be pure narrative
-8. ALL questions and interactivity should only appear in the structured choices array
-9. Cliffhangers should be dramatic situations or moments, not questions posed to the reader
+🚨 CHOICE GENERATION REQUIREMENTS - MANDATORY:
+- Create exactly 2 meaningful choices
+- Each choice should be 8-12 words
+- Choices must be appropriate for ${context.ageGroup}
+- Each choice MUST include a specific "impact" field describing the consequence
+- Impact descriptions must be specific and engaging, never "Unknown consequence"
+- Example: {"id": 1, "text": "Follow the glowing path deeper into the forest", "impact": "Leads to a magical clearing with friendly woodland spirits"}
 
-GENRE-SPECIFIC ELEMENTS FOR ${context.genre.toUpperCase()}:
-- Adventure: Age-appropriate challenges, exploration, discovery
-- Fantasy: Magic systems appropriate for age level, mythical creatures
-- Mystery: Age-appropriate puzzles, clues, investigations  
-- Friendship: Social dynamics, cooperation, emotional growth
-- Educational: Learning opportunities woven naturally into narrative`;
+REQUIRED JSON STRUCTURE:
+{
+  "content": "story text using lowercase character references",
+  "choices": [
+    {"id": 1, "text": "choice text", "impact": "specific description of what this choice leads to"},
+    {"id": 2, "text": "choice text", "impact": "specific description of what this choice leads to"}
+  ],
+  "is_ending": ${context.shouldBeEnding || false}
+}
 
-    const user = `Continue this ${context.genre} story for ${context.ageGroup} age group:
+${context.shouldBeEnding ? '🏁 This should be an ENDING segment - resolve the story satisfyingly with no more choices needed.' : ''}`;
 
-Characters:
-${characterDesc}${characterReferenceGuidance}
+    const userPrompt = `Continue this ${context.genre.toLowerCase()} story for ${context.ageGroup} readers:
 
-PREVIOUS SEGMENT:
+STORY CONTEXT:
 ${context.previousContent}
 
-USER'S CHOICE: ${context.choiceText}
+USER'S CHOICE: "${context.choiceText}"
 
-Continue the story from this choice. ${context.shouldBeEnding ? 'Create a satisfying conclusion.' : 'Build tension and create a compelling cliffhanger.'} Maintain the story's tone and ensure smooth narrative flow.
+CHARACTER REFERENCES TO USE:
+${characterReferences}
 
-IMPORTANT: Write pure narrative content without questions. Instead of ending with "What should they do?" create dramatic moments like "The door creaked open, revealing..." or "Suddenly, three paths appeared before them..." - let the choices provide the interactivity.
+EXAMPLE OF CORRECT CHARACTER USAGE:
+❌ WRONG: "Curious Cat smiled and waved."
+✅ CORRECT: "the curious cat smiled and waved."
 
-Segment Number: ${context.segmentNumber}
-${context.shouldBeEnding ? 'This should be the final segment.' : ''}`;
+Write segment #${context.segmentNumber} (${wordCount} words) that flows naturally from this choice. 
+Remember: Use lowercase character references and provide specific impact descriptions for each choice.`;
 
     return {
-      system,
-      user,
+      system: systemPrompt,
+      user: userPrompt,
       schema: {
-        type: "object",
+        type: 'object',
         properties: {
-          content: { type: "string" },
-          choices: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "integer" },
-                text: { type: "string" },
-                impact: { type: "string" }
-              },
-              required: ["id", "text", "impact"]
-            }
+          content: { 
+            type: 'string', 
+            description: 'Story segment content using lowercase character references like "the curious cat"' 
           },
-          is_ending: { type: "boolean" }
+          choices: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'number', description: 'Choice ID (1, 2, etc.)' },
+                text: { type: 'string', description: 'Choice text (8-12 words)' },
+                impact: { 
+                  type: 'string', 
+                  description: 'Specific description of what happens when this choice is selected - must be engaging and specific, never "Unknown consequence"' 
+                }
+              },
+              required: ['id', 'text', 'impact']
+            },
+            minItems: 2,
+            maxItems: 2
+          },
+          is_ending: { type: 'boolean', description: 'Whether this is the final segment' }
         },
-        required: ["content", "choices"]
+        required: ['content', 'choices']
       }
     };
   }
