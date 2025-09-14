@@ -101,12 +101,12 @@ const StoryViewer = () => {
         audio_url: segment.audio_url,
         choices: Array.isArray(segment.choices) 
           ? (segment.choices as any[]).map((choice: any) => ({
-              id: choice.id || 0,
-              text: choice.text || '',
-              impact: choice.impact
+              id: choice?.id ?? 0,
+              text: choice?.text ?? '',
+              impact: choice?.impact
             }))
           : [],
-        is_ending: segment.is_ending || false
+        is_ending: !!segment.is_ending
       }));
       
       setSegments(transformedSegments);
@@ -158,12 +158,27 @@ const StoryViewer = () => {
 
       if (error) throw error;
 
-      const newSegment = data.segment;
-      setSegments(prev => [...prev, newSegment]);
+      const raw = data.segment as any;
+      const normalized: StorySegment = {
+        id: raw.id,
+        segment_number: raw.segment_number,
+        content: (raw.content ?? '') as string,
+        image_url: raw.image_url || undefined,
+        audio_url: raw.audio_url || undefined,
+        choices: Array.isArray(raw.choices)
+          ? (raw.choices as any[]).map((c: any) => ({
+              id: c?.id ?? 0,
+              text: c?.text ?? '',
+              impact: c?.impact,
+            }))
+          : [],
+        is_ending: !!raw.is_ending,
+      };
+      setSegments(prev => [...prev, normalized]);
       setCurrentSegmentIndex(segments.length);
 
       // Generate image for new segment
-      generateSegmentImage(newSegment);
+      generateSegmentImage(normalized);
 
       toast({
         title: "Story continues!",
@@ -661,7 +676,7 @@ const StoryViewer = () => {
                   className="text-text-primary leading-relaxed transition-all duration-300"
                   style={{ fontSize: `${fontSize}px` }}
                 >
-                  {currentSegment.content.split('\n\n').map((paragraph, index) => (
+                  {(currentSegment?.content ?? '').split('\n\n').map((paragraph, index) => (
                     <p key={index} className="mb-6">
                       {paragraph}
                     </p>
