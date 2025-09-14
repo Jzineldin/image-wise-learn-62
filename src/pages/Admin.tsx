@@ -59,16 +59,24 @@ const Admin = () => {
 
     try {
       console.log('Checking admin access for user:', user.id);
-      const { data, error } = await supabase.rpc('has_role', { check_role: 'admin' });
-      console.log('Admin check result:', { data, error });
       
-      if (error) {
-        console.error('Error in has_role function:', error);
+      // Direct query to check if user has admin role
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .single();
+
+      console.log('Role check result:', { roleData, roleError });
+      
+      if (roleError && roleError.code !== 'PGRST116') { // PGRST116 is "not found" error
+        console.error('Database error checking role:', roleError);
         navigate('/');
         return;
       }
       
-      if (!data) {
+      if (!roleData) {
         console.log('User does not have admin role');
         navigate('/');
         toast({
