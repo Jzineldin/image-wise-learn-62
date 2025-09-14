@@ -120,7 +120,7 @@ const StoryViewer = () => {
       await reloadSegments();
 
     } catch (error) {
-      console.error('Error loading story:', error);
+      logger.error('Story loading failed', error, { storyId: id, mode: searchParams.get('mode') });
       toast({
         title: "Error loading story",
         description: "Failed to load the story. Please try again.",
@@ -171,7 +171,7 @@ const StoryViewer = () => {
       return transformedSegments;
 
     } catch (error) {
-      console.error('Error loading segments:', error);
+      logger.error('Story segments loading failed', error, { storyId: id });
       toast({
         title: "Error loading segments",
         description: "Failed to load story segments. Please refresh the page.",
@@ -619,7 +619,7 @@ const StoryViewer = () => {
       }
     } catch (error) {
       if (error.name !== 'AbortError') {
-        console.error('Error sharing story:', error);
+        logger.error('Story sharing failed', error, { storyId: id });
         toast({
           title: "Sharing failed",
           description: "Please try again or copy the URL manually.",
@@ -707,7 +707,7 @@ const StoryViewer = () => {
       navigate(`/story/${id}/end`);
 
     } catch (error) {
-      console.error('Error generating story ending:', error);
+      logger.error('Story ending generation failed', error, { storyId: id });
       toast({
         title: "Failed to generate ending",
         description: error.message || "Please try again later.",
@@ -881,7 +881,10 @@ const StoryViewer = () => {
                     alt={`Story segment ${currentSegment.segment_number}`}
                     className="w-full h-64 md:h-96 object-cover rounded-xl shadow-lg"
                     onError={(e) => {
-                      console.error('Image failed to load:', currentSegment.image_url);
+                      logger.warn('Segment image failed to load', { 
+                        segmentId: currentSegment.id, 
+                        imageUrl: currentSegment.image_url 
+                      });
                       e.currentTarget.style.display = 'none';
                     }}
                   />

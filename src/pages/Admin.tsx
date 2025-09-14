@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { logger } from '@/lib/debug';
 
 interface CompletedStory {
   id: string;
@@ -52,13 +53,13 @@ const Admin = () => {
 
   const checkAdminAccess = async () => {
     if (!user) {
-      console.log('No user found, redirecting to home');
+      logger.warn('No user found during admin check');
       navigate('/');
       return;
     }
 
     try {
-      console.log('Checking admin access for user:', user.id);
+      logger.info('Checking admin access', { userId: user.id });
       
       // Direct query to check if user has admin role
       const { data: roleData, error: roleError } = await supabase
@@ -71,13 +72,13 @@ const Admin = () => {
       console.log('Role check result:', { roleData, roleError });
       
       if (roleError && roleError.code !== 'PGRST116') { // PGRST116 is "not found" error
-        console.error('Database error checking role:', roleError);
+        logger.error('Database error checking admin role', roleError);
         navigate('/');
         return;
       }
       
       if (!roleData) {
-        console.log('User does not have admin role');
+        logger.warn('User does not have admin privileges');
         navigate('/');
         toast({
           title: "Access Denied",
@@ -85,10 +86,10 @@ const Admin = () => {
           variant: "destructive",
         });
       } else {
-        console.log('User has admin access confirmed');
+        logger.info('Admin access confirmed');
       }
     } catch (error) {
-      console.error('Error checking admin access:', error);
+      logger.error('Error checking admin access', error);
       navigate('/');
     }
   };
@@ -112,7 +113,7 @@ const Admin = () => {
       setFeaturedStories(featured || []);
 
     } catch (error) {
-      console.error('Error loading admin data:', error);
+      logger.error('Error loading admin data', error);
       toast({
         title: "Error",
         description: "Failed to load admin data.",
@@ -139,7 +140,7 @@ const Admin = () => {
 
       loadData(); // Reload data
     } catch (error) {
-      console.error('Error featuring story:', error);
+      logger.error('Error featuring story', error, { storyId });
       toast({
         title: "Error",
         description: "Failed to feature story.",
@@ -163,7 +164,7 @@ const Admin = () => {
 
       loadData(); // Reload data
     } catch (error) {
-      console.error('Error unfeaturing story:', error);
+      logger.error('Error unfeaturing story', error, { storyId });
       toast({
         title: "Error",
         description: "Failed to unfeature story.",
@@ -188,7 +189,7 @@ const Admin = () => {
 
       loadData(); // Reload data
     } catch (error) {
-      console.error('Error updating priority:', error);
+      logger.error('Error updating story priority', error, { storyId, priority });
       toast({
         title: "Error",
         description: "Failed to update priority.",

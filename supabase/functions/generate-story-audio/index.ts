@@ -1,6 +1,4 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { logger } from '../_shared/logger.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,12 +57,9 @@ serve(async (req) => {
       settings = {}
     }: GenerateAudioRequest = await req.json();
 
-    console.log('Audio generation request:', { 
-      textLength: text.length, 
-      voiceId, 
-      languageCode,
-      modelId 
-    });
+    const requestId = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    logger.audioGeneration(segmentId || 'unknown', requestId, selectedVoice?.id || voiceId || 'default');
 
     // Check permissions for audio generation
     // Allow any user to generate audio for segments without audio
@@ -136,7 +131,11 @@ serve(async (req) => {
       use_speaker_boost: true
     };
 
-    console.log('Using ElevenLabs voice:', selectedVoice.name, selectedVoice.id);
+    logger.info('Using ElevenLabs voice', { 
+      voiceName: selectedVoice.name, 
+      voiceId: selectedVoice.id,
+      requestId 
+    });
 
     // Generate speech using ElevenLabs
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${selectedVoice.id}`, {
@@ -155,7 +154,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('ElevenLabs TTS error:', errorText);
+      logger.error('ElevenLabs TTS failed', new Error(errorText), { requestId, segmentId });
       throw new Error(`TTS generation failed: ${response.status} - ${errorText}`);
     }
 

@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
+import { logger } from '@/lib/debug';
 
 const STEPS = [
   { id: 1, title: 'Age & Genre', icon: BookOpen },
@@ -162,7 +163,7 @@ export default function CreateStoryFlow() {
           .insert(segmentsToInsert);
 
         if (segmentsError) {
-          console.error('Error saving segments:', segmentsError);
+          logger.error('Error saving segments', segmentsError);
           throw new Error('Failed to save story segments');
         }
       }
@@ -185,7 +186,7 @@ export default function CreateStoryFlow() {
       navigate(`/story/${story.id}`);
 
     } catch (error) {
-      console.error('Error generating story:', error);
+      logger.error('Error generating story', error);
       toast.error('Failed to create story. Please try again.');
     } finally {
       setGenerating(false);

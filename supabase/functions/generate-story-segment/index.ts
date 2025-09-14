@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { createAIService } from '../_shared/ai-service.ts';
 import { PromptTemplateManager } from '../_shared/prompt-templates.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
+import { logger } from '../_shared/logger.ts';
 
 // ============= TYPES =============
 
@@ -52,19 +53,11 @@ serve(async (req) => {
       requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     }: GenerateSegmentRequest = await req.json();
 
-    console.log(`[${requestId}] 🚀 Starting story segment generation:`, {
-      requestId,
-      storyId,
-      choiceId,
-      segmentNumber,
-      choicePreview: choiceText.substring(0, 50) + '...',
-      ageGroup: storyContext.ageGroup,
-      genre: storyContext.genre
-    });
+    logger.storySegmentGeneration(storyId, segmentNumber || 1, requestId);
 
     // Validate input
     if (!storyId || !choiceText || !previousSegmentContent || !storyContext) {
-      console.error(`[${requestId}] ❌ Validation failed: Missing required fields`, {
+      logger.error('Validation failed: Missing required fields', new Error('Missing required fields'), {
         requestId,
         hasStoryId: !!storyId,
         hasChoiceText: !!choiceText,
@@ -121,7 +114,7 @@ serve(async (req) => {
       };
     });
 
-    console.log(`[${requestId}] ✅ AI generation completed:`, {
+    logger.info('AI generation completed', {
       requestId,
       contentLength: result.segmentData.content.length,
       choicesCount: result.segmentData.choices.length,
@@ -156,9 +149,8 @@ serve(async (req) => {
       .single();
 
     if (segmentError) {
-      console.error(`[${requestId}] ❌ Database error creating segment:`, {
+      logger.error('Database error creating segment', segmentError, {
         requestId,
-        error: segmentError,
         storyId,
         segmentNumber
       });
@@ -178,20 +170,19 @@ serve(async (req) => {
         .eq('id', storyId);
 
       if (updateError) {
-        console.warn(`[${requestId}] ⚠️ Failed to update story completion status:`, {
+        logger.warn('Failed to update story completion status', updateError, {
           requestId,
-          error: updateError,
           storyId
         });
       } else {
-        console.log(`[${requestId}] ✅ Story marked as completed`, {
+        logger.info('Story marked as completed', {
           requestId,
           storyId
         });
       }
     }
 
-    console.log(`[${requestId}] ✅ Story segment created successfully:`, {
+    logger.info('Story segment created successfully', {
       requestId,
       segmentId: newSegment.id,
       storyId,
@@ -212,10 +203,8 @@ serve(async (req) => {
 
   } catch (error) {
     const requestId = (req as any).requestId || 'unknown';
-    console.error(`[${requestId}] ❌ Story segment generation failed:`, {
+    logger.error('Story segment generation failed', error, {
       requestId,
-      error: error.message,
-      stack: error.stack,
       timestamp: new Date().toISOString()
     });
 
