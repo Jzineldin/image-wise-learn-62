@@ -44,25 +44,40 @@ const Admin = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAdminAccess();
-    loadData();
+    if (user) {
+      checkAdminAccess();
+      loadData();
+    }
   }, [user]);
 
   const checkAdminAccess = async () => {
     if (!user) {
+      console.log('No user found, redirecting to home');
       navigate('/');
       return;
     }
 
     try {
-      const { data } = await supabase.rpc('has_role', { check_role: 'admin' });
+      console.log('Checking admin access for user:', user.id);
+      const { data, error } = await supabase.rpc('has_role', { check_role: 'admin' });
+      console.log('Admin check result:', { data, error });
+      
+      if (error) {
+        console.error('Error in has_role function:', error);
+        navigate('/');
+        return;
+      }
+      
       if (!data) {
+        console.log('User does not have admin role');
         navigate('/');
         toast({
           title: "Access Denied",
           description: "You don't have admin privileges.",
           variant: "destructive",
         });
+      } else {
+        console.log('User has admin access confirmed');
       }
     } catch (error) {
       console.error('Error checking admin access:', error);
