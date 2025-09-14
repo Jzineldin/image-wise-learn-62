@@ -24,6 +24,7 @@ const Pricing = lazy(() => import("./pages/Pricing"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
+const Success = lazy(() => import("./pages/Success"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 
@@ -60,12 +61,13 @@ const App = () => {
                      <StoryViewer />
                    </ProtectedRoute>
                  } />
-                <Route path="/about" element={<About />} />
-                <Route path="/pricing" element={<Pricing />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="*" element={<NotFound />} />
+                 <Route path="/about" element={<About />} />
+                 <Route path="/pricing" element={<Pricing />} />
+                 <Route path="/success" element={<Success />} />
+                 <Route path="/contact" element={<Contact />} />
+                 <Route path="/privacy" element={<Privacy />} />
+                 <Route path="/terms" element={<Terms />} />
+                 <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
             </>
