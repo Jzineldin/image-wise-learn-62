@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { createAIService, normalizeResponse } from '../_shared/ai-service.ts';
+import { createAIService } from '../_shared/ai-service.ts';
 import { PromptTemplateManager } from '../_shared/prompt-templates.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 
@@ -95,11 +95,10 @@ serve(async (req) => {
       });
 
       // Validate and normalize response
-      const normalizedData = normalizeResponse(
+      const normalizedData = ResponseHandler.validateAndNormalize(
         aiResponse.content,
-        Validators.storySegment,
+        Validators.storySegment
         // No fallback for segments - should fail if AI doesn't work
-        undefined
       );
 
       return {

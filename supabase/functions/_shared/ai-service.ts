@@ -278,52 +278,6 @@ export class AIServiceManager {
   }
 }
 
-// ============= RESPONSE VALIDATION =============
-
-export class ResponseValidator {
-  /**
-   * Validate story seeds response
-   */
-  static validateStorySeeds(response: any): boolean {
-    return (
-      response &&
-      Array.isArray(response.seeds) &&
-      response.seeds.length > 0 &&
-      response.seeds.every((seed: any) => 
-        seed.id && seed.title && seed.description
-      )
-    );
-  }
-
-  /**
-   * Validate story segment response
-   */
-  static validateStorySegment(response: any): boolean {
-    return (
-      response &&
-      typeof response.content === 'string' &&
-      response.content.length > 0 &&
-      Array.isArray(response.choices) &&
-      response.choices.every((choice: any) =>
-        choice.id !== undefined && choice.text && choice.impact
-      )
-    );
-  }
-
-  /**
-   * Validate story titles response
-   */
-  static validateStoryTitles(response: any): boolean {
-    return (
-      response &&
-      Array.isArray(response.titles) &&
-      response.titles.length >= 3 &&
-      response.recommended &&
-      typeof response.recommended === 'string'
-    );
-  }
-}
-
 // ============= UTILITY FUNCTIONS =============
 
 /**
@@ -343,24 +297,4 @@ export function createAIService(): AIServiceManager {
   }
 
   return new AIServiceManager(apiKeys);
-}
-
-/**
- * Normalize response to ensure consistent format
- */
-export function normalizeResponse<T>(
-  response: any,
-  validator: (data: any) => boolean,
-  fallbackGenerator?: () => T
-): T {
-  if (validator(response)) {
-    return response as T;
-  }
-
-  if (fallbackGenerator) {
-    console.warn('Response validation failed, using fallback');
-    return fallbackGenerator();
-  }
-
-  throw new Error('Invalid response format and no fallback provided');
 }

@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createAIService, normalizeResponse } from '../_shared/ai-service.ts';
+import { createAIService } from '../_shared/ai-service.ts';
 import { PromptTemplateManager, FallbackGenerators } from '../_shared/prompt-templates.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 
@@ -76,7 +76,7 @@ serve(async (req) => {
       });
 
       // Validate and normalize response
-      const normalizedData = normalizeResponse(
+      const normalizedData = ResponseHandler.validateAndNormalize(
         aiResponse.content,
         Validators.storySeeds,
         () => FallbackGenerators.generateStorySeeds(context)
