@@ -66,8 +66,54 @@ serve(async (req) => {
       modelId 
     });
 
-    // Mark generation as in progress
+    // Check permissions for audio generation
+    // Allow any user to generate audio for segments without audio
+    // For public/featured stories, check if user is admin or owner
     if (segmentId) {
+      // Get story and segment information
+      const { data: segmentData, error: segmentError } = await supabase
+        .from('story_segments')
+        .select(`
+          id,
+          audio_url,
+          story_id,
+          stories!inner(
+            id,
+            user_id,
+            author_id,
+            visibility,
+            status
+          )
+        `)
+        .eq('id', segmentId)
+        .single();
+
+      if (segmentError || !segmentData) {
+        throw new Error('Segment not found or access denied');
+      }
+
+      const story = segmentData.stories;
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Check if user can generate audio for this segment
+      const isOwner = user && (story.user_id === user.id || story.author_id === user.id);
+      const isPublicStory = story.visibility === 'public';
+      
+      if (isPublicStory && !isOwner) {
+        // For public stories, check if user is admin
+        const { data: userRoles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user?.id)
+          .eq('role', 'admin')
+          .single();
+        
+        if (!userRoles) {
+          throw new Error('Admin privileges required to generate audio for public stories');
+        }
+      }
+
+      // Mark generation as in progress
       await supabase
         .from('story_segments')
         .update({ audio_generation_status: 'generating' })

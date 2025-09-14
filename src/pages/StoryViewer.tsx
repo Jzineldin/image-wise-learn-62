@@ -10,7 +10,7 @@ import { ReadingModeControls } from '@/components/ReadingModeControls';
 import { logger, generateRequestId } from '@/lib/debug';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 
-type ViewMode = 'read' | 'listen' | 'continue';
+type ViewMode = 'read' | 'watch';
 
 interface StorySegment {
   id: string;
@@ -78,31 +78,27 @@ const StoryViewer = () => {
   }, [id]);
 
   useEffect(() => {
-    // Determine view mode from URL params and story ownership
+    // Auto-play audio in watch mode
+    if (viewMode === 'watch' && currentSegment?.audio_url && !isPlaying) {
+      setTimeout(() => toggleAudio(), 500); // Small delay to ensure smooth transition
+    }
+  }, [viewMode, currentSegmentIndex, segments]);
+
+  useEffect(() => {
+    // Determine view mode from URL params, default to 'read'
     const modeParam = searchParams.get('mode') as ViewMode;
-    if (modeParam && ['read', 'listen', 'continue'].includes(modeParam)) {
+    if (modeParam && ['read', 'watch'].includes(modeParam)) {
       setViewMode(modeParam);
     } else {
-      // Auto-determine mode based on story status and ownership
-      if (story && user) {
-        const isUserStory = story.author_id === user.id || story.user_id === user.id;
-        setIsOwner(isUserStory);
-        
-        // Lock completed stories - force read mode
-        if (story.status === 'completed' || story.is_completed || story.is_complete) {
-          setViewMode('read');
-          // If user is trying to continue a completed story, redirect to read mode
-          if (modeParam === 'continue') {
-            setSearchParams({ mode: 'read' });
-          }
-        } else if (isUserStory) {
-          setViewMode('continue');
-        } else {
-          setViewMode('read');
-        }
-      }
+      setViewMode('read');
     }
-  }, [searchParams, story, user, setSearchParams]);
+    
+    // Set ownership status
+    if (story && user) {
+      const isUserStory = story.author_id === user.id || story.user_id === user.id;
+      setIsOwner(isUserStory);
+    }
+  }, [searchParams, story, user]);
 
   const loadStory = async () => {
     try {
@@ -511,7 +507,13 @@ const StoryViewer = () => {
       }
       
       const audio = new Audio(currentSegment.audio_url);
-      audio.onended = () => setIsPlaying(false);
+      audio.onended = () => {
+        setIsPlaying(false);
+        // Auto-advance in watch mode
+        if (viewMode === 'watch' && currentSegmentIndex < segments.length - 1) {
+          setTimeout(() => navigateSegment('next'), 1000); // 1 second delay between segments
+        }
+      };
       audio.onplay = () => setIsPlaying(true);
       audio.onpause = () => setIsPlaying(false);
       
@@ -739,7 +741,7 @@ const StoryViewer = () => {
 
   const currentSegment = segments[currentSegmentIndex];
   const isCompletedStory = story?.status === 'completed' || story?.is_completed;
-  const showChoices = viewMode === 'continue' && isOwner && !isCompletedStory;
+  const showChoices = viewMode === 'read' && isOwner && !isCompletedStory;
 
   return (
     <div className={`min-h-screen ${isFullscreen ? 'fixed inset-0 z-40 overflow-auto' : ''}`}>
@@ -816,39 +818,22 @@ const StoryViewer = () => {
                 </Button>
                 <Button
                   onClick={() => {
-                    setViewMode('listen');
+                    setViewMode('watch');
                     setSearchParams(prev => {
-                      prev.set('mode', 'listen');
+                      prev.set('mode', 'watch');
                       return prev;
                     });
                   }}
-                  variant={viewMode === 'listen' ? 'default' : 'ghost'}
+                  variant={viewMode === 'watch' ? 'default' : 'ghost'}
                   size="sm"
                   className="text-xs"
                 >
                   <Headphones className="w-4 h-4 mr-1" />
-                  Listen
+                  Watch
                 </Button>
-                {isOwner && !isCompletedStory && (
-                  <Button
-                    onClick={() => {
-                      setViewMode('continue');
-                      setSearchParams(prev => {
-                        prev.set('mode', 'continue');
-                        return prev;
-                      });
-                    }}
-                    variant={viewMode === 'continue' ? 'default' : 'ghost'}
-                    size="sm"
-                    className="text-xs"
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Continue
-                  </Button>
-                )}
               </div>
 
-              {viewMode === 'listen' && (
+              {viewMode === 'watch' && (
                 <VoiceSelector
                   selectedVoice={selectedVoice}
                   onVoiceChange={setSelectedVoice}
@@ -929,8 +914,8 @@ const StoryViewer = () => {
                 )}
               </div>
 
-              {/* Audio Controls - Enhanced for Listen Mode */}
-              {(viewMode === 'listen' || currentSegment.audio_url) && (
+              {/* Audio Controls - Enhanced for Watch Mode */}
+              {(viewMode === 'watch' || currentSegment.audio_url) && (
                 <div className="flex items-center justify-center mb-8">
                   <div className="glass-card p-4 flex items-center space-x-4">
                     {currentSegment.audio_url ? (
@@ -982,7 +967,7 @@ const StoryViewer = () => {
             </div>
           )}
 
-          {/* Choices Section - Only show in Continue mode */}
+              {/* Choices Section - Only show in Read mode for owners */}
           {showChoices && currentSegment && !currentSegment.is_ending && currentSegment.choices.length > 0 && currentSegmentIndex === segments.length - 1 && (
             <div className="glass-card-elevated p-8 mb-8">
               <h3 className="text-xl font-heading font-semibold mb-6 text-center">
@@ -1019,8 +1004,8 @@ const StoryViewer = () => {
             </div>
           )}
 
-          {/* End Story Button - Only show in Continue mode for endings */}
-          {viewMode === 'continue' && isOwner && currentSegment?.is_ending && (
+          {/* End Story Button - Only show in Read mode for endings */}
+          {viewMode === 'read' && isOwner && currentSegment?.is_ending && (
             <div className="glass-card-elevated p-8 mb-8 text-center">
               <Sparkles className="w-16 h-16 text-primary mx-auto mb-4 glow-amber" />
               <h3 className="text-2xl font-heading font-semibold mb-4">
@@ -1065,7 +1050,7 @@ const StoryViewer = () => {
               <span className="text-text-secondary">
                 Segment {currentSegmentIndex + 1} of {segments.length}
               </span>
-              {viewMode === 'continue' && isOwner && !currentSegment?.is_ending && (
+              {viewMode === 'read' && isOwner && !currentSegment?.is_ending && (
                 <Button
                   onClick={handleEndStory}
                   disabled={generatingEnding}
@@ -1100,8 +1085,8 @@ const StoryViewer = () => {
         </div>
       </div>
 
-      {/* Reading Mode Controls */}
-      {isReadingMode && (
+      {/* Reading Mode Controls - Show for both modes but with different functionality */}
+      {(isReadingMode || viewMode === 'watch') && (
         <ReadingModeControls
           isAutoPlaying={isAutoPlaying}
           onAutoPlayToggle={toggleAutoPlay}
