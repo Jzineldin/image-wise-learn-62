@@ -60,26 +60,28 @@ const Index = () => {
       {/* Hero Section - Split Layout */}
       <section className="relative overflow-hidden min-h-screen flex items-center justify-center">
         <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center max-w-7xl mx-auto">
             
             {/* Left Side - Main Content */}
-            <div className="space-y-8">
-              <h1 className="text-7xl md:text-8xl lg:text-9xl font-heading font-bold text-fire-gradient leading-tight glow-fire">
-                TALE<br />FORGE
-              </h1>
-              
-              <p className="text-xl md:text-2xl text-text-secondary max-w-lg text-with-outline">
-                Where every story becomes an adventure
-              </p>
+            <div className="space-y-8 lg:space-y-10 flex flex-col justify-center min-h-[500px]">
+              <div className="space-y-6">
+                <h1 className="text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-heading font-bold text-fire-gradient leading-[0.9] glow-fire">
+                  TALE<br />FORGE
+                </h1>
+                
+                <p className="text-lg md:text-xl lg:text-2xl text-text-secondary max-w-lg text-with-outline leading-relaxed">
+                  Where every story becomes an adventure
+                </p>
+              </div>
               
               <div className="flex flex-col sm:flex-row gap-4 max-w-md">
                 <Link to="/create">
-                  <Button className="btn-primary text-lg px-8 py-4 w-full sm:w-auto">
+                  <Button className="btn-primary text-lg px-8 py-4 w-full sm:w-auto shadow-xl hover:shadow-2xl">
                     Start Creating Magic
                   </Button>
                 </Link>
                 <Link to="/discover">
-                  <Button variant="outline" className="btn-secondary text-lg px-8 py-4 w-full sm:w-auto">
+                  <Button variant="outline" className="btn-secondary text-lg px-8 py-4 w-full sm:w-auto shadow-lg hover:shadow-xl">
                     Explore Stories
                   </Button>
                 </Link>
@@ -87,8 +89,12 @@ const Index = () => {
             </div>
 
             {/* Right Side - Featured Stories Carousel */}
-            <div className="flex justify-center lg:justify-end">
-              <FeaturedStoriesCarousel />
+            <div className="flex justify-center lg:justify-start xl:justify-center items-center min-h-[500px]">
+              <div className="relative">
+                {/* Connecting line/element for visual flow */}
+                <div className="hidden lg:block absolute -left-8 top-1/2 transform -translate-y-1/2 w-8 h-px bg-gradient-to-r from-transparent via-primary/30 to-primary/60"></div>
+                <FeaturedStoriesCarousel />
+              </div>
             </div>
             
           </div>
