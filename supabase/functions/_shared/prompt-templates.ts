@@ -83,23 +83,38 @@ export class PromptTemplateManager {
   static getCharacterReference(character: any): string {
     if (!character?.name) return 'the character';
     
-    // Check if it's a proper name (starts with capital, no descriptive words)
-    const isProperName = /^[A-Z][a-z]+( [A-Z][a-z]+)*$/.test(character.name.trim()) && 
-                         !character.name.toLowerCase().includes('dragon') && 
-                         !character.name.toLowerCase().includes('cat') && 
-                         !character.name.toLowerCase().includes('wizard') &&
-                         !character.name.toLowerCase().includes('fairy') &&
-                         !character.name.toLowerCase().includes('knight') &&
-                         !character.name.toLowerCase().includes('princess') &&
-                         !character.name.toLowerCase().includes('hero') &&
-                         !character.name.toLowerCase().includes('girl') &&
-                         !character.name.toLowerCase().includes('boy');
+    const name = character.name.trim();
     
-    if (isProperName) {
-      return character.name; // Use as proper name: "Luna", "Max"
+    // Expanded list of descriptive words that indicate a character type rather than proper name
+    const descriptiveWords = [
+      'dragon', 'cat', 'dog', 'rabbit', 'bear', 'lion', 'tiger', 'wolf', 'fox', 'bird', 'owl',
+      'wizard', 'witch', 'fairy', 'princess', 'prince', 'knight', 'king', 'queen',
+      'hero', 'warrior', 'guardian', 'explorer', 'adventurer',
+      'girl', 'boy', 'child', 'kid', 'student', 'teacher', 'friend',
+      'magic', 'magical', 'enchanted', 'mysterious', 'ancient', 'wise', 'brave', 'clever',
+      'friendly', 'curious', 'happy', 'sad', 'angry', 'gentle', 'fierce', 'tiny', 'giant',
+      'young', 'old', 'little', 'big', 'small', 'great'
+    ];
+    
+    // Check if name contains any descriptive words
+    const hasDescriptiveWords = descriptiveWords.some(word => 
+      name.toLowerCase().includes(word.toLowerCase())
+    );
+    
+    // Check if it matches a proper name pattern (capitalized words, no descriptive terms)
+    const properNamePattern = /^[A-Z][a-z]+( [A-Z][a-z]+)*$/;
+    const looksLikeProperName = properNamePattern.test(name) && !hasDescriptiveWords;
+    
+    if (looksLikeProperName) {
+      return name; // Use as proper name: "Luna", "Max", "Spark"
     } else {
-      // Use as descriptive type: "the friendly dragon", "the magic cat"
-      return `the ${character.name.toLowerCase()}`;
+      // Convert to descriptive reference: "the curious cat", "the friendly dragon"
+      const lowerName = name.toLowerCase();
+      // Handle cases where name might already start with "the"
+      if (lowerName.startsWith('the ')) {
+        return lowerName;
+      }
+      return `the ${lowerName}`;
     }
   }
 
@@ -110,21 +125,39 @@ export class PromptTemplateManager {
     const ageGuide = AGE_GUIDELINES[context.ageGroup as keyof typeof AGE_GUIDELINES] || AGE_GUIDELINES['10-12'];
     const genreWords = GENRE_VOCABULARY[context.genre as keyof typeof GENRE_VOCABULARY] || 'engaging, interesting';
     
-    const characterContext = context.characters && context.characters.length > 0
-      ? `Characters to include:\n${context.characters.map(char => 
-          `- ${char.name}: ${char.description} (${char.role || 'character'}${char.personality_traits ? `, traits: ${char.personality_traits.join(', ')}` : ''})`
-        ).join('\n')}\n\nCHARACTER REFERENCE RULES:\n- If character name is descriptive (like "Friendly Dragon", "Magic Cat"), use it as a type: "the friendly dragon", "the magic cat"\n- If character name is a proper name (like "Spark", "Luna", "Max"), use it as a name: "Spark", "Luna", "Max"\n- Use pronouns (he/she/they) and "the [character type]" for natural flow\n- Avoid repetitive use of full character names - vary with pronouns and descriptive references`
+    // Pre-process characters to use proper references
+    const processedCharacters = context.characters?.map(char => ({
+      ...char,
+      reference: PromptTemplateManager.getCharacterReference(char),
+      originalName: char.name
+    }));
+
+    const characterContext = processedCharacters && processedCharacters.length > 0
+      ? `CHARACTERS TO FEATURE:\n${processedCharacters.map(char => 
+          `- Use "${char.reference}" (original: "${char.originalName}"): ${char.description} (${char.role || 'character'}${char.personality_traits ? `, traits: ${char.personality_traits.join(', ')}` : ''})`
+        ).join('\n')}\n\n🚨 CRITICAL CHARACTER REFERENCE RULES:\n- ALWAYS use the processed character references shown above\n- NEVER use the original character names in descriptions\n- For proper names like "Luna" or "Max": use the name directly, then vary with pronouns\n- For descriptive types like "the curious cat": NEVER say "Curious Cat discovers..." - ALWAYS say "The curious cat discovers..."\n- Use natural pronoun flow: first mention → pronoun → descriptive reference → pronoun\n- Example: "The brave knight walked through the forest. He discovered a hidden cave. The knight cautiously entered..."`
       : 'No specific characters selected - create engaging characters appropriate for the age group.';
 
     const system = `You are a creative storytelling AI that generates ultra-concise story seeds for interactive children's stories.
+
+🚨 ABSOLUTE CHARACTER REFERENCE REQUIREMENTS:
+${processedCharacters && processedCharacters.length > 0 
+  ? `YOU MUST USE THESE EXACT CHARACTER REFERENCES:\n${processedCharacters.map(char => 
+      `- NEVER say "${char.originalName}" - ALWAYS say "${char.reference}"`
+    ).join('\n')}\n\n❌ WRONG EXAMPLES:\n${processedCharacters.map(char => 
+      `- "${char.originalName} discovers..." ← NEVER DO THIS`
+    ).join('\n')}\n\n✅ CORRECT EXAMPLES:\n${processedCharacters.map(char => 
+      `- "${char.reference} discovers..." ← ALWAYS DO THIS`
+    ).join('\n')}\n` 
+  : ''}
 
 CRITICAL REQUIREMENTS:
 1. Each seed description must be exactly ${ageGuide.wordCount}
 2. Use ${ageGuide.vocabulary} appropriate for ${context.ageGroup} readers
 3. Focus on ${ageGuide.themes} and ${ageGuide.complexity}
 4. Incorporate the selected genre: ${context.genre} (use words like: ${genreWords})
-5. ${context.characters && context.characters.length > 0 
-      ? `Feature these characters prominently: ${context.characters.map(c => c.name).join(', ')}` 
+5. ${processedCharacters && processedCharacters.length > 0 
+      ? `Feature these characters using their EXACT references: ${processedCharacters.map(c => c.reference).join(', ')}` 
       : 'Create engaging characters appropriate for the age group'}
 6. Set up ONE clear premise that leads to choices
 7. NO detailed explanations - just the core exciting premise
@@ -134,14 +167,14 @@ ${characterContext}
 
 WORD COUNT IS CRITICAL: Count every word in each description. Do not exceed the limits.
 
-GOOD EXAMPLES:
-- 4-6: "${context.characters && context.characters.length > 0 ? PromptTemplateManager.getCharacterReference(context.characters[0]) : 'Maya'} finds a talking rabbit in her backyard."
-- 7-9: "${context.characters && context.characters.length > 0 ? PromptTemplateManager.getCharacterReference(context.characters[0]) : 'Alex'} discovers a secret door behind the school library that glows with mysterious light."
-- 10-12: "${context.characters && context.characters.length > 0 ? PromptTemplateManager.getCharacterReference(context.characters[0]) : 'Sam'} receives a cryptic message from the future. Time is running out to prevent disaster."
-- 13+: "${context.characters && context.characters.length > 0 ? PromptTemplateManager.getCharacterReference(context.characters[0]) : 'Jordan'} inherits a mansion with rooms that change based on the visitor's deepest fears and desires."`;
+REFERENCE EXAMPLES FOR ${context.ageGroup}:
+- 4-6: "${processedCharacters && processedCharacters.length > 0 ? processedCharacters[0].reference : 'Maya'} finds a talking rabbit in her backyard."
+- 7-9: "${processedCharacters && processedCharacters.length > 0 ? processedCharacters[0].reference : 'Alex'} discovers a secret door behind the school library that glows with mysterious light."
+- 10-12: "${processedCharacters && processedCharacters.length > 0 ? processedCharacters[0].reference : 'Sam'} receives a cryptic message from the future. Time is running out to prevent disaster."
+- 13+: "${processedCharacters && processedCharacters.length > 0 ? processedCharacters[0].reference : 'Jordan'} inherits a mansion with rooms that change based on the visitor's deepest fears and desires."`;
 
-    const user = `Generate 3 unique story seeds for ${context.ageGroup} readers in the ${context.genre} genre(s). ${context.characters && context.characters.length > 0 
-      ? `Feature these characters: ${context.characters.map(c => PromptTemplateManager.getCharacterReference(c)).join(', ')}` 
+    const user = `Generate 3 unique story seeds for ${context.ageGroup} readers in the ${context.genre} genre(s). ${processedCharacters && processedCharacters.length > 0 
+      ? `MANDATORY: Feature these characters using their EXACT references: ${processedCharacters.map(c => c.reference).join(', ')}` 
       : ''}
 
 CRITICAL REQUIREMENTS:
@@ -378,24 +411,30 @@ export class FallbackGenerators {
    * Generate fallback story seeds
    */
   static generateStorySeeds(context: PromptContext): any {
-    const character = context.characters?.[0]?.name || 'Our hero';
+    const characterRef = context.characters?.[0] 
+      ? PromptTemplateManager.getCharacterReference(context.characters[0])
+      : 'our hero';
+    
+    const allCharacterRefs = context.characters?.length > 1 
+      ? context.characters.map(char => PromptTemplateManager.getCharacterReference(char)).join(' and ')
+      : characterRef;
     
     return {
       seeds: [
         {
           id: 'fallback-1',
           title: 'Magical Adventure',
-          description: `${character} discovers a mysterious door that leads to a magical world where anything is possible.`
+          description: `${characterRef.charAt(0).toUpperCase() + characterRef.slice(1)} discovers a mysterious door that leads to a magical world where anything is possible.`
         },
         {
           id: 'fallback-2',
           title: 'Hidden Treasure',
-          description: `When ${character} finds an ancient map, they must solve puzzles to find the legendary treasure.`
+          description: `When ${characterRef} finds an ancient map, they must solve puzzles to find the legendary treasure.`
         },
         {
           id: 'fallback-3',
           title: 'Time Adventure',
-          description: `${character} accidentally travels through time and must find a way back home while helping people along the way.`
+          description: `${characterRef.charAt(0).toUpperCase() + characterRef.slice(1)} accidentally travels through time and must find a way back home while helping people along the way.`
         }
       ]
     };
@@ -405,16 +444,21 @@ export class FallbackGenerators {
    * Generate fallback story titles
    */
   static generateStoryTitles(context: PromptContext & { storyContent: string }): any {
-    const character = context.characters?.[0]?.name || 'Hero';
+    const characterRef = context.characters?.[0] 
+      ? PromptTemplateManager.getCharacterReference(context.characters[0])
+      : 'Hero';
+    
+    // Capitalize first letter for titles
+    const titleCharacter = characterRef.charAt(0).toUpperCase() + characterRef.slice(1);
     const genreCap = context.genre.charAt(0).toUpperCase() + context.genre.slice(1);
     
     return {
       titles: [
-        `${character}'s ${genreCap} Adventure`,
+        `${titleCharacter}'s ${genreCap} Adventure`,
         `The Great ${genreCap} Quest`,
-        `${character} and the ${genreCap} Mystery`,
-        `The Secret of ${character}`,
-        `${character}'s Magical Journey`
+        `${titleCharacter} and the ${genreCap} Mystery`,
+        `The Secret of ${titleCharacter}`,
+        `${titleCharacter}'s Magical Journey`
       ],
       recommended: `${character}'s ${genreCap} Adventure`
     };
