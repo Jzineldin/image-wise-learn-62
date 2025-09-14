@@ -30,9 +30,13 @@ interface Story {
   title: string;
   description: string;
   author_id: string;
+  user_id?: string;
   genre: string;
   age_group: string;
   status: string;
+  is_completed?: boolean;
+  is_complete?: boolean;
+  visibility?: string;
   metadata: any;
   cover_image?: string;
 }
