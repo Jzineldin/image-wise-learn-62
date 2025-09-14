@@ -83,7 +83,23 @@ const StoryViewer = () => {
       }
       setStory(storyData);
 
-      // Load story segments
+      await reloadSegments();
+
+    } catch (error) {
+      console.error('Error loading story:', error);
+      toast({
+        title: "Error loading story",
+        description: "Failed to load the story. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reloadSegments = async () => {
+    try {
+      // Load story segments from database
       const { data: segmentsData, error: segmentsError } = await supabase
         .from('story_segments')
         .select('*')
@@ -118,15 +134,16 @@ const StoryViewer = () => {
         }
       });
 
+      return transformedSegments;
+
     } catch (error) {
-      console.error('Error loading story:', error);
+      console.error('Error loading segments:', error);
       toast({
-        title: "Error loading story",
-        description: "Failed to load the story. Please try again.",
+        title: "Error loading segments",
+        description: "Failed to load story segments. Please refresh the page.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
+      return [];
     }
   };
 
@@ -158,27 +175,23 @@ const StoryViewer = () => {
 
       if (error) throw error;
 
-      const raw = data.segment as any;
-      const normalized: StorySegment = {
-        id: raw.id,
-        segment_number: raw.segment_number,
-        content: (raw.content ?? '') as string,
-        image_url: raw.image_url || undefined,
-        audio_url: raw.audio_url || undefined,
-        choices: Array.isArray(raw.choices)
-          ? (raw.choices as any[]).map((c: any) => ({
-              id: c?.id ?? 0,
-              text: c?.text ?? '',
-              impact: c?.impact,
-            }))
-          : [],
-        is_ending: !!raw.is_ending,
-      };
-      setSegments(prev => [...prev, normalized]);
-      setCurrentSegmentIndex(segments.length);
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to generate segment');
+      }
 
-      // Generate image for new segment
-      generateSegmentImage(normalized);
+      // Reload segments from database to ensure state consistency
+      const updatedSegments = await reloadSegments();
+      
+      // Navigate to the latest segment (last one in the array)
+      if (updatedSegments.length > 0) {
+        setCurrentSegmentIndex(updatedSegments.length - 1);
+        
+        // Generate image for the new segment
+        const newSegment = updatedSegments[updatedSegments.length - 1];
+        if (newSegment && !newSegment.image_url) {
+          generateSegmentImage(newSegment);
+        }
+      }
 
       toast({
         title: "Story continues!",
@@ -189,7 +202,7 @@ const StoryViewer = () => {
       console.error('Error generating segment:', error);
       toast({
         title: "Generation failed",
-        description: "Failed to continue the story. Please try again.",
+        description: error.message || "Failed to continue the story. Please try again.",
         variant: "destructive",
       });
     } finally {
