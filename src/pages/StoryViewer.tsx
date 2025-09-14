@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, RotateCcw, ThumbsUp, BookOpen } from 'lucide-react';
+import { Play, Pause, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, RotateCcw, ThumbsUp, BookOpen, Edit, Eye, Headphones } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { VoiceSelector } from '@/components/VoiceSelector';
 import { ReadingModeControls } from '@/components/ReadingModeControls';
 import { logger, generateRequestId } from '@/lib/debug';
+
+type ViewMode = 'read' | 'listen' | 'continue';
 
 interface StorySegment {
   id: string;
@@ -40,6 +42,7 @@ const StoryViewer = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const [story, setStory] = useState<Story | null>(null);
   const [segments, setSegments] = useState<StorySegment[]>([]);
@@ -47,6 +50,8 @@ const StoryViewer = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('read');
+  const [isOwner, setIsOwner] = useState(false);
   const [generatingSegment, setGeneratingSegment] = useState(false);
   const [generatingAudio, setGeneratingAudio] = useState(false);
   const [generatingEnding, setGeneratingEnding] = useState(false);
@@ -66,6 +71,28 @@ const StoryViewer = () => {
       loadStory();
     }
   }, [id]);
+
+  useEffect(() => {
+    // Determine view mode from URL params and story ownership
+    const modeParam = searchParams.get('mode') as ViewMode;
+    if (modeParam && ['read', 'listen', 'continue'].includes(modeParam)) {
+      setViewMode(modeParam);
+    } else {
+      // Auto-determine mode based on story status and ownership
+      if (story && user) {
+        const isUserStory = story.author_id === user.id || story.user_id === user.id;
+        setIsOwner(isUserStory);
+        
+        if (story.status === 'completed') {
+          setViewMode('read');
+        } else if (isUserStory) {
+          setViewMode('continue');
+        } else {
+          setViewMode('read');
+        }
+      }
+    }
+  }, [searchParams, story, user]);
 
   const loadStory = async () => {
     try {
@@ -646,6 +673,8 @@ const StoryViewer = () => {
   }
 
   const currentSegment = segments[currentSegmentIndex];
+  const isCompletedStory = story?.status === 'completed' || story?.is_completed;
+  const showChoices = viewMode === 'continue' && isOwner && !isCompletedStory;
 
   return (
     <div className={`min-h-screen ${isFullscreen ? 'fixed inset-0 z-40 overflow-auto' : ''}`}>
@@ -659,15 +688,69 @@ const StoryViewer = () => {
               </h1>
               <p className="text-text-secondary">
                 {story.genre} • {story.age_group} • Segment {currentSegmentIndex + 1} of {segments.length}
+                {isCompletedStory && <span className="ml-2 text-primary">• Complete</span>}
               </p>
             </div>
             
             <div className="flex items-center space-x-4">
-              <VoiceSelector
-                selectedVoice={selectedVoice}
-                onVoiceChange={setSelectedVoice}
-                className="hidden sm:block"
-              />
+              {/* View Mode Selector */}
+              <div className="flex items-center space-x-1 bg-background/50 rounded-lg p-1">
+                <Button
+                  onClick={() => {
+                    setViewMode('read');
+                    setSearchParams(prev => {
+                      prev.set('mode', 'read');
+                      return prev;
+                    });
+                  }}
+                  variant={viewMode === 'read' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="text-xs"
+                >
+                  <Eye className="w-4 h-4 mr-1" />
+                  Read
+                </Button>
+                <Button
+                  onClick={() => {
+                    setViewMode('listen');
+                    setSearchParams(prev => {
+                      prev.set('mode', 'listen');
+                      return prev;
+                    });
+                  }}
+                  variant={viewMode === 'listen' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="text-xs"
+                >
+                  <Headphones className="w-4 h-4 mr-1" />
+                  Listen
+                </Button>
+                {isOwner && !isCompletedStory && (
+                  <Button
+                    onClick={() => {
+                      setViewMode('continue');
+                      setSearchParams(prev => {
+                        prev.set('mode', 'continue');
+                        return prev;
+                      });
+                    }}
+                    variant={viewMode === 'continue' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="text-xs"
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    Continue
+                  </Button>
+                )}
+              </div>
+
+              {viewMode === 'listen' && (
+                <VoiceSelector
+                  selectedVoice={selectedVoice}
+                  onVoiceChange={setSelectedVoice}
+                  className="hidden sm:block"
+                />
+              )}
               <Button
                 onClick={toggleReadingMode}
                 variant="outline"
@@ -736,40 +819,42 @@ const StoryViewer = () => {
                 )}
               </div>
 
-              {/* Audio Controls */}
-              <div className="flex items-center justify-center mb-8">
-                <div className="glass-card p-4 flex items-center space-x-4">
-                  {currentSegment.audio_url ? (
-                    <Button
-                      onClick={toggleAudio}
-                      className="btn-primary"
-                      size="sm"
-                    >
-                      {isPlaying ? (
-                        <Pause className="w-5 h-5" />
-                      ) : (
-                        <Play className="w-5 h-5" />
-                      )}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() => generateAudio(currentSegment.id, currentSegment.content)}
-                      disabled={generatingAudio}
-                      className="btn-primary"
-                      size="sm"
-                    >
-                      {generatingAudio ? (
-                        <div className="loading-spinner w-5 h-5" />
-                      ) : (
-                        <Volume2 className="w-5 h-5" />
-                      )}
-                    </Button>
-                  )}
-                  <span className="text-text-secondary text-sm">
-                    {currentSegment.audio_url ? 'Listen' : 'Generate Audio'}
-                  </span>
+              {/* Audio Controls - Enhanced for Listen Mode */}
+              {(viewMode === 'listen' || currentSegment.audio_url) && (
+                <div className="flex items-center justify-center mb-8">
+                  <div className="glass-card p-4 flex items-center space-x-4">
+                    {currentSegment.audio_url ? (
+                      <Button
+                        onClick={toggleAudio}
+                        className="btn-primary"
+                        size="sm"
+                      >
+                        {isPlaying ? (
+                          <Pause className="w-5 h-5" />
+                        ) : (
+                          <Play className="w-5 h-5" />
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => generateAudio(currentSegment.id, currentSegment.content)}
+                        disabled={generatingAudio}
+                        className="btn-primary"
+                        size="sm"
+                      >
+                        {generatingAudio ? (
+                          <div className="loading-spinner w-5 h-5" />
+                        ) : (
+                          <Volume2 className="w-5 h-5" />
+                        )}
+                      </Button>
+                    )}
+                    <span className="text-text-secondary text-sm">
+                      {currentSegment.audio_url ? 'Listen' : 'Generate Audio'}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Story Text */}
               <div className="prose prose-lg max-w-none">
@@ -787,8 +872,8 @@ const StoryViewer = () => {
             </div>
           )}
 
-          {/* Choices Section - Show when we're on the latest segment and it's not an ending */}
-          {currentSegment && !currentSegment.is_ending && currentSegment.choices.length > 0 && currentSegmentIndex === segments.length - 1 && (
+          {/* Choices Section - Only show in Continue mode */}
+          {showChoices && currentSegment && !currentSegment.is_ending && currentSegment.choices.length > 0 && currentSegmentIndex === segments.length - 1 && (
             <div className="glass-card-elevated p-8 mb-8">
               <h3 className="text-xl font-heading font-semibold mb-6 text-center">
                 What happens next?
@@ -824,8 +909,8 @@ const StoryViewer = () => {
             </div>
           )}
 
-          {/* End Story Button */}
-          {currentSegment?.is_ending && (
+          {/* End Story Button - Only show in Continue mode for endings */}
+          {viewMode === 'continue' && isOwner && currentSegment?.is_ending && (
             <div className="glass-card-elevated p-8 mb-8 text-center">
               <Sparkles className="w-16 h-16 text-primary mx-auto mb-4 glow-amber" />
               <h3 className="text-2xl font-heading font-semibold mb-4">
@@ -870,7 +955,7 @@ const StoryViewer = () => {
               <span className="text-text-secondary">
                 Segment {currentSegmentIndex + 1} of {segments.length}
               </span>
-              {!currentSegment?.is_ending && (
+              {viewMode === 'continue' && isOwner && !currentSegment?.is_ending && (
                 <Button
                   onClick={handleEndStory}
                   disabled={generatingEnding}

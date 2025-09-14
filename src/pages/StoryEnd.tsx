@@ -248,12 +248,13 @@ const StoryEnd = () => {
           status: 'completed',
           is_completed: true,
           is_complete: true,
-          visibility: 'private', // Can be changed later
+          visibility: 'private', // Can be changed later in settings
           metadata: {
             ...safeMetadata,
             completion_date: new Date().toISOString(),
             final_segment_count: segments.length,
-            has_audio: segments.some(s => s.audio_url)
+            has_audio: segments.some(s => s.audio_url),
+            completed_via: 'story_end_page'
           }
         })
         .eq('id', story.id);
@@ -458,12 +459,12 @@ const StoryEnd = () => {
           <div className="glass-card-elevated p-8">
             <div className="flex flex-col md:flex-row gap-4">
               <Button
-                onClick={() => navigate(`/story/${story.id}`)}
+                onClick={() => navigate(`/story/${story.id}?mode=read`)}
                 variant="outline"
                 className="btn-secondary flex-1"
               >
                 <BookOpen className="w-5 h-5 mr-2" />
-                Review Story
+                Read Story
               </Button>
               
               <Button

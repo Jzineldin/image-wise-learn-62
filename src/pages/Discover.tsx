@@ -1,53 +1,62 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, ThumbsUp, Eye, Star, Filter, Book } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import FeaturedStories from '@/components/FeaturedStories';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 const Discover = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('all');
+  const [publicStories, setPublicStories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  // Mock featured and trending stories
-  const featuredStories = [
-    {
-      id: '1',
-      title: 'The Enchanted Library',
-      author: 'Sarah Johnson',
-      genre: 'Fantasy & Magic',
-      age_group: '7-9',
-      cover_image: '/api/placeholder/300/400',
-      views: 2543,
-      likes: 187,
-      rating: 4.8,
-      description: 'A young girl discovers a magical library where books come to life...'
-    },
-    {
-      id: '2',
-      title: 'Space Rescue Mission',
-      author: 'Mike Chen',
-      genre: 'Science Fiction',
-      age_group: '10-12',
-      cover_image: '/api/placeholder/300/400',
-      views: 1876,
-      likes: 234,
-      rating: 4.9,
-      description: 'Join Captain Luna on an thrilling rescue mission across the galaxy...'
-    },
-    {
-      id: '3',
-      title: 'The Mystery of Whispering Woods',
-      author: 'Emma Wilson',
-      genre: 'Mystery & Detective',
-      age_group: '13+',
-      cover_image: '/api/placeholder/300/400',
-      views: 3201,
-      likes: 156,
-      rating: 4.7,
-      description: 'Strange sounds echo through the forest. Can you solve the mystery?...'
+  useEffect(() => {
+    loadPublicStories();
+  }, [selectedGenre, searchQuery]);
+
+  const loadPublicStories = async () => {
+    try {
+      setLoading(true);
+      let query = supabase
+        .from('stories')
+        .select(`
+          id,
+          title,
+          description,
+          genre,
+          age_group,
+          cover_image,
+          created_at,
+          profiles:author_id(display_name)
+        `)
+        .eq('visibility', 'public')
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (selectedGenre !== 'all') {
+        query = query.eq('genre', selectedGenre);
+      }
+
+      if (searchQuery.trim()) {
+        query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+      }
+
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      setPublicStories(data || []);
+    } catch (error) {
+      console.error('Error loading public stories:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const genres = [
     'all', 'Fantasy & Magic', 'Adventure & Exploration', 'Mystery & Detective', 
@@ -104,64 +113,78 @@ const Discover = () => {
         </div>
 
         {/* Featured Stories */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-heading font-semibold mb-8 text-with-shadow">
-            Featured Stories
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredStories.map((story) => (
-              <div key={story.id} className="glass-card-interactive group">
-                {/* Cover Image */}
-                <div className="relative overflow-hidden rounded-t-lg">
-                  <div className="w-full h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                    <Book className="w-16 h-16 text-primary/50" />
-                  </div>
-                  <div className="absolute top-4 right-4">
-                    <span className="bg-primary text-primary-foreground px-2 py-1 rounded-full text-xs font-medium">
-                      {story.age_group}
-                    </span>
-                  </div>
-                </div>
+        <FeaturedStories limit={6} />
 
-                {/* Content */}
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="text-lg font-semibold group-hover:text-primary transition-colors line-clamp-2">
+        {/* Public Stories */}
+        <section className="mb-16">
+          <h2 className="text-3xl font-heading font-semibold mb-8">
+            Community Stories
+          </h2>
+          
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="loading-spinner h-8 w-8" />
+            </div>
+          ) : publicStories.length === 0 ? (
+            <div className="text-center py-12">
+              <Book className="w-16 h-16 text-text-tertiary mx-auto mb-4" />
+              <h3 className="text-xl font-heading font-semibold mb-2">No stories found</h3>
+              <p className="text-text-secondary">
+                {searchQuery ? 'Try adjusting your search terms' : 'Be the first to publish a story!'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {publicStories.map((story) => (
+                <div 
+                  key={story.id} 
+                  className="glass-card-interactive group cursor-pointer"
+                  onClick={() => navigate(`/story/${story.id}?mode=read`)}
+                >
+                  {/* Cover Image */}
+                  <div className="relative overflow-hidden rounded-t-lg">
+                    {story.cover_image ? (
+                      <img 
+                        src={story.cover_image} 
+                        alt={story.title}
+                        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center group-hover:from-primary/30 group-hover:to-secondary/30 transition-colors">
+                        <Book className="w-16 h-16 text-primary/50" />
+                      </div>
+                    )}
+                    <div className="absolute top-4 right-4">
+                      <span className="bg-primary text-primary-foreground px-2 py-1 rounded-full text-xs font-medium">
+                        {story.age_group}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold group-hover:text-primary transition-colors line-clamp-2 mb-3">
                       {story.title}
                     </h3>
-                    <div className="flex items-center text-primary text-sm font-medium">
-                      <Star className="w-4 h-4 mr-1 fill-current" />
-                      {story.rating}
-                    </div>
+
+                    <p className="text-text-secondary text-sm mb-2">
+                      by {story.profiles?.display_name || 'Anonymous'}
+                    </p>
+                    <p className="text-primary text-sm font-medium mb-3">
+                      {story.genre}
+                    </p>
+                    <p className="text-text-secondary text-sm mb-6 line-clamp-3">
+                      {story.description}
+                    </p>
+
+                    <Button className="btn-primary w-full">
+                      Read Story
+                    </Button>
                   </div>
-
-                  <p className="text-text-secondary text-sm mb-2">by {story.author}</p>
-                  <p className="text-primary text-sm font-medium mb-3">{story.genre}</p>
-                  <p className="text-text-secondary text-sm mb-4 line-clamp-2">
-                    {story.description}
-                  </p>
-
-                  {/* Stats */}
-                  <div className="flex items-center justify-between text-text-tertiary text-sm mb-4">
-                    <div className="flex items-center space-x-4">
-                      <span className="flex items-center">
-                        <Eye className="w-4 h-4 mr-1" />
-                        {story.views}
-                      </span>
-                      <span className="flex items-center">
-                        <ThumbsUp className="w-4 h-4 mr-1" />
-                        {story.likes}
-                      </span>
-                    </div>
-                  </div>
-
-                  <Button className="btn-primary w-full">
-                    Read Story
-                  </Button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Browse Categories */}
