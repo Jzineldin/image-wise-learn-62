@@ -1,8 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -26,6 +24,101 @@ interface StorySeed {
   description: string;
 }
 
+// AI Service for seeds generation
+class SeedsAIService {
+  private openAIKey: string;
+  private ovhToken: string;
+
+  constructor(openAIKey: string, ovhToken: string) {
+    this.openAIKey = openAIKey;
+    this.ovhToken = ovhToken;
+  }
+
+  async generateSeeds(messages: any[]): Promise<{ seeds: StorySeed[]; model: string }> {
+    console.log('Attempting gpt-4o-mini seeds generation...');
+    
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.openAIKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages,
+          max_tokens: 1000,
+          response_format: { type: "json_object" }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('OpenAI API error:', response.status, errorText);
+        throw new Error(`gpt-4o-mini failed: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+      const parsedResponse = JSON.parse(content);
+      
+      if (!parsedResponse.seeds || !Array.isArray(parsedResponse.seeds)) {
+        throw new Error('Invalid seeds structure from gpt-4o-mini');
+      }
+      
+      return { seeds: parsedResponse.seeds, model: 'gpt-4o-mini' };
+    } catch (error) {
+      console.error('gpt-4o-mini failed, trying OVH Llama fallback:', error.message);
+      
+      try {
+        const systemPrompt = messages.find(m => m.role === 'system')?.content || '';
+        const userPrompt = messages.find(m => m.role === 'user')?.content || '';
+        
+        const response = await fetch('https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.ovhToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'Meta-Llama-3_3-70B-Instruct',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt + '\n\nReturn only valid JSON with exactly 3 story seeds.' }
+            ],
+            max_tokens: 1000,
+            temperature: 0.7,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('OVH Llama API error:', response.status, errorText);
+          throw new Error(`OVH Llama failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const content = data.choices[0].message.content;
+        
+        // Extract JSON from response
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsedResponse = JSON.parse(jsonMatch[0]);
+          if (!parsedResponse.seeds || !Array.isArray(parsedResponse.seeds)) {
+            throw new Error('Invalid seeds structure from OVH Llama');
+          }
+          return { seeds: parsedResponse.seeds, model: 'Meta-Llama-3_3-70B-Instruct' };
+        }
+        
+        throw new Error('No valid JSON found in OVH response');
+      } catch (fallbackError) {
+        console.error('OVH Llama fallback failed:', fallbackError.message);
+        throw new Error(`All AI services failed: ${error.message}, ${fallbackError.message}`);
+      }
+    }
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -33,8 +126,11 @@ serve(async (req) => {
   }
 
   try {
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    const ovhToken = Deno.env.get('OVH_AI_ENDPOINTS_ACCESS_TOKEN');
+    
+    if (!openAIApiKey || !ovhToken) {
+      throw new Error('AI API keys not configured');
     }
 
     const { ageGroup, genres, characters }: GenerateStorySeedsRequest = await req.json();
@@ -92,48 +188,21 @@ Return as a JSON array of exactly 3 seeds with this structure:
   ]
 }`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        max_tokens: 1000,
-        response_format: { type: "json_object" }
-      }),
-    });
+    const aiService = new SeedsAIService(openAIApiKey, ovhToken);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      throw new Error(`OpenAI API error: ${response.status} ${errorText}`);
-    }
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ];
 
-    const data = await response.json();
-    const content = data.choices[0].message.content;
-    
-    let parsedResponse;
-    try {
-      parsedResponse = JSON.parse(content);
-    } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', content);
-      throw new Error('Invalid response format from AI');
-    }
+    const { seeds, model } = await aiService.generateSeeds(messages);
 
-    if (!parsedResponse.seeds || !Array.isArray(parsedResponse.seeds) || parsedResponse.seeds.length !== 3) {
-      console.error('Invalid seeds structure:', parsedResponse);
-      throw new Error('AI did not return exactly 3 story seeds');
-    }
+    console.log('Successfully generated story seeds:', seeds.length, 'using', model);
 
-    console.log('Successfully generated story seeds:', parsedResponse.seeds.length);
-
-    return new Response(JSON.stringify(parsedResponse), {
+    return new Response(JSON.stringify({ 
+      seeds,
+      model_used: model 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
