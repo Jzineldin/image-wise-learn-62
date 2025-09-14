@@ -1,1 +1,25 @@
 project_id = "hlrvpuqwurtdbjkramcp"
+
+[functions.generate-story]
+verify_jwt = true
+
+[functions.generate-story-audio] 
+verify_jwt = true
+
+[functions.generate-story-ending]
+verify_jwt = true
+
+[functions.generate-story-image]
+verify_jwt = true
+
+[functions.generate-story-seeds]
+verify_jwt = true
+
+[functions.generate-story-segment]
+verify_jwt = true
+
+[functions.generate-story-title]
+verify_jwt = true
+
+[functions.translate-content]
+verify_jwt = true

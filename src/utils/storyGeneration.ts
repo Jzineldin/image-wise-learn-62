@@ -258,3 +258,32 @@ export const getRecommendedVoices = (languageCode: string): string[] => {
 
   return voiceMapping[languageCode] || voiceMapping['en'];
 };
+
+/**
+ * Generate a story ending using AI
+ */
+export const generateStoryEnding = async (options: {
+  storyId: string;
+  currentSegments: Array<{
+    segment_number: number;
+    content: string;
+  }>;
+  genre: string;
+  ageGroup: string;
+  characters?: Array<{ name: string; description: string }>;
+}) => {
+  const { data, error } = await supabase.functions.invoke('generate-story-ending', {
+    body: options
+  });
+
+  if (error) {
+    console.error('Story ending generation error:', error);
+    throw new Error(error.message || 'Failed to generate story ending');
+  }
+
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  return data;
+};
