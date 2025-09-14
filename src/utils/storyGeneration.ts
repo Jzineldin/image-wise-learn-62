@@ -1,4 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getOperationEstimate, isOperationSupported } from './aiConfig';
+
+// ============= TYPES & INTERFACES =============
 
 export interface StoryGenerationOptions {
   prompt: string;
@@ -17,6 +20,11 @@ export interface StoryGenerationResult {
   story: string;
   model_used: string;
   language: string;
+  metadata?: {
+    tokensUsed?: number;
+    processingTime?: number;
+    provider?: string;
+  };
 }
 
 export interface AudioGenerationOptions {
@@ -53,10 +61,24 @@ export interface TranslationResult {
   translatedLength: number;
 }
 
+// ============= STORY GENERATION =============
+
 /**
- * Generate a story using AI based on the provided options
+ * Generate a story using the centralized AI architecture
  */
 export const generateStory = async (options: StoryGenerationOptions): Promise<StoryGenerationResult> => {
+  // Validate operation support
+  if (!isOperationSupported('story-generation', options.ageGroup, options.genre)) {
+    throw new Error(`Story generation not supported for age group: ${options.ageGroup}, genre: ${options.genre}`);
+  }
+
+  console.log('Generating story with centralized AI service:', {
+    ageGroup: options.ageGroup,
+    genre: options.genre,
+    charactersCount: options.characters.length,
+    estimate: getOperationEstimate('story-generation')
+  });
+
   const { data, error } = await supabase.functions.invoke('generate-story', {
     body: options
   });
@@ -66,11 +88,11 @@ export const generateStory = async (options: StoryGenerationOptions): Promise<St
     throw new Error(error.message || 'Failed to generate story');
   }
 
-  if (data.error) {
-    throw new Error(data.error);
+  if (!data.success) {
+    throw new Error(data.error || 'Story generation failed');
   }
 
-  return data;
+  return data.data;
 };
 
 /**
