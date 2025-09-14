@@ -230,19 +230,64 @@ serve(async (req) => {
     // Determine if this should be an ending segment (after 4-5 segments typically)
     const shouldBeEnding = segmentNumber >= 4 && Math.random() > 0.4;
 
-    const systemPrompt = `You are a master storyteller continuing an interactive story. Create the next segment based on the user's choice.
+    // Age-specific word count requirements
+    const getWordCountRequirement = (age: string) => {
+      if (age === '4-6 years') return '30-60 words';
+      if (age === '7-9 years') return '100-140 words';
+      if (age === '10-12 years') return '150-200 words';
+      return '250-400 words'; // 13+ years
+    };
 
-CRITICAL REQUIREMENTS:
+    // Age-specific choice complexity
+    const getChoiceGuidance = (age: string) => {
+      if (age === '4-6 years') return 'Provide 2 simple, clear choices with obvious outcomes. Use basic vocabulary and simple sentence structure.';
+      if (age === '7-9 years') return 'Provide 2-3 choices with clear but slightly more complex outcomes. Use age-appropriate vocabulary.';
+      if (age === '10-12 years') return 'Provide 3 meaningful choices with interesting consequences. Use varied vocabulary and sentence structure.';
+      return 'Provide 3 sophisticated choices with nuanced outcomes and character development implications.';
+    };
+
+    const systemPrompt = `You are a master storyteller continuing an interactive story with deep expertise in child development and age-appropriate literature. Create the next segment based on the user's choice.
+
+CRITICAL AGE-SPECIFIC REQUIREMENTS FOR ${storyContext.ageGroup}:
+
+WORD COUNT: Content must be exactly ${getWordCountRequirement(storyContext.ageGroup)}
+- This is NON-NEGOTIABLE. Count every word carefully.
+- For 4-6 years: Focus on simple actions and basic emotions
+- For 7-9 years: Include more descriptive language and simple plot development  
+- For 10-12 years: Add character development and moderate complexity
+- For 13+ years: Include sophisticated themes and complex character interactions
+
+VOCABULARY & LANGUAGE STANDARDS:
+- 4-6 years: Use simple, concrete words. Short sentences (5-8 words). Present tense preferred. Avoid abstract concepts.
+- 7-9 years: Introduce descriptive adjectives. Medium sentences (8-12 words). Mix of tenses allowed. Basic emotions and motivations.
+- 10-12 years: Rich vocabulary with some challenging words. Varied sentence length. Complex emotions and relationships.
+- 13+ years: Advanced vocabulary. Complex sentence structures. Sophisticated themes and character psychology.
+
+CHOICE COMPLEXITY: ${getChoiceGuidance(storyContext.ageGroup)}
+
+CONTENT STRUCTURE REQUIREMENTS:
 1. Return ONLY valid JSON matching the exact schema
-2. Content must be 250-400 words
-3. Age-appropriate for ${storyContext.ageGroup} audience
-4. Build naturally from the previous segment and chosen path
-5. ${shouldBeEnding ? 'This should be a satisfying ending to the story' : 'Include a compelling cliffhanger'}
-6. ${shouldBeEnding ? 'Set "is_ending": true and provide fewer/final choices' : 'Provide exactly 3 meaningful choices that lead to different directions'}
-7. Maintain story consistency and character development
-8. NEVER include questions or direct reader address in the story content - story content should be pure narrative
-9. ALL questions and interactivity should only appear in the structured choices array
-10. Cliffhangers should be dramatic situations or moments, not questions posed to the reader`;
+2. Age-appropriate for ${storyContext.ageGroup} audience with precise word count adherence
+3. Build naturally from the previous segment and chosen path
+4. ${shouldBeEnding ? 'This should be a satisfying ending to the story' : 'Include a compelling cliffhanger'}
+5. ${shouldBeEnding ? 'Set "is_ending": true and provide fewer/final choices' : 'Create age-appropriate choices as specified above'}
+6. Maintain story consistency and character development
+7. NEVER include questions or direct reader address in the story content - story content should be pure narrative
+8. ALL questions and interactivity should only appear in the structured choices array
+9. Cliffhangers should be dramatic situations or moments, not questions posed to the reader
+
+GENRE-SPECIFIC ELEMENTS FOR ${storyContext.genre.toUpperCase()}:
+- Adventure: Age-appropriate challenges, exploration, discovery
+- Fantasy: Magic systems appropriate for age level, mythical creatures
+- Mystery: Age-appropriate puzzles, clues, investigations  
+- Friendship: Social dynamics, cooperation, emotional growth
+- Educational: Learning opportunities woven naturally into narrative
+
+EMOTIONAL GUIDELINES:
+- 4-6 years: Basic emotions (happy, sad, excited, scared). Simple cause-and-effect.
+- 7-9 years: More complex emotions (disappointed, proud, worried). Basic empathy scenarios.
+- 10-12 years: Nuanced feelings (conflicted, determined, relieved). Character growth moments.
+- 13+ years: Complex emotional landscapes, moral dilemmas, sophisticated character development.`;
 
     const userPrompt = `Continue this ${storyContext.genre} story for ${storyContext.ageGroup} age group:
 

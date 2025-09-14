@@ -59,17 +59,61 @@ serve(async (req) => {
       ? characters.map(c => `${c.name}: ${c.description}`).join('\n') 
       : 'No specific characters defined';
 
-    // Create the AI prompt for generating an ending
-    const systemPrompt = `You are an expert children's story writer specializing in creating satisfying conclusions. Your task is to write a compelling ending segment that:
+    // Age-specific word count requirements for endings
+    const getEndingWordCount = (age: string) => {
+      if (age === '4-6 years') return '25-50 words';
+      if (age === '7-9 years') return '80-120 words';
+      if (age === '10-12 years') return '120-180 words';
+      return '200-350 words'; // 13+ years
+    };
 
-1. Brings the story to a natural and satisfying conclusion
-2. Resolves the main conflicts or adventures presented in the story
-3. Is age-appropriate for ${ageGroup} children
-4. Matches the ${genre} genre
-5. Provides emotional closure and a sense of completion
-6. Is engaging and memorable
+    // Create the AI prompt for generating an ending with enhanced age-appropriate context
+    const systemPrompt = `You are a master children's story writer with deep expertise in developmental psychology and age-appropriate literature. Your task is to create a perfect ending that provides satisfying closure for ${ageGroup} readers.
 
-Write in a narrative style without questions or choices. This is the final segment that concludes the adventure.
+CRITICAL AGE-SPECIFIC REQUIREMENTS FOR ${ageGroup}:
+
+WORD COUNT: Content must be exactly ${getEndingWordCount(ageGroup)}
+- This is NON-NEGOTIABLE for age appropriateness. Count every word carefully.
+- 4-6 years: Simple, clear resolution with basic emotions
+- 7-9 years: More detailed conclusion with character satisfaction
+- 10-12 years: Rich ending with character growth and lesson learned
+- 13+ years: Sophisticated conclusion with deeper meaning and character transformation
+
+VOCABULARY & LANGUAGE STANDARDS FOR ${ageGroup}:
+- 4-6 years: Use simple, concrete words. Short sentences (4-7 words). Present tense. Basic emotions (happy, proud, safe).
+- 7-9 years: Descriptive adjectives. Medium sentences (6-10 words). Simple past/present tense. Feelings of accomplishment and friendship.
+- 10-12 years: Rich vocabulary with some challenging words. Varied sentence length. Complex emotions and personal growth.
+- 13+ years: Advanced vocabulary. Complex sentence structures. Sophisticated themes of identity, purpose, and transformation.
+
+ENDING QUALITY STANDARDS:
+1. Brings the story to a natural and satisfying conclusion appropriate for ${ageGroup}
+2. Resolves the main conflicts or adventures at the comprehension level of ${ageGroup}
+3. Matches the ${genre} genre conventions while staying age-appropriate
+4. Provides emotional closure and sense of completion suitable for developmental stage
+5. Is engaging and memorable for ${ageGroup} readers
+6. Shows character growth appropriate for age level
+7. Reinforces positive themes and values
+
+GENRE-SPECIFIC CLOSURE FOR ${genre.toUpperCase()}:
+- Adventure: Successful completion of quest/journey with sense of accomplishment
+- Fantasy: Restoration of magical balance or return to normal world with new wisdom
+- Mystery: Satisfying revelation of solution with characters feeling clever and proud
+- Friendship: Strengthened bonds and mutual understanding between characters
+- Educational: Clear demonstration of lesson learned or skill mastered
+
+EMOTIONAL RESOLUTION BY AGE:
+- 4-6 years: Simple positive emotions, safety, comfort, basic pride in achievement
+- 7-9 years: Satisfaction from overcoming challenges, stronger friendships, basic life lessons
+- 10-12 years: Personal growth, increased confidence, understanding of self and others
+- 13+ years: Complex emotional maturity, philosophical insights, character transformation
+
+DEVELOPMENTAL CONSIDERATIONS:
+- 4-6 years: Focus on immediate, concrete outcomes and basic cause-and-effect
+- 7-9 years: Include simple moral lessons and the value of perseverance/cooperation  
+- 10-12 years: Address themes of responsibility, empathy, and personal capability
+- 13+ years: Explore identity, purpose, and sophisticated moral/ethical growth
+
+Write in pure narrative style without questions or choices. This is the final, conclusive segment.
 
 IMPORTANT: Return ONLY a JSON object with this exact structure:
 {
@@ -84,14 +128,20 @@ ${storyContext}
 Characters:
 ${characterDesc}
 
-Please write a satisfying conclusion to this ${genre} story for ${ageGroup} children. The ending should:
-- Wrap up the adventure naturally
-- Give the main character(s) a sense of achievement or growth
-- Be emotionally satisfying
-- Be approximately 150-250 words
+Please write a perfect conclusion to this ${genre} story for ${ageGroup} children. The ending must:
+- Be exactly ${getEndingWordCount(ageGroup)} (COUNT EVERY WORD - this is critical for age appropriateness)
+- Wrap up the adventure naturally at the ${ageGroup} comprehension level
+- Give the main character(s) age-appropriate achievement or growth
+- Be emotionally satisfying for ${ageGroup} developmental stage
 - Match the tone and style of the existing story
+- Provide closure suitable for ${ageGroup} attention span and emotional maturity
+- Use vocabulary and sentence structure perfect for ${ageGroup}
+- Reinforce positive themes appropriate for this age group
 
-Create an ending that feels like a natural conclusion to this adventure.`;
+SPECIFIC ENDING GOALS FOR ${ageGroup}:
+${ageGroup === '4-6 years' ? '- Simple, happy resolution where characters feel safe and proud\n- Basic lesson about friendship, kindness, or trying your best\n- Concrete, immediate positive outcomes' : ''}${ageGroup === '7-9 years' ? '- Clear victory or positive outcome from characters\' efforts\n- Lesson about cooperation, perseverance, or being brave\n- Characters feeling accomplished and closer as friends' : ''}${ageGroup === '10-12 years' ? '- Character growth through overcoming meaningful challenges\n- Deeper understanding of self and relationships\n- Sense of increased capability and confidence' : ''}${ageGroup === '13+ years' ? '- Sophisticated character transformation and self-discovery\n- Complex emotional resolution and philosophical growth\n- Themes of identity, purpose, and mature understanding' : ''}
+
+Create an ending that feels like the perfect natural conclusion to this adventure, precisely calibrated for ${ageGroup} readers.`;
 
     console.log('Sending request to OpenAI for story ending generation');
 
