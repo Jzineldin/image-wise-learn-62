@@ -168,7 +168,7 @@ export type Database = {
           {
             foreignKeyName: "featured_stories_story_id_fkey"
             columns: ["story_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "stories"
             referencedColumns: ["id"]
           },
