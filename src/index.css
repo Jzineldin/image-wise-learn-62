@@ -135,6 +135,37 @@
     @apply bg-black/40 backdrop-blur-sm border border-primary/20 rounded-lg hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 cursor-pointer hover-scale;
   }
 
+  /* Color Variations for Glass Cards */
+  .glass-card-primary {
+    @apply bg-black/50 backdrop-blur-md border border-primary/30 rounded-xl shadow-xl;
+    background: linear-gradient(135deg, hsl(0 0% 0% / 0.5), hsl(39 100% 50% / 0.1));
+  }
+
+  .glass-card-secondary {
+    @apply bg-black/50 backdrop-blur-md border border-secondary/30 rounded-xl shadow-xl;
+    background: linear-gradient(135deg, hsl(0 0% 0% / 0.5), hsl(51 100% 50% / 0.1));
+  }
+
+  .glass-card-success {
+    @apply bg-black/50 backdrop-blur-md border border-success/30 rounded-xl shadow-xl;
+    background: linear-gradient(135deg, hsl(0 0% 0% / 0.5), hsl(142 71% 45% / 0.1));
+  }
+
+  .glass-card-info {
+    @apply bg-black/50 backdrop-blur-md border border-info/30 rounded-xl shadow-xl;
+    background: linear-gradient(135deg, hsl(0 0% 0% / 0.5), hsl(217 91% 60% / 0.1));
+  }
+
+  .glass-card-light {
+    @apply bg-white/5 backdrop-blur-md border border-white/20 rounded-xl shadow-xl;
+    background: linear-gradient(135deg, hsl(0 0% 100% / 0.05), hsl(0 0% 0% / 0.4));
+  }
+
+  .glass-card-surface {
+    @apply bg-black/60 backdrop-blur-md border border-primary/20 rounded-xl shadow-xl;
+    background: var(--gradient-surface);
+  }
+
   /* Enhanced Button Components */
   .btn-primary {
     @apply px-6 py-3 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-glow transform hover:-translate-y-0.5;

@@ -80,7 +80,7 @@ const Dashboard = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <div className="glass-card p-6">
+          <div className="glass-card-primary p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm font-medium">Stories Created</p>
@@ -90,7 +90,7 @@ const Dashboard = () => {
             </div>
           </div>
           
-          <div className="glass-card p-6">
+          <div className="glass-card-info p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm font-medium">Total Views</p>
@@ -100,7 +100,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="glass-card p-6">
+          <div className="glass-card-success p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm font-medium">Total Likes</p>
@@ -110,7 +110,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="glass-card p-6">
+          <div className="glass-card-secondary p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm font-medium">Followers</p>
@@ -122,7 +122,7 @@ const Dashboard = () => {
         </div>
 
         {/* Recent Stories */}
-        <div className="glass-card-elevated p-8">
+        <div className="glass-card-light p-8">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-heading font-semibold">Your Recent Stories</h2>
             <Link to="/my-stories">
@@ -188,7 +188,7 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-          <Link to="/discover" className="glass-card-interactive p-6 group text-center">
+          <Link to="/discover" className="glass-card-secondary p-6 group text-center">
             <Book className="w-12 h-12 text-primary mx-auto mb-4 group-hover:scale-110 transition-transform" />
             <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors">
               Discover Stories
@@ -198,7 +198,7 @@ const Dashboard = () => {
             </p>
           </Link>
 
-          <Link to="/characters" className="glass-card-interactive p-6 group text-center">
+          <Link to="/characters" className="glass-card-primary p-6 group text-center">
             <Users className="w-12 h-12 text-primary mx-auto mb-4 group-hover:scale-110 transition-transform" />
             <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors">
               My Characters
@@ -208,7 +208,7 @@ const Dashboard = () => {
             </p>
           </Link>
 
-          <Link to="/settings" className="glass-card-interactive p-6 group text-center">
+          <Link to="/settings" className="glass-card-info p-6 group text-center">
             <TrendingUp className="w-12 h-12 text-primary mx-auto mb-4 group-hover:scale-110 transition-transform" />
             <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors">
               Analytics
