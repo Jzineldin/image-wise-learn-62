@@ -162,7 +162,6 @@ const Characters = () => {
 
                   <div className="flex justify-between items-center text-xs text-text-secondary">
                     <span>Used {character.usage_count} times</span>
-                    <span>{character.is_public ? 'Public' : 'Private'}</span>
                   </div>
                 </CardContent>
               </Card>

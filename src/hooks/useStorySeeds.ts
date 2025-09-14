@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StorySeed, UserCharacter } from '@/types/character';
+import { logger, generateRequestId } from '@/lib/debug';
 
 export const useStorySeeds = () => {
   const [seeds, setSeeds] = useState<StorySeed[]>([]);
@@ -12,10 +13,13 @@ export const useStorySeeds = () => {
     genres: string[],
     characters: UserCharacter[]
   ) => {
+    const requestId = generateRequestId();
     setLoading(true);
     setError(null);
 
     try {
+      logger.edgeFunction('generate-story-seeds', requestId, { ageGroup, genres, charactersCount: characters.length });
+      
       const { data, error } = await supabase.functions.invoke('generate-story-seeds', {
         body: {
           ageGroup,
@@ -33,12 +37,13 @@ export const useStorySeeds = () => {
       if (error) throw error;
 
       if (data?.seeds && Array.isArray(data.seeds)) {
+        logger.edgeFunctionResponse('generate-story-seeds', requestId, { seedsCount: data.seeds.length });
         setSeeds(data.seeds);
       } else {
-        throw new Error('Invalid response format');
+        throw new Error('Invalid response format - seeds not found or not array');
       }
     } catch (err) {
-      console.error('Error generating story seeds:', err);
+      logger.error('Failed to generate story seeds', err, { requestId, ageGroup, genres, charactersCount: characters.length });
       setError(err instanceof Error ? err.message : 'Failed to generate story seeds');
       
       // Enhanced fallback seeds with proper character references

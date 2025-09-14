@@ -63,8 +63,7 @@ export const CreateCharacterDialog = ({
     try {
       const character = await createCharacter({
         ...formData,
-        personality_traits: personalityTraits,
-        is_public: false
+        personality_traits: personalityTraits
       });
 
       if (character) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,7 +17,7 @@ interface StorySeedGeneratorProps {
   onCustomSeedChange: (seed: string) => void;
 }
 
-export const StorySeedGenerator = ({
+export const StorySeedGenerator = memo(({
   ageGroup,
   genres,
   characters,
@@ -34,23 +34,23 @@ export const StorySeedGenerator = ({
     generateSeeds(ageGroup, genres, characters);
   }, [ageGroup, genres, characters]);
 
-  const handleSeedSelect = (seed: StorySeed) => {
+  const handleSeedSelect = useCallback((seed: StorySeed) => {
     onSeedSelect(seed);
     setEditingCustom(false);
-  };
+  }, [onSeedSelect]);
 
-  const handleCustomSeedToggle = () => {
+  const handleCustomSeedToggle = useCallback(() => {
     if (!editingCustom) {
       onSeedSelect(null);
       setEditingCustom(true);
     } else {
       setEditingCustom(false);
     }
-  };
+  }, [editingCustom, onSeedSelect]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     generateSeeds(ageGroup, genres, characters);
-  };
+  }, [ageGroup, genres, characters, generateSeeds]);
 
   return (
     <div className="space-y-6">
@@ -203,4 +203,4 @@ export const StorySeedGenerator = ({
       )}
     </div>
   );
-};
+});

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/debug';
 
 interface FeaturedStory {
   story_id: string;
@@ -58,25 +59,27 @@ const FeaturedStoriesCarousel = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
-  const loadFeaturedStories = async () => {
+  const loadFeaturedStories = useCallback(async () => {
     try {
       setLoading(true);
+      logger.info('Loading featured stories', { limit: 10 });
       const { data, error } = await supabase.rpc('get_featured_stories', { limit_count: 10 });
       
       if (error) {
-        console.error('Error loading featured stories:', error);
+        logger.error('Failed to load featured stories', error);
         return;
       }
 
+      logger.info('Featured stories loaded successfully', { count: data?.length || 0 });
       setFeaturedStories(data || []);
     } catch (error) {
-      console.error('Error loading featured stories:', error);
+      logger.error('Unexpected error loading featured stories', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const nextStory = () => {
+  const nextStory = useCallback(() => {
     setIsTransitioning(true);
     setIsAutoPlaying(false);
     setTimeout(() => {
@@ -84,9 +87,9 @@ const FeaturedStoriesCarousel = () => {
       setIsTransitioning(false);
       setTimeout(() => setIsAutoPlaying(true), 1000);
     }, 150);
-  };
+  }, [featuredStories.length]);
 
-  const prevStory = () => {
+  const prevStory = useCallback(() => {
     setIsTransitioning(true);
     setIsAutoPlaying(false);
     setTimeout(() => {
@@ -94,7 +97,7 @@ const FeaturedStoriesCarousel = () => {
       setIsTransitioning(false);
       setTimeout(() => setIsAutoPlaying(true), 1000);
     }, 150);
-  };
+  }, [featuredStories.length]);
 
   if (loading) {
     return (
@@ -253,4 +256,4 @@ const FeaturedStoriesCarousel = () => {
   );
 };
 
-export default FeaturedStoriesCarousel;
+export default memo(FeaturedStoriesCarousel);

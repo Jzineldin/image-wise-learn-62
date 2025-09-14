@@ -7,7 +7,6 @@ export interface UserCharacter {
   personality_traits: string[];
   backstory?: string;
   image_url?: string;
-  is_public: boolean;
   usage_count: number;
   created_at: string;
   updated_at: string;

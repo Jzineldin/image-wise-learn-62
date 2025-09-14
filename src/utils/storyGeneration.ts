@@ -191,13 +191,11 @@ export const createStoryWithLocalization = async (
       });
 
     if (i18nError) {
-      console.error('Error creating localized content:', i18nError);
       // Don't fail the whole operation if i18n fails
     }
 
     return story;
   } catch (error) {
-    console.error('Error creating story with localization:', error);
     throw error;
   }
 };
@@ -220,7 +218,6 @@ export const getLocalizedStoryContent = async (storyId: string, languageCode: st
 
     return data;
   } catch (error) {
-    console.error('Error fetching localized content:', error);
     return null;
   }
 };
@@ -246,7 +243,6 @@ export const getStoryLanguages = async (storyId: string) => {
       native_name: (item.languages as any).native_name
     })) || [];
   } catch (error) {
-    console.error('Error fetching story languages:', error);
     return [];
   }
 };
@@ -299,7 +295,6 @@ export const generateStoryEnding = async (options: {
   });
 
   if (error) {
-    console.error('Story ending generation error:', error);
     throw new Error(error.message || 'Failed to generate story ending');
   }
 

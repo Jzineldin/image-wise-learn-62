@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { UserCharacter, DEFAULT_CHARACTERS } from '@/types/character';
 import { useAuth } from './useAuth';
+import { logger } from '@/lib/debug';
 
 export const useCharacters = () => {
   const [characters, setCharacters] = useState<UserCharacter[]>([]);
@@ -37,7 +38,7 @@ export const useCharacters = () => {
         setCharacters(uniqueCharacters);
       }
     } catch (err) {
-      console.error('Error fetching characters:', err);
+      logger.error('Failed to fetch user characters', err, { userId: user?.id });
       setError(err instanceof Error ? err.message : 'Failed to fetch characters');
     } finally {
       setLoading(false);
@@ -50,8 +51,7 @@ export const useCharacters = () => {
     try {
       const defaultCharactersWithUserId = DEFAULT_CHARACTERS.map(char => ({
         ...char,
-        user_id: user.id,
-        is_public: false
+        user_id: user.id
       }));
 
       const { data, error } = await supabase
@@ -62,7 +62,7 @@ export const useCharacters = () => {
       if (error) throw error;
       setCharacters(data || []);
     } catch (err) {
-      console.error('Error creating default characters:', err);
+      logger.error('Failed to create default characters', err, { userId: user?.id });
       setError(err instanceof Error ? err.message : 'Failed to create default characters');
     }
   };
@@ -86,7 +86,7 @@ export const useCharacters = () => {
       setCharacters(prev => [data, ...prev]);
       return data;
     } catch (err) {
-      console.error('Error creating character:', err);
+      logger.error('Failed to create character', err, { characterName: character.name, userId: user?.id });
       setError(err instanceof Error ? err.message : 'Failed to create character');
       return null;
     }
@@ -106,7 +106,7 @@ export const useCharacters = () => {
       setCharacters(prev => prev.map(char => char.id === id ? data : char));
       return data;
     } catch (err) {
-      console.error('Error updating character:', err);
+      logger.error('Failed to update character', err, { characterId: id });
       setError(err instanceof Error ? err.message : 'Failed to update character');
       return null;
     }
@@ -124,7 +124,7 @@ export const useCharacters = () => {
       setCharacters(prev => prev.filter(char => char.id !== id));
       return true;
     } catch (err) {
-      console.error('Error deleting character:', err);
+      logger.error('Failed to delete character', err, { characterId: id });
       setError(err instanceof Error ? err.message : 'Failed to delete character');
       return false;
     }
@@ -137,7 +137,7 @@ export const useCharacters = () => {
 
       await updateCharacter(id, { usage_count: character.usage_count + 1 });
     } catch (err) {
-      console.error('Error incrementing character usage:', err);
+      logger.error('Failed to increment character usage', err, { characterId: id });
     }
   };
 
