@@ -187,44 +187,46 @@ Return format: { "titles": ["Title 1", "Title 2", ...], "recommended": "Title 1"
           throw new Error('OVH token not available for fallback');
         }
 
-        model = 'Meta-Llama-3_3-70B-Instruct';
-        
-        response = await fetch('https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${ovhToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'Meta-Llama-3_3-70B-Instruct',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: userPrompt + '\n\nReturn only valid JSON.' }
-            ],
-            max_tokens: 300,
-            temperature: 0.9,
-          }),
-        });
+        try {
+          model = 'Meta-Llama-3_3-70B-Instruct';
+          
+          response = await fetch('https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${ovhToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'Meta-Llama-3_3-70B-Instruct',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt + '\n\nReturn only valid JSON.' }
+              ],
+              max_tokens: 300,
+              temperature: 0.9,
+            }),
+          });
 
-        if (!response.ok) {
-          throw new Error(`OVH Llama failed: ${response.status}`);
-        }
+          if (!response.ok) {
+            throw new Error(`OVH Llama failed: ${response.status}`);
+          }
 
-        data = await response.json();
-        const content = data.choices[0].message.content;
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        
-        if (jsonMatch) {
-          titleData = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error('No valid JSON found in OVH response');
+          data = await response.json();
+          const content = data.choices[0].message.content;
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          
+          if (jsonMatch) {
+            titleData = JSON.parse(jsonMatch[0]);
+          } else {
+            throw new Error('No valid JSON found in OVH response');
+          }
+          
+        } catch (fallbackError) {
+          // Generate fallback titles based on content analysis
+          console.error('All AI services failed, generating fallback titles');
+          titleData = generateFallbackTitles(storyContent, ageGroup, genre, characterNames);
+          model = 'fallback-generator';
         }
-        
-      } catch (fallbackError) {
-        // Generate fallback titles based on content analysis
-        console.error('All AI services failed, generating fallback titles');
-        titleData = generateFallbackTitles(storyContent, ageGroup, genre, characterNames);
-        model = 'fallback-generator';
       }
     }
 
