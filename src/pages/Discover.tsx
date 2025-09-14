@@ -13,11 +13,18 @@ const Discover = () => {
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [publicStories, setPublicStories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     loadPublicStories();
   }, [selectedGenre, searchQuery]);
+
+  useEffect(() => {
+    supabase.auth.getUser()
+      .then(({ data }) => setCurrentUserId(data.user?.id ?? null))
+      .catch(() => setCurrentUserId(null));
+  }, []);
 
   const loadPublicStories = async () => {
     try {
@@ -32,10 +39,13 @@ const Discover = () => {
           age_group,
           cover_image,
           created_at,
-          profiles:author_id(display_name)
+          author_id,
+          is_completed,
+          is_complete,
+          status
         `)
         .eq('visibility', 'public')
-        .eq('status', 'completed')
+        .or('status.eq.completed,is_completed.eq.true,is_complete.eq.true')
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -168,7 +178,7 @@ const Discover = () => {
                     </h3>
 
                     <p className="text-text-secondary text-sm mb-2">
-                      by {story.profiles?.display_name || 'Anonymous'}
+                      by {story.author_id && currentUserId && story.author_id === currentUserId ? 'You' : 'Anonymous'}
                     </p>
                     <p className="text-primary text-sm font-medium mb-3">
                       {story.genre}
