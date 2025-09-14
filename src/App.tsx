@@ -18,6 +18,7 @@ const Characters = lazy(() => import("./pages/Characters"));
 const MyStories = lazy(() => import("./pages/MyStories"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Discover = lazy(() => import("./pages/Discover"));
+const Admin = lazy(() => import("./pages/Admin"));
 const StoryViewer = lazy(() => import("./pages/StoryViewer"));
 const StoryEnd = lazy(() => import("./pages/StoryEnd"));
 const About = lazy(() => import("./pages/About"));
@@ -55,6 +56,7 @@ const App = () => {
                <Route path="/characters" element={<ProtectedRoute><Characters /></ProtectedRoute>} />
                <Route path="/my-stories" element={<ProtectedRoute><MyStories /></ProtectedRoute>} />
                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
                <Route path="/discover" element={<Discover />} />
                 <Route path="/story/:id/end" element={<StoryEnd />} />
                 <Route path="/story/:id" element={<StoryViewer />} />

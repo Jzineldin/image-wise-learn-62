@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Book, Search, Eye, Calendar, Filter } from 'lucide-react';
+import { Book, Search, Eye, Calendar, Filter, Settings, Globe, Lock } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import StorySettings from '@/components/StorySettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +30,7 @@ const MyStories = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -58,6 +60,12 @@ const MyStories = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStoryUpdate = (updatedStory: Story) => {
+    setStories(stories.map(story => 
+      story.id === updatedStory.id ? updatedStory : story
+    ));
   };
 
   const filteredStories = stories.filter(story => {
@@ -229,23 +237,48 @@ const MyStories = () => {
                       <Calendar className="w-3 h-3" />
                       {new Date(story.created_at).toLocaleDateString()}
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {story.visibility}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      {story.visibility === 'public' ? (
+                        <Globe className="w-3 h-3 text-success" />
+                      ) : (
+                        <Lock className="w-3 h-3 text-warning" />
+                      )}
+                      <Badge variant="secondary" className="text-xs">
+                        {story.visibility}
+                      </Badge>
+                    </div>
                   </div>
 
-                  <Link to={`/story/${story.id}`}>
-                    <Button className="w-full btn-secondary">
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Story
+                  <div className="flex gap-2">
+                    <Link to={`/story/${story.id}`} className="flex-1">
+                      <Button className="w-full btn-secondary">
+                        <Eye className="w-4 h-4 mr-2" />
+                        View
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedStory(story)}
+                      className="px-3"
+                    >
+                      <Settings className="w-4 h-4" />
                     </Button>
-                  </Link>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
       </div>
+
+      {selectedStory && (
+        <StorySettings
+          story={selectedStory}
+          onUpdate={handleStoryUpdate}
+          onClose={() => setSelectedStory(null)}
+        />
+      )}
 
       <Footer />
     </div>

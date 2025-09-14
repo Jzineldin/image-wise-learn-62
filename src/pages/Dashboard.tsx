@@ -1,44 +1,61 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Book, Users, TrendingUp } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 const Dashboard = () => {
-  // Mock data for demo
-  const stats = {
-    storiesCreated: 12,
-    totalViews: 1847,
-    totalLikes: 234,
-    followers: 56
-  };
+  const [stats, setStats] = useState({
+    storiesCreated: 0,
+    totalViews: 0,
+    totalLikes: 0,
+    followers: 0
+  });
+  const [recentStories, setRecentStories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  const recentStories = [
-    {
-      id: '1',
-      title: 'The Dragon\'s Secret Garden',
-      status: 'complete',
-      views: 156,
-      likes: 23,
-      created_at: '2024-01-15'
-    },
-    {
-      id: '2', 
-      title: 'Mystery of the Glowing Forest',
-      status: 'generating',
-      views: 0,
-      likes: 0,
-      created_at: '2024-01-14'
-    },
-    {
-      id: '3',
-      title: 'Space Adventure with Captain Luna',
-      status: 'complete',
-      views: 289,
-      likes: 45,
-      created_at: '2024-01-12'
+  useEffect(() => {
+    if (user) {
+      loadDashboardData();
     }
-  ];
+  }, [user]);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load user stories
+      const { data: stories, error: storiesError } = await supabase
+        .from('stories')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (storiesError) throw storiesError;
+      
+      // Calculate stats
+      const completedStories = stories?.filter(s => s.status === 'completed') || [];
+      const totalStories = stories?.length || 0;
+      
+      setStats({
+        storiesCreated: totalStories,
+        totalViews: 0, // Would need analytics table
+        totalLikes: 0, // Would need likes table  
+        followers: 0  // Would need followers table
+      });
+
+      setRecentStories(stories || []);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -115,36 +132,58 @@ const Dashboard = () => {
             </Link>
           </div>
 
-          <div className="space-y-4">
-            {recentStories.map((story) => (
-              <div key={story.id} className="glass-card-interactive p-6 group">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-text-primary group-hover:text-primary transition-colors mb-2">
-                      {story.title}
-                    </h3>
-                    <div className="flex items-center space-x-4 text-sm text-text-secondary">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        story.status === 'complete' 
-                          ? 'bg-success/20 text-success' 
-                          : 'bg-warning/20 text-warning'
-                      }`}>
-                        {story.status === 'complete' ? 'Complete' : 'Generating...'}
-                      </span>
-                      <span>{story.views} views</span>
-                      <span>{story.likes} likes</span>
-                      <span>{new Date(story.created_at).toLocaleDateString()}</span>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="loading-spinner h-8 w-8" />
+            </div>
+          ) : recentStories.length === 0 ? (
+            <div className="text-center py-12">
+              <Book className="w-16 h-16 text-text-tertiary mx-auto mb-4" />
+              <h3 className="text-xl font-heading font-semibold mb-2">No stories yet</h3>
+              <p className="text-text-secondary mb-6">
+                Create your first magical story adventure!
+              </p>
+              <Link to="/create">
+                <Button className="btn-primary">
+                  Create Your First Story
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {recentStories.map((story) => (
+                <div key={story.id} className="glass-card-interactive p-6 group">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-text-primary group-hover:text-primary transition-colors mb-2">
+                        {story.title}
+                      </h3>
+                      <div className="flex items-center space-x-4 text-sm text-text-secondary">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          story.status === 'completed' 
+                            ? 'bg-success/20 text-success' 
+                            : story.status === 'in_progress'
+                            ? 'bg-warning/20 text-warning'
+                            : 'bg-muted/20 text-muted-foreground'
+                        }`}>
+                          {story.status === 'completed' ? 'Complete' : 
+                           story.status === 'in_progress' ? 'In Progress' : 'Draft'}
+                        </span>
+                        <span>{story.genre}</span>
+                        <span>{story.visibility}</span>
+                        <span>{new Date(story.created_at).toLocaleDateString()}</span>
+                      </div>
                     </div>
+                    <Link to={`/story/${story.id}`}>
+                      <Button variant="outline" size="sm" className="btn-ghost">
+                        View
+                      </Button>
+                    </Link>
                   </div>
-                  <Link to={`/story/${story.id}`}>
-                    <Button variant="outline" size="sm" className="btn-ghost">
-                      View
-                    </Button>
-                  </Link>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}

@@ -35,6 +35,10 @@ const Settings = () => {
     email_updates: false,
     push_notifications: true,
   });
+  const [visibilitySettings, setVisibilitySettings] = useState({
+    public_profile: false,
+    discoverable_stories: true,
+  });
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -54,6 +58,20 @@ const Settings = () => {
 
       if (error) throw error;
       setProfile(data);
+
+      // Load visibility settings
+      const { data: visibilityData } = await supabase.rpc('get_visibility_settings');
+      if (visibilityData) {
+        const settings = visibilityData.reduce((acc: any, item: any) => {
+          acc[item.setting_key] = item.setting_value;
+          return acc;
+        }, {});
+        
+        setVisibilitySettings({
+          public_profile: settings.public_profile?.enabled || false,
+          discoverable_stories: settings.discoverable_stories?.enabled !== false,
+        });
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
       toast({
@@ -96,6 +114,29 @@ const Settings = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const updateVisibilitySetting = async (key: string, value: boolean) => {
+    try {
+      await supabase.rpc('set_visibility_setting', {
+        p_setting_key: key,
+        p_setting_value: { enabled: value }
+      });
+
+      setVisibilitySettings(prev => ({ ...prev, [key]: value }));
+      
+      toast({
+        title: "Setting updated",
+        description: `${key.replace('_', ' ')} setting has been updated.`,
+      });
+    } catch (error) {
+      console.error('Error updating visibility setting:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update setting.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -342,7 +383,10 @@ const Settings = () => {
                     <Label>Public Profile</Label>
                     <p className="text-sm text-text-secondary">Allow others to see your profile</p>
                   </div>
-                  <Switch defaultChecked={false} />
+                  <Switch 
+                    checked={visibilitySettings.public_profile}
+                    onCheckedChange={(checked) => updateVisibilitySetting('public_profile', checked)}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -350,7 +394,10 @@ const Settings = () => {
                     <Label>Show Stories in Discover</Label>
                     <p className="text-sm text-text-secondary">Make your public stories discoverable</p>
                   </div>
-                  <Switch defaultChecked={true} />
+                  <Switch 
+                    checked={visibilitySettings.discoverable_stories}
+                    onCheckedChange={(checked) => updateVisibilitySetting('discoverable_stories', checked)}
+                  />
                 </div>
 
                 <Separator />

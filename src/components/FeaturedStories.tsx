@@ -60,7 +60,20 @@ const FeaturedStories: React.FC<FeaturedStoriesProps> = ({
   }
 
   if (featuredStories.length === 0) {
-    return null;
+    return showTitle ? (
+      <section className="mb-16">
+        <h2 className="text-3xl font-heading font-semibold mb-8 text-with-shadow">
+          Featured Stories
+        </h2>
+        <div className="text-center py-12">
+          <Book className="w-16 h-16 text-text-tertiary mx-auto mb-4 opacity-50" />
+          <h3 className="text-xl font-heading font-semibold mb-2">No Featured Stories Yet</h3>
+          <p className="text-text-secondary">
+            Check back soon for amazing featured stories from our community!
+          </p>
+        </div>
+      </section>
+    ) : null;
   }
 
   return (
