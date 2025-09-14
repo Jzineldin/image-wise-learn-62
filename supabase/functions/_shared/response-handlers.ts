@@ -199,6 +199,33 @@ export class StorySegmentValidator extends ResponseValidator<{
   is_ending?: boolean;
 }> {
   
+  private coerceContent(resp: any): string | undefined {
+    const candidates = [
+      resp?.content,
+      resp?.content_text,
+      resp?.story,
+      resp?.narrative,
+      resp?.segment,
+      resp?.text,
+      resp?.body
+    ];
+    const c = candidates.find(v => typeof v === 'string' && v.trim().length > 0);
+    return c ? String(c) : undefined;
+  }
+
+  private extractChoiceText(choice: any): string | undefined {
+    if (typeof choice === 'string') return choice;
+    const candidates = [
+      choice?.text,
+      choice?.choice_text,
+      choice?.label,
+      choice?.option,
+      choice?.description
+    ];
+    const t = candidates.find(v => typeof v === 'string' && v.trim().length > 0);
+    return t ? String(t) : undefined;
+  }
+
   validate(response: any): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -208,36 +235,31 @@ export class StorySegmentValidator extends ResponseValidator<{
       return { isValid: false, errors, warnings };
     }
 
-    // Validate content
-    if (!response.content) {
+    const content = this.coerceContent(response);
+    if (!content) {
       errors.push('Missing content field');
-    } else if (typeof response.content !== 'string') {
-      errors.push('Content must be a string');
-    } else if (response.content.trim().length === 0) {
-      errors.push('Content cannot be empty');
     }
 
-    // Validate choices
-    if (!response.choices) {
+    const choices = response?.choices;
+    if (!choices) {
       errors.push('Missing choices array');
-    } else if (!Array.isArray(response.choices)) {
+    } else if (!Array.isArray(choices)) {
       errors.push('Choices must be an array');
     } else {
-      if (response.choices.length === 0) {
+      if (choices.length === 0) {
         warnings.push('No choices provided');
       }
 
-      response.choices.forEach((choice: any, index: number) => {
-        if (choice.id === undefined) errors.push(`Choice ${index}: missing id`);
-        if (!choice.text) errors.push(`Choice ${index}: missing text`);
-        if (!choice.impact) warnings.push(`Choice ${index}: missing impact`);
-        
-        // Handle legacy formats
-        if (choice.choice_text && !choice.text) {
-          warnings.push(`Choice ${index}: using legacy 'choice_text' field`);
+      choices.forEach((choice: any, index: number) => {
+        const text = this.extractChoiceText(choice);
+        if (!text) {
+          errors.push(`Choice ${index}: missing text`);
         }
-        if (choice.implications && !choice.impact) {
-          warnings.push(`Choice ${index}: using legacy 'implications' field`);
+        // id missing becomes a warning; we'll auto-assign
+        const id = typeof choice === 'object' ? choice?.id : undefined;
+        if (id === undefined) warnings.push(`Choice ${index}: missing id (will auto-assign)`);
+        if (typeof choice === 'object' && !choice?.impact && !choice?.implications) {
+          warnings.push(`Choice ${index}: missing impact`);
         }
       });
     }
@@ -250,17 +272,31 @@ export class StorySegmentValidator extends ResponseValidator<{
   }
 
   normalize(response: any) {
+    const content = this.coerceContent(response) || '';
+    const choicesArr = Array.isArray(response?.choices) ? response.choices : [];
+
+    const normalizedChoices = choicesArr.map((choice: any, index: number) => {
+      const text = this.extractChoiceText(choice) || `Choice ${index + 1}`;
+      const idRaw = typeof choice === 'object' ? choice?.id : undefined;
+      const id = Number.isFinite(Number(idRaw)) ? Number(idRaw) : index + 1;
+      const impact = typeof choice === 'object'
+        ? (choice?.impact || choice?.implications || 'Unknown consequence')
+        : 'Unknown consequence';
+      return { id, text: String(text), impact: String(impact) };
+    });
+
+    // Derive is_ending from multiple hints
+    const isEndingRaw = response?.is_ending ?? response?.isEnding ?? response?.ending ?? response?.final;
+    const is_ending = Boolean(isEndingRaw);
+
     return {
-      content: String(response.content || '').trim(),
-      choices: (response.choices || []).map((choice: any, index: number) => ({
-        id: Number(choice.id ?? index),
-        text: String(choice.text || choice.choice_text || `Choice ${index + 1}`),
-        impact: String(choice.impact || choice.implications || 'Unknown consequence')
-      })),
-      is_ending: Boolean(response.is_ending)
+      content: String(content).trim(),
+      choices: normalizedChoices,
+      is_ending
     };
   }
 }
+
 
 /**
  * Story Titles Response Validator
