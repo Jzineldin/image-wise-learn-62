@@ -141,6 +141,13 @@ export default function CreateStoryFlow() {
           .eq('id', character.id);
       }
 
+          // Get current session for authentication
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.access_token) {
+            toast.error('Please sign in to create stories');
+            return;
+          }
+
           // Generate the first story segment
           const { data: generationResult, error: generationError } = await supabase.functions.invoke('generate-story', {
             body: {
@@ -155,10 +162,26 @@ export default function CreateStoryFlow() {
                 description: c.description,
                 personality: c.personality_traits.join(', ')
               }))
+            },
+            headers: {
+              Authorization: `Bearer ${session.access_token}`
             }
           });
 
-      if (generationError) throw generationError;
+          // Handle structured response
+          if (generationError) throw generationError;
+          
+          if (generationResult && !generationResult.ok) {
+            if (generationResult.error?.code === 'insufficient_credits') {
+              setCreditError({
+                required: generationResult.error.required || 2,
+                available: generationResult.error.available || 0
+              });
+              setShowInsufficientCredits(true);
+              return;
+            }
+            throw new Error(generationResult.error?.message || 'Story generation failed');
+          }
 
       // Save generated segments to database
       if (generationResult?.segments && generationResult.segments.length > 0) {
@@ -201,7 +224,7 @@ export default function CreateStoryFlow() {
     } catch (error) {
       logger.error('Error generating story', error);
       
-      // Check if it's a credit error
+      // Check if it's a credit error (fallback for old format)
       if (error.message?.includes('Insufficient credits')) {
         const match = error.message.match(/Required: (\d+), Available: (\d+)/);
         if (match) {

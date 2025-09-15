@@ -259,7 +259,16 @@ serve(async (req) => {
     // Get authorization header for user authentication
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      throw new Error('Authorization header missing');
+      return new Response(JSON.stringify({ 
+        ok: false, 
+        error: { 
+          code: 'unauthorized', 
+          message: 'Authorization header missing' 
+        } 
+      }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     // Initialize credit service with auth header
@@ -267,11 +276,32 @@ serve(async (req) => {
     const userId = await creditService.getUserId();
 
     // Validate and deduct credits for story generation
-    const creditResult = await validateAndDeductCredits(
-      creditService,
-      userId,
-      'storyGeneration'
-    );
+    let creditResult;
+    try {
+      creditResult = await validateAndDeductCredits(
+        creditService,
+        userId,
+        'storyGeneration'
+      );
+    } catch (creditError) {
+      // Handle insufficient credits gracefully
+      if (creditError.message.includes('Insufficient credits')) {
+        const match = creditError.message.match(/Required: (\d+), Available: (\d+)/);
+        return new Response(JSON.stringify({ 
+          ok: false, 
+          error: { 
+            code: 'insufficient_credits', 
+            message: creditError.message,
+            required: match ? parseInt(match[1]) : 2,
+            available: match ? parseInt(match[2]) : 0
+          } 
+        }), { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+      throw creditError;
+    }
 
     console.log(`Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
 
@@ -341,7 +371,12 @@ serve(async (req) => {
       ? 'Generate ONLY the first segment of the story with 3 meaningful choices for how the story can continue.'
       : `Generate a complete story with ${storyLength === 'short' ? '2-3' : storyLength === 'medium' ? '3-4' : '4-5'} segments.`;
 
-    const systemPrompt = `You are an expert children's story writer and interactive storytelling specialist with deep knowledge of child development, educational psychology, and literary craft. Your task is to create engaging, age-appropriate interactive stories that captivate young readers while maintaining educational value, emotional depth, and perfect technical execution.
+    // Add Swedish language instruction if needed
+    const languageInstruction = languageCode === 'sv' 
+      ? 'CRITICAL: All output must be written in native, natural Swedish (Svenska). Use proper Swedish grammar, vocabulary, and sentence structure. Do not use English words or phrases.\n\n'
+      : '';
+
+    const systemPrompt = `${languageInstruction}You are an expert children's story writer and interactive storytelling specialist with deep knowledge of child development, educational psychology, and literary craft. Your task is to create engaging, age-appropriate interactive stories that captivate young readers while maintaining educational value, emotional depth, and perfect technical execution.
 
 ## CRITICAL REQUIREMENTS & QUALITY STANDARDS
 
@@ -816,6 +851,7 @@ Generate a complete story structure with title, description, and multiple segmen
       console.log(`Normalized segments count: ${normalizedSegments.length}`);
 
       const normalizedStoryData = {
+        ok: true,
         title: sd.title || 'Untitled Story',
         description: sd.description || '',
         segments: normalizedSegments,
@@ -829,6 +865,7 @@ Generate a complete story structure with title, description, and multiple segmen
     } catch (normErr) {
       console.error('Normalization error:', normErr);
       const fallback = {
+        ok: true,
         title: storyData?.title || 'Untitled Story',
         description: storyData?.description || '',
         segments: [],
@@ -843,8 +880,11 @@ Generate a complete story structure with title, description, and multiple segmen
   } catch (error) {
     console.error('Error in generate-story function:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
-      details: 'Story generation failed' 
+      ok: false,
+      error: { 
+        code: 'internal_error', 
+        message: error.message || 'Story generation failed' 
+      }
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

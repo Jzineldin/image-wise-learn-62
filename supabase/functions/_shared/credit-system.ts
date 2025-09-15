@@ -57,12 +57,16 @@ export class CreditService {
       .single();
 
     if (error || !profile) {
+      console.error('Failed to fetch user credits:', error);
       throw new Error('Failed to fetch user credits');
     }
 
+    // Treat null credits as 0
+    const currentCredits = profile.credits || 0;
+
     return {
-      hasCredits: profile.credits >= requiredCredits,
-      currentCredits: profile.credits
+      hasCredits: currentCredits >= requiredCredits,
+      currentCredits
     };
   }
 

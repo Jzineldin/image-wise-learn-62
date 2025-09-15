@@ -74,8 +74,17 @@ const UsageAnalytics = () => {
         .eq('tier_name', tier)
         .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
-      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching tier limits:', error);
+        // Use defaults on error
+        setTierLimits({
+          credits_per_month: credits_per_month || 10,
+          voice_minutes_per_month: tier === 'free' ? 0 : 60,
+          story_limit: tier === 'free' ? 5 : 100
+        });
+        return;
+      }
+        
       if (data) {
         setTierLimits(data);
       } else {
