@@ -18,6 +18,7 @@ interface GenerateSegmentRequest {
     description: string;
     ageGroup: string;
     genre: string;
+    languageCode?: string;
     characters: Array<{
       name: string;
       description: string;
@@ -77,6 +78,7 @@ serve(async (req) => {
     const context = {
       ageGroup: storyContext.ageGroup,
       genre: storyContext.genre,
+      language: storyContext.languageCode || 'en',
       characters: storyContext.characters,
       previousContent: previousSegmentContent,
       choiceText,

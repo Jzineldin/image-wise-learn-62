@@ -246,9 +246,28 @@ Return as a JSON array of exactly 3 seeds with this structure:
         }).join('\n')}\n\nTHESE RULES ARE ABSOLUTE - Responses with capitalized character names will be REJECTED.`
       : 'No specific characters - create appropriate character references for the age group.';
 
+    const languageInstructions = context.language === 'sv' ? `
+🚨 CRITICAL LANGUAGE REQUIREMENT - MANDATORY:
+Generate ALL content in Swedish (Svenska):
+- The story content must be in Swedish  
+- All choice text must be in Swedish
+- All choice impact descriptions must be in Swedish
+- Use natural, fluent Swedish appropriate for children aged ${context.ageGroup}
+- Use Swedish names and cultural references where appropriate
+
+` : context.language && context.language !== 'en' ? `
+🚨 CRITICAL LANGUAGE REQUIREMENT - MANDATORY:
+Generate ALL content in ${context.language}:
+- The story content must be in ${context.language}
+- All choice text must be in ${context.language}
+- All choice impact descriptions must be in ${context.language}
+- Use natural, fluent language appropriate for children aged ${context.ageGroup}
+
+` : '';
+
     const systemPrompt = `You are an expert children's story writer specializing in ${context.ageGroup} stories. Create an engaging story segment that continues from the user's choice.
 
-🚨 CRITICAL CHARACTER REFERENCE RULES - FOLLOW EXACTLY:
+${languageInstructions}🚨 CRITICAL CHARACTER REFERENCE RULES - FOLLOW EXACTLY:
 ${characterReferences}
 
 DO NOT use capitalized character names like "Curious Cat" or "Brave Dog". 

@@ -686,7 +686,29 @@ Return a JSON object with this EXACT structure (no deviations permitted):
   ]
 }`;
 
+    // Language-specific instructions
+    const languageInstructions = languageCode === 'sv' ? `
+CRITICAL LANGUAGE REQUIREMENT: Generate ALL content in Swedish (Svenska). This includes:
+- The story title must be in Swedish
+- The story description must be in Swedish  
+- All story content/narrative must be in Swedish
+- All choice text must be in Swedish
+- All choice impact descriptions must be in Swedish
+- Use natural, fluent Swedish appropriate for children aged ${ageGroup}
+- Use Swedish names and cultural references where appropriate
+` : languageCode !== 'en' ? `
+CRITICAL LANGUAGE REQUIREMENT: Generate ALL content in the target language (${languageCode}). This includes:
+- The story title must be in the target language
+- The story description must be in the target language
+- All story content/narrative must be in the target language
+- All choice text must be in the target language
+- All choice impact descriptions must be in the target language
+- Use natural, fluent language appropriate for children aged ${ageGroup}
+` : '';
+
     const userPrompt = isInitialGeneration ? `Create the opening segment of an interactive ${genre} story for ${ageGroup} age group.
+
+${languageInstructions}
 
 Story premise: ${prompt}
 
@@ -706,6 +728,8 @@ Requirements:
 - Questions like "What should they do?" belong only in the choices, not in the story text
 
 Generate the story opening with title, description, and the first segment with choices.` : `Create a complete interactive ${genre} story for ${ageGroup} age group.
+
+${languageInstructions}
 
 Story premise: ${prompt}
 

@@ -5,6 +5,7 @@ import { Play, Pause, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, Rotat
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
 import { VoiceSelector } from '@/components/VoiceSelector';
 import { ReadingModeControls } from '@/components/ReadingModeControls';
 import { logger, generateRequestId } from '@/lib/debug';
@@ -47,6 +48,7 @@ const StoryViewer = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { selectedLanguage } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
   
   const [story, setStory] = useState<Story | null>(null);
@@ -214,6 +216,7 @@ const StoryViewer = () => {
           description: story.description,
           ageGroup: story.age_group,
           genre: story.genre,
+          languageCode: selectedLanguage,
           characters: story.metadata?.characters || []
         },
         segmentNumber: segments.length + 1,
