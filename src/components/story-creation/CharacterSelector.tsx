@@ -6,6 +6,7 @@ import { Plus, Users, Sparkles } from 'lucide-react';
 import { UserCharacter } from '@/types/character';
 import { useCharacters } from '@/hooks/useCharacters';
 import { CreateCharacterDialog } from './CreateCharacterDialog';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface CharacterSelectorProps {
   selectedCharacters: UserCharacter[];
@@ -19,6 +20,7 @@ export const CharacterSelector = ({
   maxCharacters = 3 
 }: CharacterSelectorProps) => {
   const { characters, loading } = useCharacters();
+  const { translate } = useLanguage();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const handleCharacterToggle = (character: UserCharacter) => {
@@ -43,7 +45,7 @@ export const CharacterSelector = ({
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5" />
-          <h3 className="text-lg font-semibold">Choose Your Characters</h3>
+          <h3 className="text-lg font-semibold">{translate('characters.title')}</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
@@ -68,8 +70,8 @@ export const CharacterSelector = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5" />
-          <h3 className="text-lg font-semibold">Choose Your Characters</h3>
-          <Badge variant="secondary">{selectedCharacters.length}/{maxCharacters}</Badge>
+          <h3 className="text-lg font-semibold">{translate('characters.title')}</h3>
+          <Badge variant="secondary">{translate('characters.count').replace('{selected}', selectedCharacters.length.toString()).replace('{max}', maxCharacters.toString())}</Badge>
         </div>
         <Button 
           variant="outline" 
@@ -78,25 +80,25 @@ export const CharacterSelector = ({
           className="flex items-center gap-2"
         >
           <Plus className="h-4 w-4" />
-          Create New
+          {translate('characters.createNew')}
         </Button>
       </div>
 
       <p className="text-muted-foreground text-sm">
-        Select up to {maxCharacters} characters for your story. These characters will be featured in your AI-generated story seeds.
+        {translate('characters.select').replace('{max}', maxCharacters.toString())}
       </p>
 
       {characters.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-            <h4 className="font-medium mb-2">No Characters Yet</h4>
+            <h4 className="font-medium mb-2">{translate('characters.noCharacters')}</h4>
             <p className="text-sm text-muted-foreground text-center mb-4">
-              Create your first character to get started with personalized stories
+              {translate('characters.noCharactersDesc')}
             </p>
             <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Create Your First Character
+              {translate('characters.createFirst')}
             </Button>
           </CardContent>
         </Card>
@@ -121,7 +123,7 @@ export const CharacterSelector = ({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     {character.name}
-                    {isSelected && <Badge variant="default" className="text-xs">Selected</Badge>}
+                    {isSelected && <Badge variant="default" className="text-xs">{translate('characters.selected')}</Badge>}
                   </CardTitle>
                   <CardDescription className="capitalize text-xs">
                     {character.character_type}

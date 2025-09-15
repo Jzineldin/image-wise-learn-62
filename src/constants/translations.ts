@@ -134,6 +134,20 @@ export const TRANSLATIONS = {
       discoverableStories: 'Upptäckbara berättelser'
     },
 
+    // Review Step
+    review: {
+      title: 'Granska dina val',
+      readyToCreate: 'Redo att skapa din berättelse!',
+      ageGroup: 'Åldersgrupp',
+      genres: 'Genrer',
+      characters: 'Karaktärer',
+      storyIdea: 'Berättelseidé',
+      aiGenerated: 'AI-genererad',
+      custom: 'Anpassad',
+      noCharacters: 'Inga karaktärer valda',
+      createStoryButton: 'Skapa min berättelse'
+    },
+
     // Messages
     messages: {
       languageUpdated: 'Språkinställning uppdaterad',
@@ -224,20 +238,36 @@ export const TRANSLATIONS = {
       }
     },
     characters: {
-      title: 'Characters',
-      createNew: 'Create New Character',
+      title: 'Choose Your Characters',
+      createNew: 'Create New',
       name: 'Name',
       description: 'Description',
       personality: 'Personality',
       backstory: 'Backstory',
-      select: 'Select characters for your story',
-      noCharacters: 'No characters created yet'
+      select: 'Select up to {max} characters for your story. These characters will be featured in your AI-generated story seeds.',
+      noCharacters: 'No Characters Yet',
+      noCharactersDesc: 'Create your first character to get started with personalized stories',
+      createFirst: 'Create Your First Character',
+      selected: 'Selected',
+      count: '{selected}/{max}'
     },
     storySeeds: {
       title: 'Story Ideas',
       subtitle: 'Choose an idea to start your story',
+      description: 'Our AI has created personalized story ideas based on your age group, genres, and characters. Pick one to start with, or write your own custom idea.',
       generating: 'Generating story ideas...',
-      regenerate: 'Generate New Ideas'
+      regenerate: 'Generate New Ideas',
+      aiGenerated: 'AI-Generated Ideas',
+      customIdea: 'Custom Story Idea',
+      writeOwn: 'Write My Own',
+      useAiIdeas: 'Use AI Ideas',
+      yourStoryIdea: 'Your Story Idea',
+      customPlaceholder: 'Write your own story idea for {ageGroup} readers in the {genres} genre... Feel free to include {characters} in your story!',
+      customInstructions: 'Describe the beginning of your story and the situation that will lead to choices.',
+      writeYourOwn: 'Write Your Own Story Idea',
+      customPremise: 'Create a completely custom story premise',
+      storyCharacters: 'Story Characters',
+      selected: 'Selected'
     },
     voice: {
       title: 'Voice & Audio',
@@ -265,6 +295,22 @@ export const TRANSLATIONS = {
       publicProfile: 'Public Profile',
       discoverableStories: 'Discoverable Stories'
     },
+
+    // Review Step
+    review: {
+      title: 'Review Your Choices',
+      readyToCreate: 'Ready to create your story!',
+      ageGroup: 'Age Group',
+      genres: 'Genres',
+      characters: 'Characters',
+      storyIdea: 'Story Idea',
+      aiGenerated: 'AI-generated',
+      custom: 'Custom',
+      noCharacters: 'No characters selected',
+      createStoryButton: 'Create My Story'
+    },
+
+    // Messages
     messages: {
       languageUpdated: 'Language preference updated',
       settingsSaved: 'Settings saved',

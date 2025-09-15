@@ -74,16 +74,13 @@ export const StorySeedGenerator = memo(({
       </div>
 
       <p className="text-muted-foreground text-sm">
-        {selectedLanguage === 'sv' 
-          ? 'Vår AI har skapat personliga berättelseidéer baserat på din åldersgrupp, genrer och karaktärer. Välj en för att börja med, eller skriv din egen anpassade idé.'
-          : 'Our AI has created personalized story ideas based on your age group, genres, and characters. Pick one to start with, or write your own custom idea.'
-        }
+        {translate('storySeeds.description')}
       </p>
 
       {/* AI Generated Seeds */}
       <div className="space-y-3">
         <h4 className="font-medium text-sm">
-          {selectedLanguage === 'sv' ? 'AI-Genererade Idéer' : 'AI-Generated Ideas'}
+          {translate('storySeeds.aiGenerated')}
         </h4>
         {loading ? (
           <div className="grid gap-3">
@@ -121,7 +118,7 @@ export const StorySeedGenerator = memo(({
                       {seed.title}
                       {isSelected && (
                         <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
-                          Selected
+                          {translate('storySeeds.selected')}
                         </span>
                       )}
                     </CardTitle>
@@ -141,7 +138,7 @@ export const StorySeedGenerator = memo(({
       {/* Custom Seed Option */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h4 className="font-medium text-sm">Custom Story Idea</h4>
+          <h4 className="font-medium text-sm">{translate('storySeeds.customIdea')}</h4>
           <Button
             variant="ghost"
             size="sm"
@@ -149,27 +146,26 @@ export const StorySeedGenerator = memo(({
             className="flex items-center gap-2"
           >
             <Edit3 className="h-4 w-4" />
-            {editingCustom ? 'Use AI Ideas' : 'Write My Own'}
+            {editingCustom ? translate('storySeeds.useAiIdeas') : translate('storySeeds.writeOwn')}
           </Button>
         </div>
 
         {editingCustom ? (
           <div className="space-y-2">
-            <Label htmlFor="custom-seed">Your Story Idea</Label>
+            <Label htmlFor="custom-seed">{translate('storySeeds.yourStoryIdea')}</Label>
             <Textarea
               id="custom-seed"
               value={customSeed}
               onChange={(e) => onCustomSeedChange(e.target.value)}
-              placeholder={`Write your own story idea for ${ageGroup} readers in the ${genres.join(', ')} genre${genres.length > 1 ? 's' : ''}...${
-                characters.length > 0 
-                  ? ` Feel free to include ${characters.map(c => c.name).join(', ')} in your story!` 
-                  : ''
-              }`}
+              placeholder={translate('storySeeds.customPlaceholder')
+                .replace('{ageGroup}', ageGroup)
+                .replace('{genres}', genres.join(', '))
+                .replace('{characters}', characters.map(c => c.name).join(', '))}
               rows={4}
               className="resize-none"
             />
             <p className="text-xs text-muted-foreground">
-              Describe the beginning of your story and the situation that will lead to choices.
+              {translate('storySeeds.customInstructions')}
             </p>
           </div>
         ) : (
@@ -184,9 +180,9 @@ export const StorySeedGenerator = memo(({
             <CardContent className="flex items-center justify-center py-8">
               <div className="text-center">
                 <Edit3 className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="font-medium">Write Your Own Story Idea</p>
+                <p className="font-medium">{translate('storySeeds.writeYourOwn')}</p>
                 <p className="text-sm text-muted-foreground">
-                  Create a completely custom story premise
+                  {translate('storySeeds.customPremise')}
                 </p>
               </div>
             </CardContent>
@@ -197,7 +193,7 @@ export const StorySeedGenerator = memo(({
       {/* Character Summary */}
       {characters.length > 0 && (
         <div className="bg-muted/30 rounded-lg p-4">
-          <h5 className="font-medium text-sm mb-2">Story Characters:</h5>
+          <h5 className="font-medium text-sm mb-2">{translate('storySeeds.storyCharacters')}:</h5>
           <div className="flex flex-wrap gap-2">
             {characters.map(char => (
               <span key={char.id} className="text-sm bg-background px-2 py-1 rounded border">

@@ -21,13 +21,6 @@ import LanguageAwareGenreSelector from '@/components/LanguageAwareGenreSelector'
 import LanguageAwareAgeSelector from '@/components/LanguageAwareAgeSelector';
 import { useLanguage } from '@/hooks/useLanguage';
 
-const STEPS = [
-  { id: 1, title: 'Age & Genre', icon: BookOpen },
-  { id: 2, title: 'Characters', icon: Users },
-  { id: 3, title: 'Story Idea', icon: Sparkles },
-  { id: 4, title: 'Create Story', icon: Wand2 }
-];
-
 export default function CreateStoryFlow() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -35,6 +28,13 @@ export default function CreateStoryFlow() {
   const [generating, setGenerating] = useState(false);
   const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
   const [creditError, setCreditError] = useState<{ required: number; available: number } | null>(null);
+
+  const STEPS = [
+    { id: 1, title: translate('storyCreation.steps.ageAndGenre'), icon: BookOpen },
+    { id: 2, title: translate('storyCreation.steps.characters'), icon: Users },
+    { id: 3, title: translate('storyCreation.steps.storyIdeas'), icon: Sparkles },
+    { id: 4, title: translate('storyCreation.steps.review'), icon: Wand2 }
+  ];
 
   const [flow, setFlow] = useState<StoryCreationFlow>({
     step: 1,
@@ -421,28 +421,32 @@ export default function CreateStoryFlow() {
             {flow.step === 4 && (
               <div className="space-y-6 text-center">
                 <div>
-                  <h2 className="text-xl font-semibold mb-2">Ready to Create Your Story!</h2>
-                  <p className="text-muted-foreground">Review your choices and create your interactive story.</p>
+                  <h2 className="text-xl font-semibold mb-2">{translate('review.readyToCreate')}</h2>
+                  <p className="text-muted-foreground">{translate('review.title')}</p>
                 </div>
 
                 <CreditCostDisplay operation="story" className="mb-4" />
 
                 <div className="bg-muted/30 rounded-lg p-6 text-left space-y-4">
                   <div>
-                    <span className="font-medium">Age Group:</span> {flow.ageGroup}
+                    <span className="font-medium">{translate('review.ageGroup')}:</span> {flow.ageGroup}
                   </div>
                   <div>
-                    <span className="font-medium">Genres:</span> {flow.genres.join(', ')}
+                    <span className="font-medium">{translate('review.genres')}:</span> {flow.genres.join(', ')}
                   </div>
-                  {flow.selectedCharacters.length > 0 && (
+                  {flow.selectedCharacters.length > 0 ? (
                     <div>
-                      <span className="font-medium">Characters:</span> {flow.selectedCharacters.map(c => c.name).join(', ')}
+                      <span className="font-medium">{translate('review.characters')}:</span> {flow.selectedCharacters.map(c => c.name).join(', ')}
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="font-medium">{translate('review.characters')}:</span> <span className="text-muted-foreground">{translate('review.noCharacters')}</span>
                     </div>
                   )}
                   <div>
-                    <span className="font-medium">Story Idea:</span>
+                    <span className="font-medium">{translate('review.storyIdea')}:</span>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {flow.selectedSeed?.description || flow.customSeed}
+                      {flow.selectedSeed ? `${translate('review.aiGenerated')}: ${flow.selectedSeed.description}` : `${translate('review.custom')}: ${flow.customSeed}`}
                     </p>
                   </div>
                 </div>
@@ -456,12 +460,12 @@ export default function CreateStoryFlow() {
                   {generating ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating Story...
+                      {translate('ui.generating')}
                     </>
                   ) : (
                     <>
                       <Wand2 className="h-4 w-4 mr-2" />
-                      Create My Story
+                      {translate('review.createStoryButton')}
                     </>
                   )}
                 </Button>
@@ -480,7 +484,7 @@ export default function CreateStoryFlow() {
               className="flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              {selectedLanguage === 'sv' ? 'Tillbaka' : 'Back'}
+              {translate('ui.back')}
             </Button>
             
             <Button 
@@ -488,7 +492,7 @@ export default function CreateStoryFlow() {
               disabled={!canProceedFromStep(flow.step)}
               className="flex items-center gap-2"
             >
-              {selectedLanguage === 'sv' ? 'Nästa' : 'Next'}
+              {translate('ui.next')}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
