@@ -9,6 +9,7 @@ import { ResponseHandler, Validators, withTiming } from '../_shared/response-han
 interface GenerateStorySeedsRequest {
   ageGroup: string;
   genres: string[];
+  language?: string;
   characters: Array<{
     id: string;
     name: string;
@@ -31,12 +32,14 @@ serve(async (req) => {
     const {
       ageGroup,
       genres,
+      language = 'en',
       characters
     }: GenerateStorySeedsRequest = await req.json();
 
     console.log('Generating story seeds for:', {
       ageGroup,
       genres,
+      language,
       charactersCount: characters.length
     });
 
@@ -48,10 +51,11 @@ serve(async (req) => {
     // Create AI service
     const aiService = createAIService();
 
-    // Prepare context for prompt generation
+// Fix the context structure - we need to fix the duplicate language property
     const context = {
       ageGroup,
       genre: genres.join(', '),
+      language,  
       characters: characters.map(char => ({
         name: char.name,
         description: char.description,

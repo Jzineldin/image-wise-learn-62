@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { TRANSLATIONS, t } from '@/constants/translations';
 
 interface Language {
   code: string;
@@ -101,6 +102,11 @@ export const useLanguage = () => {
     return availableLanguages.some(lang => lang.code === languageCode && lang.is_active);
   };
 
+  // Translation helper function
+  const translate = (key: string): string => {
+    return t(key, selectedLanguage);
+  };
+
   return {
     selectedLanguage,
     availableLanguages,
@@ -109,6 +115,10 @@ export const useLanguage = () => {
     getCurrentLanguage,
     getLanguageConfig,
     isLanguageSupported,
-    refreshLanguages: fetchAvailableLanguages
+    refreshLanguages: fetchAvailableLanguages,
+    translate,
+    t: translate, // Alias for convenience
+    isSwedish: selectedLanguage === 'sv',
+    isEnglish: selectedLanguage === 'en'
   };
 };

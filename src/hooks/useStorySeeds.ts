@@ -11,7 +11,8 @@ export const useStorySeeds = () => {
   const generateSeeds = async (
     ageGroup: string,
     genres: string[],
-    characters: UserCharacter[]
+    characters: UserCharacter[],
+    language: string = 'en'
   ) => {
     const requestId = generateRequestId();
     setLoading(true);
@@ -24,6 +25,7 @@ export const useStorySeeds = () => {
         body: {
           ageGroup,
           genres,
+          language,
           characters: characters.map(char => ({
             id: char.id,
             name: char.name,

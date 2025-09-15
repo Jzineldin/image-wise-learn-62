@@ -4,6 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Volume2, Play, Pause } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/hooks/useLanguage';
+import VoiceLanguageSelector from '@/components/VoiceLanguageSelector';
 
 interface Voice {
   id: string;
@@ -34,6 +36,7 @@ export const VoiceSelector = memo(({ selectedVoice, onVoiceChange, className }: 
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const { toast } = useToast();
+  const { translate, selectedLanguage } = useLanguage();
 
   const selectedVoiceInfo = availableVoices.find(v => v.id === selectedVoice) || availableVoices[0];
 
@@ -79,85 +82,10 @@ export const VoiceSelector = memo(({ selectedVoice, onVoiceChange, className }: 
 
   return (
     <div className={className}>
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button variant="outline" className="glass-card-interactive">
-            <Volume2 className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">Narrator: </span>
-            {selectedVoiceInfo.name}
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="glass-card-elevated border-primary/20 max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-gradient font-heading">Choose Your Narrator</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-6">
-            <div className="grid gap-4">
-              {availableVoices.map((voice) => (
-                <div
-                  key={voice.id}
-                  className={`glass-card p-4 cursor-pointer hover:border-primary/40 transition-all ${
-                    selectedVoice === voice.id ? 'border-primary/60 bg-primary/10' : ''
-                  }`}
-                  onClick={() => onVoiceChange(voice.id)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="font-semibold text-text-primary">{voice.name}</h3>
-                        <span className="text-xs px-2 py-1 bg-secondary/20 rounded-full text-text-secondary">
-                          {voice.gender} • {voice.accent}
-                        </span>
-                      </div>
-                      <p className="text-sm text-text-secondary">{voice.description}</p>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2 ml-4">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleVoicePreview(voice.id);
-                        }}
-                        className="btn-icon"
-                      >
-                        {isPlaying === voice.id ? (
-                          <Pause className="w-4 h-4" />
-                        ) : (
-                          <Play className="w-4 h-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="glass-card p-4 border-accent/30">
-              <h4 className="font-semibold text-accent mb-2">Current Selection</h4>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-text-primary">{selectedVoiceInfo.name}</p>
-                  <p className="text-sm text-text-secondary">{selectedVoiceInfo.description}</p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => handleVoicePreview(selectedVoice)}
-                  className="btn-primary"
-                >
-                  {isPlaying === selectedVoice ? (
-                    <Pause className="w-4 h-4" />
-                  ) : (
-                    <Play className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <VoiceLanguageSelector
+        selectedVoice={selectedVoice}
+        onVoiceSelect={onVoiceChange}
+      />
     </div>
   );
 });

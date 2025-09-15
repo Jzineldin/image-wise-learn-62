@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { RefreshCw, Sparkles, Edit3 } from 'lucide-react';
 import { StorySeed, UserCharacter } from '@/types/character';
 import { useStorySeeds } from '@/hooks/useStorySeeds';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface StorySeedGeneratorProps {
   ageGroup: string;
@@ -27,12 +28,13 @@ export const StorySeedGenerator = memo(({
   onCustomSeedChange
 }: StorySeedGeneratorProps) => {
   const { seeds, loading, generateSeeds } = useStorySeeds();
+  const { translate, selectedLanguage } = useLanguage();
   const [editingCustom, setEditingCustom] = useState(false);
 
   useEffect(() => {
     // Generate initial seeds when component mounts
-    generateSeeds(ageGroup, genres, characters);
-  }, [ageGroup, genres, characters]);
+    generateSeeds(ageGroup, genres, characters, selectedLanguage);
+  }, [ageGroup, genres, characters, selectedLanguage]);
 
   const handleSeedSelect = useCallback((seed: StorySeed) => {
     onSeedSelect(seed);
@@ -49,15 +51,15 @@ export const StorySeedGenerator = memo(({
   }, [editingCustom, onSeedSelect]);
 
   const handleRefresh = useCallback(() => {
-    generateSeeds(ageGroup, genres, characters);
-  }, [ageGroup, genres, characters, generateSeeds]);
+    generateSeeds(ageGroup, genres, characters, selectedLanguage);
+  }, [ageGroup, genres, characters, selectedLanguage, generateSeeds]);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5" />
-          <h3 className="text-lg font-semibold">Choose Your Story Idea</h3>
+          <h3 className="text-lg font-semibold">{translate('storySeeds.title')}</h3>
         </div>
         <Button
           variant="outline"
@@ -67,18 +69,22 @@ export const StorySeedGenerator = memo(({
           className="flex items-center gap-2"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh Ideas
+          {translate('storySeeds.regenerate')}
         </Button>
       </div>
 
       <p className="text-muted-foreground text-sm">
-        Our AI has created personalized story ideas based on your age group, genres, and characters. 
-        Pick one to start with, or write your own custom idea.
+        {selectedLanguage === 'sv' 
+          ? 'Vår AI har skapat personliga berättelseidéer baserat på din åldersgrupp, genrer och karaktärer. Välj en för att börja med, eller skriv din egen anpassade idé.'
+          : 'Our AI has created personalized story ideas based on your age group, genres, and characters. Pick one to start with, or write your own custom idea.'
+        }
       </p>
 
       {/* AI Generated Seeds */}
       <div className="space-y-3">
-        <h4 className="font-medium text-sm">AI-Generated Ideas</h4>
+        <h4 className="font-medium text-sm">
+          {selectedLanguage === 'sv' ? 'AI-Genererade Idéer' : 'AI-Generated Ideas'}
+        </h4>
         {loading ? (
           <div className="grid gap-3">
             {[...Array(3)].map((_, i) => (

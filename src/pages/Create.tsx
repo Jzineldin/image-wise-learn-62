@@ -15,6 +15,9 @@ import { toast } from 'sonner';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 import { logger } from '@/lib/debug';
 import CreditDisplay from '@/components/CreditDisplay';
+import LanguageAwareGenreSelector from '@/components/LanguageAwareGenreSelector';
+import LanguageAwareAgeSelector from '@/components/LanguageAwareAgeSelector';
+import { useLanguage } from '@/hooks/useLanguage';
 
 const STEPS = [
   { id: 1, title: 'Age & Genre', icon: BookOpen },
@@ -26,6 +29,7 @@ const STEPS = [
 export default function CreateStoryFlow() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { translate, selectedLanguage } = useLanguage();
   const [generating, setGenerating] = useState(false);
 
   const [flow, setFlow] = useState<StoryCreationFlow>({
@@ -91,8 +95,9 @@ export default function CreateStoryFlow() {
     setGenerating(true);
     
     try {
+      // Create TTS-optimized prompt for Swedish or English
       const storyPrompt = flow.selectedSeed?.description || flow.customSeed;
-      const storyTitle = flow.selectedSeed?.title || 'Custom Story';
+      const storyTitle = flow.selectedSeed?.title || (selectedLanguage === 'sv' ? 'Anpassad Berättelse' : 'Custom Story');
 
       // Create the story in database first
       const { data: story, error: storyError } = await supabase
@@ -103,6 +108,8 @@ export default function CreateStoryFlow() {
           prompt: storyPrompt,
           age_group: flow.ageGroup,
           genre: flow.genres[0], // Primary genre
+          language_code: selectedLanguage,
+          original_language_code: selectedLanguage,
           status: 'generating',
           user_id: user.id,
           metadata: {
@@ -130,21 +137,22 @@ export default function CreateStoryFlow() {
           .eq('id', character.id);
       }
 
-      // Generate the first story segment
-      const { data: generationResult, error: generationError } = await supabase.functions.invoke('generate-story', {
-        body: {
-          prompt: storyPrompt,
-          genre: flow.genres[0],
-          ageGroup: flow.ageGroup,
-          storyId: story.id,
-          isInitialGeneration: true,
-          characters: flow.selectedCharacters.map(c => ({
-            name: c.name,
-            description: c.description,
-            personality: c.personality_traits.join(', ')
-          }))
-        }
-      });
+          // Generate the first story segment
+          const { data: generationResult, error: generationError } = await supabase.functions.invoke('generate-story', {
+            body: {
+              prompt: storyPrompt,
+              genre: flow.genres[0],
+              ageGroup: flow.ageGroup,
+              storyId: story.id,
+              language: selectedLanguage,
+              isInitialGeneration: true,
+              characters: flow.selectedCharacters.map(c => ({
+                name: c.name,
+                description: c.description,
+                personality: c.personality_traits.join(', ')
+              }))
+            }
+          });
 
       if (generationError) throw generationError;
 
@@ -183,12 +191,12 @@ export default function CreateStoryFlow() {
         .update(storyUpdates)
         .eq('id', story.id);
 
-      toast.success('Story created successfully!');
+      toast.success(selectedLanguage === 'sv' ? 'Berättelse skapad!' : 'Story created successfully!');
       navigate(`/story/${story.id}`);
 
     } catch (error) {
       logger.error('Error generating story', error);
-      toast.error('Failed to create story. Please try again.');
+      toast.error(selectedLanguage === 'sv' ? 'Kunde inte skapa berättelse. Försök igen.' : 'Failed to create story. Please try again.');
     } finally {
       setGenerating(false);
     }
@@ -246,8 +254,8 @@ export default function CreateStoryFlow() {
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <div className="flex-1">
-            <h1 className="text-2xl font-bold">Create Your Story</h1>
-            <p className="text-muted-foreground">Let's build an amazing interactive story together!</p>
+            <h1 className="text-2xl font-bold">{translate('storyCreation.title')}</h1>
+            <p className="text-muted-foreground">{selectedLanguage === 'sv' ? 'Låt oss bygga en fantastisk interaktiv berättelse tillsammans!' : 'Let\'s build an amazing interactive story together!'}</p>
           </div>
         </div>
 
@@ -292,68 +300,19 @@ export default function CreateStoryFlow() {
             {flow.step === 1 && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-xl font-semibold mb-2">Choose Age Group & Genres</h2>
-                  <p className="text-muted-foreground">Select the age group and story genres for your adventure.</p>
+                  <h2 className="text-xl font-semibold mb-2">{translate('storyCreation.selectAge')} & {translate('storyCreation.selectGenre')}</h2>
+                  <p className="text-muted-foreground">{selectedLanguage === 'sv' ? 'Välj åldersgrupp och berättelsegenrer för ditt äventyr.' : 'Select the age group and story genres for your adventure.'}</p>
                 </div>
 
-                {/* Age Group Selection */}
-                <div className="space-y-3">
-                  <h3 className="font-medium">Age Group</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {AGE_GROUPS.map((age) => (
-                      <Card
-                        key={age.value}
-                        className={`cursor-pointer transition-all duration-200 ${
-                          flow.ageGroup === age.value 
-                            ? 'ring-2 ring-primary bg-primary/5' 
-                            : 'hover:shadow-md hover:border-primary/50'
-                        }`}
-                        onClick={() => handleAgeGroupSelect(age.value)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium">{age.label}</h4>
-                              <p className="text-sm text-muted-foreground">{age.description}</p>
-                            </div>
-                            {flow.ageGroup === age.value && (
-                              <Badge variant="default">Selected</Badge>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
+                <LanguageAwareAgeSelector
+                  selectedAgeGroup={flow.ageGroup}
+                  onAgeGroupSelect={handleAgeGroupSelect}
+                />
 
-                {/* Genre Selection */}
-                <div className="space-y-3">
-                  <h3 className="font-medium">Story Genres</h3>
-                  <p className="text-sm text-muted-foreground">Pick one or more genres that interest you</p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {GENRES.map((genre) => {
-                      const isSelected = flow.genres.includes(genre);
-                      return (
-                        <Button
-                          key={genre}
-                          variant={isSelected ? "default" : "outline"}
-                          className="justify-start h-auto p-3 text-left"
-                          onClick={() => handleGenreToggle(genre)}
-                        >
-                          {genre}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  {flow.genres.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Selected:</span>
-                      {flow.genres.map(genre => (
-                        <Badge key={genre} variant="secondary">{genre}</Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <LanguageAwareGenreSelector
+                  selectedGenres={flow.genres}
+                  onGenreToggle={handleGenreToggle}
+                />
               </div>
             )}
 
@@ -377,13 +336,13 @@ export default function CreateStoryFlow() {
             )}
 
             {flow.step === 4 && (
+            {flow.step === 4 && (
               <div className="space-y-6 text-center">
                 <div>
                   <h2 className="text-xl font-semibold mb-2">Ready to Create Your Story!</h2>
                   <p className="text-muted-foreground">Review your choices and create your interactive story.</p>
                 </div>
 
-                {/* Summary */}
                 <div className="bg-muted/30 rounded-lg p-6 text-left space-y-4">
                   <div>
                     <span className="font-medium">Age Group:</span> {flow.ageGroup}
@@ -437,7 +396,7 @@ export default function CreateStoryFlow() {
               className="flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back
+              {selectedLanguage === 'sv' ? 'Tillbaka' : 'Back'}
             </Button>
             
             <Button 
@@ -445,7 +404,7 @@ export default function CreateStoryFlow() {
               disabled={!canProceedFromStep(flow.step)}
               className="flex items-center gap-2"
             >
-              Next
+              {selectedLanguage === 'sv' ? 'Nästa' : 'Next'}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>

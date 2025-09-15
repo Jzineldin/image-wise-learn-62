@@ -13,6 +13,7 @@ import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/hooks/useLanguage';
 
 interface Profile {
   id: string;
@@ -41,6 +42,7 @@ const Settings = () => {
   });
   const { user } = useAuth();
   const { toast } = useToast();
+  const { availableLanguages, translate } = useLanguage();
 
   useEffect(() => {
     fetchProfile();
@@ -288,7 +290,7 @@ const Settings = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="language">Preferred Language</Label>
+                  <Label htmlFor="language">{translate('settings.preferredLanguage')}</Label>
                   <Select
                     value={profile.preferred_language}
                     onValueChange={(value) => setProfile({ ...profile, preferred_language: value })}
@@ -297,13 +299,22 @@ const Settings = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="es">Spanish</SelectItem>
-                      <SelectItem value="fr">French</SelectItem>
-                      <SelectItem value="de">German</SelectItem>
-                      <SelectItem value="it">Italian</SelectItem>
+                      {availableLanguages.map((lang) => (
+                        <SelectItem key={lang.code} value={lang.code}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{lang.native_name}</span>
+                            <span className="text-xs text-muted-foreground">({lang.name})</span>
+                            {lang.code === 'sv' && (
+                              <span className="text-xs bg-primary/20 text-primary px-1 rounded">🇸🇪</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {translate('messages.languageUpdated')}
+                  </p>
                 </div>
 
                 <Button onClick={saveProfile} disabled={saving} className="btn-primary">
