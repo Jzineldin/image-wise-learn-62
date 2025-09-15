@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Search, ThumbsUp, Eye, Filter, Book } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import StoryCard from '@/components/StoryCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 
@@ -142,52 +143,12 @@ const Discover = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {publicStories.map((story) => (
-                <div 
-                  key={story.id} 
-                  className="glass-card-interactive group cursor-pointer"
-                  onClick={() => navigate(`/story/${story.id}?mode=read`)}
-                >
-                  {/* Cover Image */}
-                  <div className="relative overflow-hidden rounded-t-lg">
-                    {story.cover_image ? (
-                      <img 
-                        src={story.cover_image} 
-                        alt={story.title}
-                        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-48 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center group-hover:from-primary/30 group-hover:to-secondary/30 transition-colors">
-                        <Book className="w-16 h-16 text-primary/50" />
-                      </div>
-                    )}
-                    <div className="absolute top-4 right-4">
-                      <span className="bg-primary text-primary-foreground px-2 py-1 rounded-full text-xs font-medium">
-                        {story.age_group}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-6">
-                    <h3 className="text-lg font-semibold group-hover:text-primary transition-colors line-clamp-2 mb-3">
-                      {story.title}
-                    </h3>
-
-                    <p className="text-text-secondary text-sm mb-2">
-                      by {story.author_id && currentUserId && story.author_id === currentUserId ? 'You' : 'Anonymous'}
-                    </p>
-                    <p className="text-primary text-sm font-medium mb-3">
-                      {story.genre}
-                    </p>
-                    <p className="text-text-secondary text-sm mb-6 line-clamp-3">
-                      {story.description}
-                    </p>
-
-                    <Button className="btn-primary w-full">
-                      Read Story
-                    </Button>
-                  </div>
-                </div>
+                <StoryCard
+                  key={story.id}
+                  story={story}
+                  variant="discover"
+                  currentUserId={currentUserId}
+                />
               ))}
             </div>
           )}

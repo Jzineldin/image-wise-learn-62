@@ -133,7 +133,7 @@ const OnboardingTour = ({ isOpen, onClose }: OnboardingTourProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md" hideCloseButton>
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">

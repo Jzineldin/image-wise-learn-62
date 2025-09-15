@@ -8,6 +8,7 @@ import { Book, Search, Eye, Calendar, Filter, Settings, Globe, Lock } from 'luci
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import StorySettings from '@/components/StorySettings';
+import StoryCard from '@/components/StoryCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -188,85 +189,14 @@ const MyStories = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredStories.map((story) => (
-              <Card key={story.id} className="glass-card-interactive group overflow-hidden">
-                {story.cover_image && (
-                  <div className="aspect-video bg-muted relative overflow-hidden">
-                    <img 
-                      src={story.cover_image} 
-                      alt={story.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute top-2 right-2">
-                      <Badge className={getStatusColor(story.status)}>
-                        {getStatusLabel(story.status)}
-                      </Badge>
-                    </div>
-                  </div>
-                )}
-                
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg group-hover:text-primary transition-colors line-clamp-2">
-                        {story.title}
-                      </CardTitle>
-                      <div className="flex gap-2 mt-2">
-                        <Badge variant="outline">{story.genre}</Badge>
-                        <Badge variant="outline">{story.age_group}</Badge>
-                      </div>
-                    </div>
-                  </div>
-                  {!story.cover_image && (
-                    <div className="mt-2">
-                      <Badge className={getStatusColor(story.status)}>
-                        {getStatusLabel(story.status)}
-                      </Badge>
-                    </div>
-                  )}
-                </CardHeader>
-                
-                <CardContent>
-                  {story.description && (
-                    <p className="text-text-secondary text-sm mb-4 line-clamp-3">
-                      {story.description}
-                    </p>
-                  )}
-                  
-                  <div className="flex justify-between items-center text-xs text-text-secondary mb-4">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(story.created_at).toLocaleDateString()}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {story.visibility === 'public' ? (
-                        <Globe className="w-3 h-3 text-success" />
-                      ) : (
-                        <Lock className="w-3 h-3 text-warning" />
-                      )}
-                      <Badge variant="secondary" className="text-xs">
-                        {story.visibility}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Link to={`/story/${story.id}`} className="flex-1">
-                      <Button className="w-full btn-secondary">
-                        <Eye className="w-4 h-4 mr-2" />
-                        View
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedStory(story)}
-                      className="px-3"
-                    >
-                      <Settings className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <StoryCard
+                key={story.id}
+                story={story}
+                variant={story.cover_image ? 'background' : 'default'}
+                showActions={true}
+                showStatus={true}
+                onSettingsClick={() => setSelectedStory(story)}
+              />
             ))}
           </div>
         )}
