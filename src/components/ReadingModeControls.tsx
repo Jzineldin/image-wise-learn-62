@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Play, 
-  Pause, 
-  SkipForward, 
-  SkipBack, 
-  Settings, 
+import {
+  Play,
+  Pause,
+  SkipForward,
+  SkipBack,
+  Settings,
   Maximize,
+  Minimize,
   Type,
-  Clock
+  Clock,
+  BookOpen
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -28,6 +30,7 @@ interface ReadingModeControlsProps {
   onFontSizeChange: (size: number) => void;
   autoPlaySpeed: number;
   onAutoPlaySpeedChange: (speed: number) => void;
+  mode?: 'creation' | 'experience';
 }
 
 export const ReadingModeControls = ({
@@ -42,7 +45,8 @@ export const ReadingModeControls = ({
   fontSize,
   onFontSizeChange,
   autoPlaySpeed,
-  onAutoPlaySpeedChange
+  onAutoPlaySpeedChange,
+  mode = 'experience'
 }: ReadingModeControlsProps) => {
   const progress = totalSegments > 0 ? ((currentSegment + 1) / totalSegments) * 100 : 0;
 
@@ -52,9 +56,19 @@ export const ReadingModeControls = ({
         {/* Progress Bar */}
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-text-secondary">
-              Segment {currentSegment + 1} of {totalSegments}
-            </span>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-text-secondary">
+                Segment {currentSegment + 1} of {totalSegments}
+              </span>
+              <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
+                mode === 'creation'
+                  ? 'bg-amber-600/20 text-amber-300'
+                  : 'bg-emerald-600/20 text-emerald-300'
+              }`}>
+                <BookOpen className="w-3 h-3" />
+                <span>{mode === 'creation' ? 'Creation' : 'Experience'}</span>
+              </div>
+            </div>
             <span className="text-sm text-text-secondary">
               {Math.round(progress)}% Complete
             </span>
@@ -182,8 +196,13 @@ export const ReadingModeControls = ({
               variant="ghost"
               onClick={onFullscreenToggle}
               className="btn-icon"
+              title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
             >
-              <Maximize className="w-4 h-4" />
+              {isFullscreen ? (
+                <Minimize className="w-4 h-4" />
+              ) : (
+                <Maximize className="w-4 h-4" />
+              )}
             </Button>
           </div>
         </div>

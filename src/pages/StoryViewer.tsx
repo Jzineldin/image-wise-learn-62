@@ -8,12 +8,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { VoiceSelector } from '@/components/VoiceSelector';
 import { ReadingModeControls } from '@/components/ReadingModeControls';
+import { StoryModeToggle, StoryModeIndicator } from '@/components/story-viewer/StoryModeToggle';
+import { AudioControls, FloatingAudioControls } from '@/components/story-viewer/AudioControls';
 import { logger, generateRequestId } from '@/lib/debug';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 import CreditCostDisplay from '@/components/CreditCostDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 
-type ViewMode = 'read' | 'watch';
+type ViewMode = 'creation' | 'experience';
 
 // Helper function to parse function errors from supabase-js wrapper
 const parseFunctionError = (error: any): string => {
@@ -80,7 +82,7 @@ const StoryViewer = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>('read');
+  const [viewMode, setViewMode] = useState<ViewMode>('creation');
   const [isOwner, setIsOwner] = useState(false);
   const [generatingSegment, setGeneratingSegment] = useState(false);
   const [generatingAudio, setGeneratingAudio] = useState(false);
@@ -103,19 +105,21 @@ const StoryViewer = () => {
   }, [id]);
 
   useEffect(() => {
-    // Auto-play audio in watch mode
-    if (viewMode === 'watch' && currentSegment?.audio_url && !isPlaying) {
+    // Auto-play audio in experience mode
+    if (viewMode === 'experience' && currentSegment?.audio_url && !isPlaying) {
       setTimeout(() => toggleAudio(), 500); // Small delay to ensure smooth transition
     }
   }, [viewMode, currentSegmentIndex, segments]);
 
   useEffect(() => {
-    // Determine view mode from URL params, default to 'read'
+    // Determine view mode from URL params, default based on ownership
     const modeParam = searchParams.get('mode') as ViewMode;
-    if (modeParam && ['read', 'watch'].includes(modeParam)) {
+    if (modeParam && ['creation', 'experience'].includes(modeParam)) {
       setViewMode(modeParam);
     } else {
-      setViewMode('read');
+      // Default to creation mode for owners, experience mode for viewers
+      const defaultMode = story && user && (story.author_id === user.id || story.user_id === user.id) ? 'creation' : 'experience';
+      setViewMode(defaultMode);
     }
     
     // Set ownership status
@@ -629,8 +633,8 @@ const StoryViewer = () => {
       const audio = new Audio(currentSegment.audio_url);
       audio.onended = () => {
         setIsPlaying(false);
-        // Auto-advance in watch mode
-        if (viewMode === 'watch' && currentSegmentIndex < segments.length - 1) {
+        // Auto-advance in experience mode
+        if (viewMode === 'experience' && currentSegmentIndex < segments.length - 1) {
           setTimeout(() => navigateSegment('next'), 1000); // 1 second delay between segments
         }
       };
@@ -861,7 +865,9 @@ const StoryViewer = () => {
 
   const currentSegment = segments[currentSegmentIndex];
   const isCompletedStory = story?.status === 'completed' || story?.is_completed;
-  const showChoices = viewMode === 'read' && isOwner && !isCompletedStory;
+  const showChoices = viewMode === 'creation' && isOwner && !isCompletedStory;
+  const showImmersiveMode = viewMode === 'experience';
+  const showCreationTools = viewMode === 'creation' && isOwner;
 
   return (
     <div className={`min-h-screen ${isFullscreen ? 'fixed inset-0 z-40 overflow-auto' : ''}`}>
@@ -912,48 +918,30 @@ const StoryViewer = () => {
               <h1 className="text-2xl md:text-3xl font-heading font-bold text-gradient">
                 {story.title}
               </h1>
-              <p className="text-text-secondary">
-                {story.genre} • {story.age_group} • Segment {currentSegmentIndex + 1} of {segments.length}
-                {isCompletedStory && <span className="ml-2 text-primary">• Complete</span>}
-              </p>
+              <div className="flex items-center space-x-4">
+                <p className="text-text-secondary">
+                  {story.genre} • {story.age_group} • Segment {currentSegmentIndex + 1} of {segments.length}
+                  {isCompletedStory && <span className="ml-2 text-primary">• Complete</span>}
+                </p>
+                <StoryModeIndicator mode={viewMode} isOwner={isOwner} />
+              </div>
             </div>
             
             <div className="flex items-center space-x-4">
-              {/* View Mode Selector */}
-              <div className="flex items-center space-x-1 bg-background/50 rounded-lg p-1">
-                <Button
-                  onClick={() => {
-                    setViewMode('read');
-                    setSearchParams(prev => {
-                      prev.set('mode', 'read');
-                      return prev;
-                    });
-                  }}
-                  variant={viewMode === 'read' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="text-xs"
-                >
-                  <Eye className="w-4 h-4 mr-1" />
-                  Read
-                </Button>
-                <Button
-                  onClick={() => {
-                    setViewMode('watch');
-                    setSearchParams(prev => {
-                      prev.set('mode', 'watch');
-                      return prev;
-                    });
-                  }}
-                  variant={viewMode === 'watch' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="text-xs"
-                >
-                  <Headphones className="w-4 h-4 mr-1" />
-                  Watch
-                </Button>
-              </div>
+              {/* Story Mode Selector */}
+              <StoryModeToggle
+                mode={viewMode}
+                onModeChange={(mode) => {
+                  setViewMode(mode);
+                  setSearchParams(prev => {
+                    prev.set('mode', mode);
+                    return prev;
+                  });
+                }}
+                isOwner={isOwner}
+              />
 
-              {viewMode === 'watch' && (
+              {showImmersiveMode && (
                 <VoiceSelector
                   selectedVoice={selectedVoice}
                   onVoiceChange={setSelectedVoice}
@@ -992,7 +980,9 @@ const StoryViewer = () => {
         <div className="max-w-4xl mx-auto">
           {/* Story Content */}
           {currentSegment && (
-            <div className="glass-card-elevated p-8 mb-8">
+            <div className={`glass-card-elevated p-8 mb-8 transition-all duration-300 ${
+              showImmersiveMode ? 'max-w-5xl mx-auto' : ''
+            }`}>
               {/* Image - Shows immediately when available, placeholder while generating */}
               <div className="mb-8">
                 {currentSegment.image_url ? (
@@ -1037,51 +1027,38 @@ const StoryViewer = () => {
                 )}
               </div>
 
-              {/* Audio Controls - Enhanced for Watch Mode */}
-              {(viewMode === 'watch' || currentSegment.audio_url) && (
-                <div className="flex items-center justify-center mb-8">
-                  <div className="glass-card p-4 flex items-center space-x-4">
-                    {currentSegment.audio_url ? (
-                      <Button
-                        onClick={toggleAudio}
-                        className="btn-primary"
-                        size="sm"
-                      >
-                        {isPlaying ? (
-                          <Pause className="w-5 h-5" />
-                        ) : (
-                          <Play className="w-5 h-5" />
-                        )}
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={() => generateAudio(currentSegment.id, currentSegment.content)}
-                        disabled={generatingAudio}
-                        className="btn-primary"
-                        size="sm"
-                      >
-                        {generatingAudio ? (
-                          <div className="loading-spinner w-5 h-5" />
-                        ) : (
-                          <Volume2 className="w-5 h-5" />
-                        )}
-                      </Button>
-                    )}
-                    <span className="text-text-secondary text-sm">
-                      {currentSegment.audio_url ? 'Listen' : 'Generate Audio'}
-                    </span>
-                  </div>
-                </div>
-              )}
+              {/* Audio Controls - Always available with enhanced functionality */}
+              <div className="flex items-center justify-center mb-8">
+                <AudioControls
+                  audioUrl={currentSegment.audio_url}
+                  isPlaying={isPlaying}
+                  isGenerating={generatingAudio}
+                  onToggleAudio={toggleAudio}
+                  onGenerateAudio={() => generateAudio(currentSegment.id, currentSegment.content)}
+                  onSkipForward={() => navigateSegment('next')}
+                  onSkipBack={() => navigateSegment('prev')}
+                  showSkipControls={showImmersiveMode}
+                  canSkipForward={currentSegmentIndex < segments.length - 1}
+                  canSkipBack={currentSegmentIndex > 0}
+                  size="md"
+                  variant="full"
+                />
+              </div>
 
               {/* Story Text */}
-              <div className="prose prose-lg max-w-none">
-                <div 
-                  className="text-text-primary leading-relaxed transition-all duration-300"
+              <div className={`prose prose-lg max-w-none transition-all duration-300 ${
+                showImmersiveMode ? 'text-center' : ''
+              }`}>
+                <div
+                  className={`text-text-primary leading-relaxed transition-all duration-300 ${
+                    showImmersiveMode ? 'text-center' : ''
+                  }`}
                   style={{ fontSize: `${fontSize}px` }}
                 >
                   {(currentSegment?.content ?? '').split('\n\n').map((paragraph, index) => (
-                    <p key={index} className="mb-6">
+                    <p key={index} className={`mb-6 transition-all duration-300 ${
+                      showImmersiveMode ? 'text-lg md:text-xl leading-loose' : ''
+                    }`}>
                       {paragraph}
                     </p>
                   ))}
@@ -1090,7 +1067,7 @@ const StoryViewer = () => {
             </div>
           )}
 
-              {/* Choices Section - Only show in Read mode for owners */}
+              {/* Choices Section - Only show in Creation mode for owners */}
           {showChoices && currentSegment && !currentSegment.is_ending && currentSegment.choices.length > 0 && currentSegmentIndex === segments.length - 1 && (
             <div className="glass-card-elevated p-8 mb-8">
               <h3 className="text-xl font-heading font-semibold mb-6 text-center">
@@ -1132,8 +1109,8 @@ const StoryViewer = () => {
             </div>
           )}
 
-          {/* End Story Button - Only show in Read mode for endings */}
-          {viewMode === 'read' && isOwner && currentSegment?.is_ending && (
+          {/* End Story Button - Only show in Creation mode for endings */}
+          {showCreationTools && currentSegment?.is_ending && (
             <div className="glass-card-elevated p-8 mb-8 text-center">
               <Sparkles className="w-16 h-16 text-primary mx-auto mb-4 glow-amber" />
               <h3 className="text-2xl font-heading font-semibold mb-4">
@@ -1178,7 +1155,7 @@ const StoryViewer = () => {
               <span className="text-text-secondary">
                 Segment {currentSegmentIndex + 1} of {segments.length}
               </span>
-              {viewMode === 'read' && isOwner && !currentSegment?.is_ending && (
+              {showCreationTools && !currentSegment?.is_ending && (
           <Button
             onClick={handleEndStory}
             disabled={generatingEnding || creditLock}
@@ -1221,7 +1198,8 @@ const StoryViewer = () => {
         operation="perform this action"
       />
 
-      {(isReadingMode || viewMode === 'watch') && (
+      {/* Enhanced Reading Controls */}
+      {(isReadingMode || showImmersiveMode) && (
         <ReadingModeControls
           isAutoPlaying={isAutoPlaying}
           onAutoPlayToggle={toggleAutoPlay}
@@ -1235,6 +1213,22 @@ const StoryViewer = () => {
           onFontSizeChange={setFontSize}
           autoPlaySpeed={autoPlaySpeed}
           onAutoPlaySpeedChange={setAutoPlaySpeed}
+          mode={viewMode}
+        />
+      )}
+
+      {/* Floating Audio Controls for Experience Mode */}
+      {showImmersiveMode && !isReadingMode && (
+        <FloatingAudioControls
+          audioUrl={currentSegment?.audio_url}
+          isPlaying={isPlaying}
+          isGenerating={generatingAudio}
+          onToggleAudio={toggleAudio}
+          onGenerateAudio={() => currentSegment && generateAudio(currentSegment.id, currentSegment.content)}
+          onSkipForward={() => navigateSegment('next')}
+          onSkipBack={() => navigateSegment('prev')}
+          canSkipForward={currentSegmentIndex < segments.length - 1}
+          canSkipBack={currentSegmentIndex > 0}
         />
       )}
     </div>
