@@ -246,7 +246,7 @@ Return as a JSON array of exactly 3 seeds with this structure:
     shouldBeEnding?: boolean;
   }): PromptTemplate {
     const ageGuide = AGE_GUIDELINES[context.ageGroup as keyof typeof AGE_GUIDELINES] || AGE_GUIDELINES['10-12'];
-    const genreWords = GENRE_VOCABULARY[context.genre as keyof typeof GENRE_VOCABULARY] || ['engaging', 'interesting'];
+    const genreWords = GENRE_VOCABULARY[context.genre as keyof typeof GENRE_VOCABULARY] || 'engaging, interesting';
     const wordCount = ageGuide.wordCount;
     const guidelines = {
       vocabulary: ageGuide.vocabulary,
@@ -297,7 +297,7 @@ STORY REQUIREMENTS:
 - Sentence structure: ${guidelines.sentences}  
 - Themes: ${guidelines.themes}
 - Complexity: ${guidelines.complexity}
-- Genre: ${context.genre} - Use relevant vocabulary: ${genreWords.join(', ')}
+- Genre: ${context.genre} - Use relevant vocabulary: ${genreWords}
 
 🚨 CHOICE GENERATION REQUIREMENTS - MANDATORY:
 - Create exactly 2 meaningful choices
