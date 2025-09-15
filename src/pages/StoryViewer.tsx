@@ -294,13 +294,27 @@ const StoryViewer = () => {
         description: "Your choice has shaped the adventure.",
       });
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Story segment generation failed', error, {
         requestId,
         storyId: story.id,
         choiceId,
         segmentNumber: segments.length + 1
       });
+      
+      // Check if it's a credit error
+      if (error.message?.includes('Insufficient credits')) {
+        const match = error.message.match(/Required: (\d+), Available: (\d+)/);
+        if (match) {
+          setCreditError({
+            required: parseInt(match[1]),
+            available: parseInt(match[2]),
+            operation: 'generate the next story chapter'
+          });
+          setShowInsufficientCredits(true);
+          return;
+        }
+      }
       
       toast({
         title: "Generation failed",
@@ -387,13 +401,27 @@ const StoryViewer = () => {
         description: "Story artwork is ready.",
       });
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Image generation failed', error, {
         requestId,
         segmentId: segment.id,
         attempt: currentRetries + 1
       });
       setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
+      
+      // Check if it's a credit error
+      if (error.message?.includes('Insufficient credits')) {
+        const match = error.message.match(/Required: (\d+), Available: (\d+)/);
+        if (match) {
+          setCreditError({
+            required: parseInt(match[1]),
+            available: parseInt(match[2]),
+            operation: 'generate an AI illustration'
+          });
+          setShowInsufficientCredits(true);
+          return;
+        }
+      }
       
       setTimeout(() => {
         generateSegmentImage(segment);
@@ -473,7 +501,7 @@ const StoryViewer = () => {
         description: "You can now listen to this segment.",
       });
 
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Audio generation failed', error, {
         requestId,
         segmentId,
@@ -481,6 +509,20 @@ const StoryViewer = () => {
         voiceId: selectedVoice
       });
       setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
+      
+      // Check if it's a credit error
+      if (error.message?.includes('Insufficient credits')) {
+        const match = error.message.match(/Required: (\d+), Available: (\d+)/);
+        if (match) {
+          setCreditError({
+            required: parseInt(match[1]),
+            available: parseInt(match[2]),
+            operation: 'generate voice narration'
+          });
+          setShowInsufficientCredits(true);
+          return;
+        }
+      }
       
       // Retry with exponential backoff
       setTimeout(() => {
@@ -988,24 +1030,29 @@ const StoryViewer = () => {
                   <span className="text-text-secondary">Generating next part of your story...</span>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {currentSegment.choices.map((choice) => (
-                    <button
-                      key={choice.id}
-                      onClick={() => handleChoice(choice.id, choice.text)}
-                      className="glass-card-interactive w-full p-6 text-left group hover:scale-[1.02] transition-all"
-                    >
-                      <p className="text-text-primary group-hover:text-primary transition-colors font-medium">
-                        {choice.text}
-                      </p>
-                      {choice.impact && (
-                        <p className="text-sm text-text-secondary mt-2 group-hover:text-text-primary transition-colors">
-                          {choice.impact}
+                <>
+                  <div className="mb-4">
+                    <CreditCostDisplay operation="segment" />
+                  </div>
+                  <div className="space-y-4">
+                    {currentSegment.choices.map((choice) => (
+                      <button
+                        key={choice.id}
+                        onClick={() => handleChoice(choice.id, choice.text)}
+                        className="glass-card-interactive w-full p-6 text-left group hover:scale-[1.02] transition-all"
+                      >
+                        <p className="text-text-primary group-hover:text-primary transition-colors font-medium">
+                          {choice.text}
                         </p>
-                      )}
-                    </button>
-                  ))}
-                </div>
+                        {choice.impact && (
+                          <p className="text-sm text-text-secondary mt-2 group-hover:text-text-primary transition-colors">
+                            {choice.impact}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -1091,7 +1138,14 @@ const StoryViewer = () => {
         </div>
       </div>
 
-      {/* Reading Mode Controls - Show for both modes but with different functionality */}
+      <InsufficientCreditsDialog
+        open={showInsufficientCredits}
+        onOpenChange={setShowInsufficientCredits}
+        requiredCredits={creditError?.required || 0}
+        availableCredits={creditError?.available || 0}
+        operation={creditError?.operation || 'perform this action'}
+      />
+
       {(isReadingMode || viewMode === 'watch') && (
         <ReadingModeControls
           isAutoPlaying={isAutoPlaying}

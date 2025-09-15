@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { CreditService, validateAndDeductCredits, CREDIT_COSTS } from '../_shared/credit-system.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,6 +48,19 @@ serve(async (req) => {
       segmentId,
       characters = []
     }: GenerateImageRequest = await req.json();
+
+    // Initialize credit service and validate credits
+    const creditService = new CreditService(supabaseUrl, supabaseKey);
+    const userId = await creditService.getUserId();
+
+    // Validate and deduct credits for image generation
+    const creditResult = await validateAndDeductCredits(
+      creditService,
+      userId,
+      'imageGeneration'
+    );
+
+    console.log(`Image credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
 
     console.log('Image generation request:', { 
       contentLength: storyContent.length, 

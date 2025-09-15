@@ -18,6 +18,28 @@ import CreditDisplay from '@/components/CreditDisplay';
 import LanguageAwareGenreSelector from '@/components/LanguageAwareGenreSelector';
 import LanguageAwareAgeSelector from '@/components/LanguageAwareAgeSelector';
 import { useLanguage } from '@/hooks/useLanguage';
+import CreditCostDisplay from '@/components/CreditCostDisplay';
+import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, ArrowRight, Sparkles, Users, BookOpen, Wand2, Home, User, Settings } from 'lucide-react';
+import { AGE_GROUPS, GENRES } from '@/types';
+import { UserCharacter, StorySeed, StoryCreationFlow } from '@/types/character';
+import { CharacterSelector } from '@/components/story-creation/CharacterSelector';
+import { StorySeedGenerator } from '@/components/story-creation/StorySeedGenerator';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
+import { logger } from '@/lib/debug';
+import CreditDisplay from '@/components/CreditDisplay';
+import LanguageAwareGenreSelector from '@/components/LanguageAwareGenreSelector';
+import LanguageAwareAgeSelector from '@/components/LanguageAwareAgeSelector';
+import { useLanguage } from '@/hooks/useLanguage';
+import CreditCostDisplay from '@/components/CreditCostDisplay';
+import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 
 const STEPS = [
   { id: 1, title: 'Age & Genre', icon: BookOpen },
@@ -31,6 +53,8 @@ export default function CreateStoryFlow() {
   const { user } = useAuth();
   const { translate, selectedLanguage } = useLanguage();
   const [generating, setGenerating] = useState(false);
+  const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
+  const [creditError, setCreditError] = useState<{ required: number; available: number } | null>(null);
 
   const [flow, setFlow] = useState<StoryCreationFlow>({
     step: 1,
@@ -196,6 +220,20 @@ export default function CreateStoryFlow() {
 
     } catch (error) {
       logger.error('Error generating story', error);
+      
+      // Check if it's a credit error
+      if (error.message?.includes('Insufficient credits')) {
+        const match = error.message.match(/Required: (\d+), Available: (\d+)/);
+        if (match) {
+          setCreditError({
+            required: parseInt(match[1]),
+            available: parseInt(match[2])
+          });
+          setShowInsufficientCredits(true);
+          return;
+        }
+      }
+      
       toast.error(selectedLanguage === 'sv' ? 'Kunde inte skapa berättelse. Försök igen.' : 'Failed to create story. Please try again.');
     } finally {
       setGenerating(false);
@@ -341,6 +379,8 @@ export default function CreateStoryFlow() {
                   <h2 className="text-xl font-semibold mb-2">Ready to Create Your Story!</h2>
                   <p className="text-muted-foreground">Review your choices and create your interactive story.</p>
                 </div>
+
+                <CreditCostDisplay operation="story" className="mb-4" />
 
                 <div className="bg-muted/30 rounded-lg p-6 text-left space-y-4">
                   <div>

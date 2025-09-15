@@ -5,6 +5,7 @@ import { createAIService } from '../_shared/ai-service.ts';
 import { PromptTemplateManager } from '../_shared/prompt-templates.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 import { logger } from '../_shared/logger.ts';
+import { CreditService, validateAndDeductCredits, CREDIT_COSTS } from '../_shared/credit-system.ts';
 
 // ============= TYPES =============
 
@@ -53,6 +54,19 @@ serve(async (req) => {
       segmentNumber,
       requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     }: GenerateSegmentRequest = await req.json();
+
+    // Initialize credit service and validate credits
+    const creditService = new CreditService(supabaseUrl, supabaseKey);
+    const userId = await creditService.getUserId();
+
+    // Validate and deduct credits for story segment generation
+    const creditResult = await validateAndDeductCredits(
+      creditService,
+      userId,
+      'storySegment'
+    );
+
+    console.log(`Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
 
     logger.storySegmentGeneration(storyId, segmentNumber || 1, requestId);
 

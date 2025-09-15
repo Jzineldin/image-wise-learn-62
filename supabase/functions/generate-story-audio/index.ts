@@ -1,4 +1,7 @@
 import { logger } from '../_shared/logger.ts';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { CreditService, validateAndDeductCredits, calculateAudioCredits } from '../_shared/credit-system.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,6 +59,23 @@ serve(async (req) => {
       modelId = 'eleven_multilingual_v2',
       settings = {}
     }: GenerateAudioRequest = await req.json();
+
+    // Initialize credit service and validate credits
+    const creditService = new CreditService(supabaseUrl, supabaseKey);
+    const userId = await creditService.getUserId();
+
+    // Calculate required credits based on text length
+    const requiredCredits = calculateAudioCredits(text);
+    
+    // Validate and deduct credits for audio generation
+    const creditResult = await validateAndDeductCredits(
+      creditService,
+      userId,
+      'audioGeneration',
+      { text }
+    );
+
+    console.log(`Audio credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
 
     const requestId = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
