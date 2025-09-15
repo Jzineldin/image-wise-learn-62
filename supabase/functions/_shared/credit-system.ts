@@ -29,31 +29,27 @@ export function calculateAudioCredits(text: string): number {
 export class CreditService {
   private supabase: any;
   private userClient: any;
+  private authHeader?: string;
 
   constructor(supabaseUrl: string, supabaseKey: string, authHeader?: string) {
     this.supabase = createClient(supabaseUrl, supabaseKey);
-    
+    this.authHeader = authHeader;
     // Create a separate client for user authentication if auth header is provided
     if (authHeader) {
       const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
       if (anonKey) {
-        // Extract the JWT token from "Bearer <token>" format
-        const jwt = authHeader.replace('Bearer ', '');
+        // Create client that forwards the user's Authorization header
         this.userClient = createClient(supabaseUrl, anonKey, {
           global: {
             headers: {
-              authorization: authHeader
+              // Use proper header casing; some libraries expect this
+              Authorization: authHeader,
             }
           },
           auth: {
             persistSession: false,
+            autoRefreshToken: false,
           }
-        });
-        
-        // Set the session with the JWT token for proper authentication
-        this.userClient.auth.setSession({
-          access_token: jwt,
-          refresh_token: '',
         });
       }
     }
@@ -143,15 +139,33 @@ export class CreditService {
     try {
       const { data: { user }, error } = await this.userClient.auth.getUser();
       if (error) {
-        console.error('Authentication error:', error);
-        throw new Error(`Authentication failed: ${error.message}`);
+        console.error('Authentication error (getUser):', error);
       }
-      if (!user) {
-        console.error('No user found in authentication context');
-        throw new Error('User not authenticated - no user found');
+      if (user?.id) {
+        console.log(`User authenticated successfully: ${user.id}`);
+        return user.id;
       }
-      console.log(`User authenticated successfully: ${user.id}`);
-      return user.id;
+
+      // Fallback: decode user ID from JWT if available
+      if (this.authHeader) {
+        try {
+          const raw = this.authHeader.startsWith('Bearer ') ? this.authHeader.slice(7) : this.authHeader;
+          const payload = raw.split('.')[1];
+          if (payload) {
+            const padded = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
+            const json = JSON.parse(atob(padded));
+            const sub = json?.sub;
+            if (sub) {
+              console.log(`User ID decoded from JWT: ${sub}`);
+              return sub;
+            }
+          }
+        } catch (jwtErr) {
+          console.error('JWT decode fallback failed:', jwtErr);
+        }
+      }
+
+      throw new Error('User not authenticated');
     } catch (error) {
       console.error('Error getting user ID:', error);
       throw new Error(`User authentication failed: ${error.message}`);

@@ -98,6 +98,7 @@ export default function CreateStoryFlow() {
 
     setGenerating(true);
     
+    let createdStoryId: string | null = null;
     try {
       const requestId = generateRequestId();
       // Create TTS-optimized prompt for Swedish or English
@@ -138,6 +139,10 @@ export default function CreateStoryFlow() {
         })
         .select()
         .single();
+
+      if (story) {
+        createdStoryId = story.id;
+      }
 
       if (storyError) throw storyError;
 
@@ -264,6 +269,14 @@ export default function CreateStoryFlow() {
           setShowInsufficientCredits(true);
           return;
         }
+      }
+      
+      // Mark story as failed if it was created
+      if (createdStoryId) {
+        await supabase
+          .from('stories')
+          .update({ status: 'failed' })
+          .eq('id', createdStoryId);
       }
       
       toast.error(selectedLanguage === 'sv' ? 'Kunde inte skapa berättelse. Försök igen.' : 'Failed to create story. Please try again.');

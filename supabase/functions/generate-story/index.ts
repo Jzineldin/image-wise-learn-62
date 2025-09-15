@@ -5,7 +5,7 @@ import { CreditService, validateAndDeductCredits, CREDIT_COSTS } from '../_share
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, Authorization, x-client-info, apikey, content-type',
 };
 
 interface GenerateStoryRequest {
@@ -267,8 +267,10 @@ serve(async (req) => {
     }: GenerateStoryRequest = await req.json();
 
     // Get authorization header for user authentication
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
+    const authHeader = req.headers.get('authorization') ?? req.headers.get('Authorization') ?? '';
+    const hasAuth = !!authHeader;
+    console.log('Auth header received', { present: hasAuth, prefix: hasAuth ? authHeader.slice(0, 10) : null });
+    if (!hasAuth) {
       return new Response(JSON.stringify({ 
         ok: false, 
         error: { 
@@ -281,7 +283,7 @@ serve(async (req) => {
       });
     }
 
-// Initialize credit service with auth header
+    // Initialize credit service with auth header
     const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
     let userId: string;
     try {
