@@ -336,7 +336,6 @@ export default function CreateStoryFlow() {
             )}
 
             {flow.step === 4 && (
-            {flow.step === 4 && (
               <div className="space-y-6 text-center">
                 <div>
                   <h2 className="text-xl font-semibold mb-2">Ready to Create Your Story!</h2>
