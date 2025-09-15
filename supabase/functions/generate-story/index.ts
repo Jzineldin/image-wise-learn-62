@@ -238,8 +238,18 @@ serve(async (req) => {
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     const ovhToken = Deno.env.get('OVH_AI_ENDPOINTS_ACCESS_TOKEN');
     
-    if (!openRouterApiKey || !openAIApiKey || !ovhToken) {
-      throw new Error('AI API keys not configured');
+    // Check if at least one AI service is available
+    if (!openRouterApiKey && !openAIApiKey && !ovhToken) {
+      return new Response(JSON.stringify({ 
+        ok: false, 
+        error: { 
+          code: 'service_unavailable', 
+          message: 'AI services temporarily unavailable. Please try again later.' 
+        } 
+      }), { 
+        status: 503, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StorySeed, UserCharacter } from '@/types/character';
 import { logger, generateRequestId } from '@/lib/debug';
@@ -7,6 +7,7 @@ export const useStorySeeds = () => {
   const [seeds, setSeeds] = useState<StorySeed[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const latestRequestIdRef = useRef<string>('');
 
   const generateSeeds = async (
     ageGroup: string,
@@ -15,11 +16,12 @@ export const useStorySeeds = () => {
     language: string = 'en'
   ) => {
     const requestId = generateRequestId();
+    latestRequestIdRef.current = requestId;
     setLoading(true);
     setError(null);
 
     try {
-      logger.edgeFunction('generate-story-seeds', requestId, { ageGroup, genres, charactersCount: characters.length });
+      logger.edgeFunction('generate-story-seeds', requestId, { ageGroup, genres, charactersCount: characters.length, language });
       
       const { data, error } = await supabase.functions.invoke('generate-story-seeds', {
         body: {
@@ -43,8 +45,11 @@ export const useStorySeeds = () => {
       const seeds = payload?.seeds ?? payload;
       
       if (seeds && Array.isArray(seeds)) {
-        logger.edgeFunctionResponse('generate-story-seeds', requestId, { seedsCount: seeds.length });
-        setSeeds(seeds);
+        // Only update if this is still the latest request
+        if (latestRequestIdRef.current === requestId) {
+          logger.edgeFunctionResponse('generate-story-seeds', requestId, { seedsCount: seeds.length });
+          setSeeds(seeds);
+        }
       } else {
         throw new Error('Invalid response format - seeds not found or not array');
       }
@@ -92,14 +97,16 @@ export const useStorySeeds = () => {
 
       const isSv = language === 'sv';
 
-      setSeeds([
-        {
-          id: 'fallback-1',
-          title: isSv ? 'Magiskt Äventyr' : 'Magical Adventure',
-          description: isSv
-            ? `${firstCharRef.charAt(0).toUpperCase() + firstCharRef.slice(1)} hittar en mystisk dörr som leder till en magisk värld där allt är möjligt.`
-            : `${firstCharRef.charAt(0).toUpperCase() + firstCharRef.slice(1)} discovers a mysterious door that leads to a magical world where anything is possible.`
-        },
+      // Only set fallback seeds if this is still the latest request
+      if (latestRequestIdRef.current === requestId) {
+        setSeeds([
+          {
+            id: 'fallback-1',
+            title: isSv ? 'Magiskt Äventyr' : 'Magical Adventure',
+            description: isSv
+              ? `${firstCharRef.charAt(0).toUpperCase() + firstCharRef.slice(1)} hittar en mystisk dörr som leder till en magisk värld där allt är möjligt.`
+              : `${firstCharRef.charAt(0).toUpperCase() + firstCharRef.slice(1)} discovers a mysterious door that leads to a magical world where anything is possible.`
+          },
         {
           id: 'fallback-2',
           title: isSv ? 'Gömd Skatt' : 'Hidden Treasure',
@@ -113,10 +120,14 @@ export const useStorySeeds = () => {
           description: isSv
             ? `${firstCharRef.charAt(0).toUpperCase() + firstCharRef.slice(1)} råkar resa i tiden och måste hitta hem igen samtidigt som de hjälper andra på vägen.`
             : `${firstCharRef.charAt(0).toUpperCase() + firstCharRef.slice(1)} accidentally travels through time and must find a way back home while helping people along the way.`
-        }
-      ]);
+          }
+        ]);
+      }
     } finally {
-      setLoading(false);
+      // Only stop loading if this is still the latest request
+      if (latestRequestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
   };
 

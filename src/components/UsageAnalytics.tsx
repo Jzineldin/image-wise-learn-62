@@ -72,7 +72,7 @@ const UsageAnalytics = () => {
         .from('tier_limits')
         .select('*')
         .eq('tier_name', tier)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching tier limits:', error);
