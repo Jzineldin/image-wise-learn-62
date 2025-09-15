@@ -31,6 +31,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
+// Force refresh - Testimonials component should be available
+
 const App = () => {
   return (
     <ErrorBoundary>
