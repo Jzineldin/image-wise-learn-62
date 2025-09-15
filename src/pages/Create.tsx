@@ -494,6 +494,15 @@ export default function CreateStoryFlow() {
           </div>
         )}
       </div>
+
+      {/* Insufficient Credits Dialog */}
+      <InsufficientCreditsDialog
+        open={showInsufficientCredits}
+        onOpenChange={setShowInsufficientCredits}
+        requiredCredits={creditError?.required || 2}
+        availableCredits={creditError?.available || 0}
+        operation="create a story"
+      />
     </div>
   );
 }

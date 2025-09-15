@@ -26,13 +26,13 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
     
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('credits')
-        .eq('id', user.id)
+        .from('user_credits')
+        .select('current_balance')
+        .eq('user_id', user.id)
         .single();
 
       if (error) throw error;
-      setCredits(data?.credits || 0);
+      setCredits(data?.current_balance || 0);
     } catch (error) {
       console.error('Error fetching credits:', error);
     } finally {
@@ -55,11 +55,11 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${user.id}`,
+          table: 'user_credits',
+          filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          setCredits(payload.new.credits || 0);
+          setCredits(payload.new.current_balance || 0);
         }
       )
       .subscribe();

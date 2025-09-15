@@ -57,19 +57,19 @@ export class CreditService {
 
   // Check if user has sufficient credits
   async checkUserCredits(userId: string, requiredCredits: number): Promise<{ hasCredits: boolean; currentCredits: number }> {
-    const { data: profile, error } = await this.supabase
-      .from('profiles')
-      .select('credits')
-      .eq('id', userId)
+    const { data: userCredits, error } = await this.supabase
+      .from('user_credits')
+      .select('current_balance')
+      .eq('user_id', userId)
       .single();
 
-    if (error || !profile) {
+    if (error || !userCredits) {
       console.error('Failed to fetch user credits:', error);
       throw new Error('Failed to fetch user credits');
     }
 
     // Treat null credits as 0
-    const currentCredits = profile.credits || 0;
+    const currentCredits = userCredits.current_balance || 0;
 
     return {
       hasCredits: currentCredits >= requiredCredits,
@@ -105,15 +105,15 @@ export class CreditService {
     }
 
     // Get updated balance
-    const { data: profile } = await this.supabase
-      .from('profiles')
-      .select('credits')
-      .eq('id', userId)
+    const { data: userCredits } = await this.supabase
+      .from('user_credits')
+      .select('current_balance')
+      .eq('user_id', userId)
       .single();
 
     return {
       success: true,
-      newBalance: profile?.credits || 0
+      newBalance: userCredits?.current_balance || 0
     };
   }
 
