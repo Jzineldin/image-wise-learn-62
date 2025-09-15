@@ -144,7 +144,7 @@ export default function CreateStoryFlow() {
               genre: flow.genres[0],
               ageGroup: flow.ageGroup,
               storyId: story.id,
-              language: selectedLanguage,
+              languageCode: selectedLanguage,
               isInitialGeneration: true,
               characters: flow.selectedCharacters.map(c => ({
                 name: c.name,
