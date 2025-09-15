@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import CreditDisplay from './CreditDisplay';
 import { useOnboarding } from './OnboardingTour';
+import { ThemeToggle } from './ThemeToggle';
 
 interface NavigationProps {
   className?: string;
@@ -77,6 +78,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
           </div>
 
           <div className="flex items-center space-x-4">
+            <ThemeToggle variant="dropdown" showLabel={false} />
             {user ? (
               <>
                 <CreditDisplay compact showActions={false} />

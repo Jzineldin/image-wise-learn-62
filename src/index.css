@@ -8,7 +8,7 @@
 
 @layer base {
   :root {
-    /* Main Theme Colors - Dark Mode (Tale Forge uses dark theme by default) */
+    /* Main Theme Colors - Midnight Theme (Default) */
     --background: 240 25% 3%; /* #050510 - Very Dark Blue-Black */
     --foreground: 0 0% 100%; /* #FFFFFF - White */
 
@@ -37,6 +37,8 @@
     --glass-dark: 0 0% 0% / 0.6;
     --glass-medium: 0 0% 0% / 0.4;
     --glass-light: 0 0% 100% / 0.05;
+    --glass-card-overlay: 0 0% 0% / 0.7;
+    --glass-backdrop-blur: 12px;
 
     /* Enhanced Text Colors with Better Visibility */
     --text-primary: 0 0% 100%; /* #FFFFFF */
@@ -72,11 +74,13 @@
     --shadow-glow: 0 0 20px hsl(39 100% 50% / 0.3);
     --shadow-glow-strong: 0 0 40px hsl(39 100% 50% / 0.5);
     --shadow-glass: 0 20px 25px -5px hsl(0 0% 0% / 0.4);
+    --shadow-text: 0 1px 3px rgba(0, 0, 0, 0.8), 0 2px 6px rgba(0, 0, 0, 0.4);
     --shadow-fire: 0 0 20px rgba(255, 140, 0, 0.4), 0 0 40px rgba(255, 165, 0, 0.3), 0 0 60px rgba(255, 215, 0, 0.2);
 
-    /* Animations */
+    /* Animations and Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-fast: all 0.15s ease-out;
+    --theme-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
@@ -118,52 +122,87 @@
     @apply transition-all duration-300 hover:scale-105 hover:shadow-lg;
   }
 
-  /* Enhanced Glass Card Components */
+  /* Enhanced Glass Card Components - Theme Adaptive */
   .glass-card {
-    @apply bg-black/60 backdrop-blur-md border border-primary/20 rounded-xl shadow-xl;
+    background: hsl(var(--glass-card-overlay));
+    backdrop-filter: blur(var(--glass-backdrop-blur));
+    @apply border border-primary/20 rounded-xl shadow-xl transition-all duration-300;
   }
 
   .glass-card-elevated {
-    @apply bg-black/70 backdrop-blur-lg border border-primary/30 rounded-xl shadow-2xl;
+    background: hsl(var(--glass-dark));
+    backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 4px));
+    @apply border border-primary/30 rounded-xl shadow-2xl transition-all duration-300;
   }
 
   .glass-card-dark {
-    @apply bg-black/70 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl;
+    background: hsl(var(--glass-dark));
+    backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 4px));
+    @apply border border-white/10 rounded-2xl shadow-2xl transition-all duration-300;
   }
 
   .glass-card-interactive {
-    @apply bg-black/40 backdrop-blur-sm border border-primary/20 rounded-lg hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 cursor-pointer hover-scale;
+    background: hsl(var(--glass-medium));
+    backdrop-filter: blur(calc(var(--glass-backdrop-blur) - 4px));
+    @apply border border-primary/20 rounded-lg hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 cursor-pointer hover-scale;
   }
 
-  /* Color Variations for Glass Cards */
+  /* Lightweight glass for Dawn theme */
+  .glass-card-light {
+    background: hsl(var(--glass-light));
+    backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 8px));
+    @apply border border-white/20 rounded-xl shadow-xl transition-all duration-300;
+  }
+
+  /* Color Variations for Glass Cards - Theme Adaptive */
   .glass-card-primary {
-    @apply bg-black/50 backdrop-blur-md border border-primary/30 rounded-xl shadow-xl;
-    background: linear-gradient(135deg, hsl(0 0% 0% / 0.5), hsl(39 100% 50% / 0.1));
+    background: linear-gradient(135deg, hsl(var(--glass-medium)), hsl(var(--primary) / 0.1));
+    backdrop-filter: blur(var(--glass-backdrop-blur));
+    @apply border border-primary/30 rounded-xl shadow-xl transition-all duration-300;
   }
 
   .glass-card-secondary {
-    @apply bg-black/50 backdrop-blur-md border border-secondary/30 rounded-xl shadow-xl;
-    background: linear-gradient(135deg, hsl(0 0% 0% / 0.5), hsl(51 100% 50% / 0.1));
+    background: linear-gradient(135deg, hsl(var(--glass-medium)), hsl(var(--secondary) / 0.1));
+    backdrop-filter: blur(var(--glass-backdrop-blur));
+    @apply border border-secondary/30 rounded-xl shadow-xl transition-all duration-300;
+  }
+
+  .glass-card-accent {
+    background: linear-gradient(135deg, hsl(var(--glass-medium)), hsl(var(--accent) / 0.1));
+    backdrop-filter: blur(var(--glass-backdrop-blur));
+    @apply border border-accent/30 rounded-xl shadow-xl transition-all duration-300;
   }
 
   .glass-card-success {
-    @apply bg-black/50 backdrop-blur-md border border-success/30 rounded-xl shadow-xl;
-    background: linear-gradient(135deg, hsl(0 0% 0% / 0.5), hsl(142 71% 45% / 0.1));
+    background: linear-gradient(135deg, hsl(var(--glass-medium)), hsl(var(--success) / 0.1));
+    backdrop-filter: blur(var(--glass-backdrop-blur));
+    @apply border border-success/30 rounded-xl shadow-xl transition-all duration-300;
   }
 
   .glass-card-info {
-    @apply bg-black/50 backdrop-blur-md border border-info/30 rounded-xl shadow-xl;
-    background: linear-gradient(135deg, hsl(0 0% 0% / 0.5), hsl(217 91% 60% / 0.1));
-  }
-
-  .glass-card-light {
-    @apply bg-white/5 backdrop-blur-md border border-white/20 rounded-xl shadow-xl;
-    background: linear-gradient(135deg, hsl(0 0% 100% / 0.05), hsl(0 0% 0% / 0.4));
+    background: linear-gradient(135deg, hsl(var(--glass-medium)), hsl(var(--info) / 0.1));
+    backdrop-filter: blur(var(--glass-backdrop-blur));
+    @apply border border-info/30 rounded-xl shadow-xl transition-all duration-300;
   }
 
   .glass-card-surface {
-    @apply bg-black/60 backdrop-blur-md border border-primary/20 rounded-xl shadow-xl;
     background: var(--gradient-surface);
+    backdrop-filter: blur(var(--glass-backdrop-blur));
+    @apply border border-primary/20 rounded-xl shadow-xl transition-all duration-300;
+  }
+
+  /* Form-specific glass cards with better contrast */
+  .glass-card-form {
+    background: hsl(var(--glass-card-overlay));
+    backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 8px));
+    @apply border border-primary/25 rounded-xl shadow-xl transition-all duration-300;
+  }
+
+  /* Auth page specific glass with extra backdrop blur */
+  .glass-card-auth {
+    background: hsl(var(--glass-dark));
+    backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 12px)) saturate(180%);
+    @apply border border-primary/20 rounded-2xl shadow-2xl transition-all duration-300;
   }
 
   /* Enhanced Button Components */
@@ -316,6 +355,116 @@
     50% {
       box-shadow: 0 0 40px hsl(var(--primary) / 0.6);
     }
+  }
+
+  /* Theme-Specific Enhancements */
+
+  /* Midnight Theme (Default) - Maximum immersion and contrast */
+  .theme-midnight {
+    /* No additional changes needed - uses default values */
+  }
+
+  /* Twilight Theme - Balanced for extended use */
+  .theme-twilight .glass-card {
+    border-color: hsl(var(--primary) / 0.25);
+    box-shadow: var(--shadow-glass), 0 0 0 1px hsl(var(--primary) / 0.1);
+  }
+
+  .theme-twilight .text-with-shadow {
+    text-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.6),
+      0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .theme-twilight .content-overlay {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--glass-dark)) 0%,
+      hsl(var(--glass-medium)) 100%
+    );
+    border-color: hsl(var(--primary) / 0.25);
+  }
+
+  /* Dawn Theme - Lighter, warmer appearance */
+  .theme-dawn .glass-card {
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: var(--shadow-glass), 0 0 0 1px hsl(var(--primary) / 0.15);
+  }
+
+  .theme-dawn .text-with-shadow {
+    text-shadow:
+      0 1px 2px hsl(var(--background) / 0.6),
+      0 2px 4px hsl(var(--background) / 0.3);
+  }
+
+  .theme-dawn .content-overlay {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--glass-dark)) 0%,
+      hsl(var(--glass-light)) 100%
+    );
+    border-color: hsl(var(--primary) / 0.3);
+  }
+
+  .theme-dawn .input-field {
+    background: hsl(var(--glass-light));
+    color: hsl(var(--text-primary));
+    border-color: hsl(var(--border));
+  }
+
+  .theme-dawn .input-field::placeholder {
+    color: hsl(var(--text-tertiary));
+  }
+
+  /* Enhanced form contrast for lighter themes */
+  .theme-twilight .input-field,
+  .theme-dawn .input-field {
+    backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 4px));
+  }
+
+  /* Theme transition animations */
+  * {
+    transition:
+      background-color var(--theme-transition),
+      color var(--theme-transition),
+      border-color var(--theme-transition),
+      box-shadow var(--theme-transition);
+  }
+
+  /* Disable transitions during theme change to prevent flicker */
+  .theme-transitioning * {
+    transition: none !important;
+  }
+
+  /* Page-specific theme adjustments */
+
+  /* Auth pages - Enhanced glass effect */
+  .auth-page .glass-card-auth {
+    background: hsl(var(--glass-dark));
+    backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 16px)) saturate(200%);
+  }
+
+  /* Settings/Admin pages - Softer appearance */
+  .settings-page .glass-card,
+  .admin-page .glass-card {
+    background: hsl(var(--glass-medium));
+    border-color: hsl(var(--primary) / 0.15);
+  }
+
+  /* Dashboard - More vibrant accents */
+  .dashboard-page .glass-card-primary {
+    background: linear-gradient(135deg, hsl(var(--glass-medium)), hsl(var(--primary) / 0.15));
+  }
+
+  .dashboard-page .glass-card-accent {
+    background: linear-gradient(135deg, hsl(var(--glass-medium)), hsl(var(--accent) / 0.15));
+  }
+
+  /* Story creation - Enhanced form visibility */
+  .story-creation-page .glass-card-form {
+    background: hsl(var(--glass-card-overlay));
+    backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 12px));
+    border-color: hsl(var(--primary) / 0.3);
   }
 }
 

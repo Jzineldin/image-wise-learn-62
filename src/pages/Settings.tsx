@@ -7,13 +7,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Settings as SettingsIcon, User, Bell, Globe, Shield, CreditCard } from 'lucide-react';
+import { Settings as SettingsIcon, User, Bell, Globe, Shield, CreditCard, Palette } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/hooks/useLanguage';
+import { ThemeSelect, ThemeStatus } from '@/components/ThemeToggle';
+import { usePageThemeClasses } from '@/components/ThemeProvider';
 
 interface Profile {
   id: string;
@@ -43,6 +45,7 @@ const Settings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { availableLanguages, translate } = useLanguage();
+  const { pageClassName } = usePageThemeClasses('settings');
 
   useEffect(() => {
     fetchProfile();
@@ -171,7 +174,7 @@ const Settings = () => {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className={`min-h-screen ${pageClassName}`}>
       <Navigation />
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
@@ -201,6 +204,10 @@ const Settings = () => {
                   <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
                     <Globe className="w-4 h-4" />
                     <span>Language</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
+                    <Palette className="w-4 h-4" />
+                    <span>Theme</span>
                   </div>
                   <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
                     <Shield className="w-4 h-4" />
@@ -327,6 +334,32 @@ const Settings = () => {
                     'Save Changes'
                   )}
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Theme Settings */}
+            <Card className="glass-card-elevated">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="w-5 h-5" />
+                  Theme & Appearance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <p className="text-sm text-text-secondary">
+                    Choose your preferred theme for the best reading and writing experience.
+                  </p>
+
+                  <ThemeSelect />
+
+                  <Separator />
+
+                  <div>
+                    <h4 className="font-medium mb-3">Current Theme Status</h4>
+                    <ThemeStatus />
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
