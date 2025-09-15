@@ -90,21 +90,29 @@ export const useStorySeeds = () => {
         ? characters.map(getCharacterReference).join(' and ')
         : firstCharRef;
 
+      const isSv = language === 'sv';
+
       setSeeds([
         {
           id: 'fallback-1',
-          title: 'Magical Adventure',
-          description: `${firstCharRef.charAt(0).toUpperCase() + firstCharRef.slice(1)} discovers a mysterious door that leads to a magical world where anything is possible.`
+          title: isSv ? 'Magiskt Äventyr' : 'Magical Adventure',
+          description: isSv
+            ? `${firstCharRef.charAt(0).toUpperCase() + firstCharRef.slice(1)} hittar en mystisk dörr som leder till en magisk värld där allt är möjligt.`
+            : `${firstCharRef.charAt(0).toUpperCase() + firstCharRef.slice(1)} discovers a mysterious door that leads to a magical world where anything is possible.`
         },
         {
           id: 'fallback-2',
-          title: 'Hidden Treasure',
-          description: `When ${allCharRefs} find an ancient map, they must solve puzzles to find the legendary treasure.`
+          title: isSv ? 'Gömd Skatt' : 'Hidden Treasure',
+          description: isSv
+            ? `När ${allCharRefs} hittar en gammal karta måste de lösa kluriga gåtor för att finna den legendariska skatten.`
+            : `When ${allCharRefs} find an ancient map, they must solve puzzles to find the legendary treasure.`
         },
         {
           id: 'fallback-3',
-          title: 'Time Adventure',
-          description: `${firstCharRef.charAt(0).toUpperCase() + firstCharRef.slice(1)} accidentally travels through time and must find a way back home while helping people along the way.`
+          title: isSv ? 'Tidsäventyr' : 'Time Adventure',
+          description: isSv
+            ? `${firstCharRef.charAt(0).toUpperCase() + firstCharRef.slice(1)} råkar resa i tiden och måste hitta hem igen samtidigt som de hjälper andra på vägen.`
+            : `${firstCharRef.charAt(0).toUpperCase() + firstCharRef.slice(1)} accidentally travels through time and must find a way back home while helping people along the way.`
         }
       ]);
     } finally {

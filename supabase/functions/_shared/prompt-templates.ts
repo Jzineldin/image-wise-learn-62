@@ -138,9 +138,26 @@ export class PromptTemplateManager {
         ).join('\n')}\n\n🚨 CRITICAL CHARACTER REFERENCE RULES:\n- ALWAYS use the processed character references shown above\n- NEVER use the original character names in descriptions\n- For proper names like "Luna" or "Max": use the name directly, then vary with pronouns\n- For descriptive types like "the curious cat": NEVER say "Curious Cat discovers..." - ALWAYS say "The curious cat discovers..."\n- Use natural pronoun flow: first mention → pronoun → descriptive reference → pronoun\n- Example: "The brave knight walked through the forest. He discovered a hidden cave. The knight cautiously entered..."`
       : 'No specific characters selected - create engaging characters appropriate for the age group.';
 
+    const languageInstructions = context.language === 'sv' ? `
+🚨 CRITICAL LANGUAGE REQUIREMENT - MANDATORY:
+Generate ALL content in Swedish (Svenska):
+- The seed titles must be in Swedish
+- The seed descriptions must be in Swedish
+- Use natural, fluent Swedish appropriate for children aged ${context.ageGroup}
+- Prefer Swedish names and cultural references when natural
+
+` : context.language && context.language !== 'en' ? `
+🚨 CRITICAL LANGUAGE REQUIREMENT - MANDATORY:
+Generate ALL content in ${context.language}:
+- The seed titles must be in ${context.language}
+- The seed descriptions must be in ${context.language}
+- Use natural, fluent language appropriate for children aged ${context.ageGroup}
+
+` : '';
+
     const system = `You are a creative storytelling AI that generates ultra-concise story seeds for interactive children's stories.
 
-🚨 ABSOLUTE CHARACTER REFERENCE REQUIREMENTS:
+${languageInstructions}🚨 ABSOLUTE CHARACTER REFERENCE REQUIREMENTS:
 ${processedCharacters && processedCharacters.length > 0 
   ? `YOU MUST USE THESE EXACT CHARACTER REFERENCES:\n${processedCharacters.map(char => 
       `- NEVER say "${char.originalName}" - ALWAYS say "${char.reference}"`
@@ -427,6 +444,28 @@ export class FallbackGenerators {
       ? context.characters.map(char => PromptTemplateManager.getCharacterReference(char)).join(' and ')
       : characterRef;
     
+    if (context.language === 'sv') {
+      return {
+        seeds: [
+          {
+            id: 'fallback-1',
+            title: 'Magiskt Äventyr',
+            description: `${characterRef.charAt(0).toUpperCase() + characterRef.slice(1)} hittar en mystisk dörr som leder till en magisk värld där allt är möjligt.`
+          },
+          {
+            id: 'fallback-2',
+            title: 'Gömd Skatt',
+            description: `När ${characterRef} hittar en gammal karta måste de lösa kluriga gåtor för att finna den legendariska skatten.`
+          },
+          {
+            id: 'fallback-3',
+            title: 'Tidsäventyr',
+            description: `${characterRef.charAt(0).toUpperCase() + characterRef.slice(1)} råkar resa i tiden och måste hitta hem igen samtidigt som de hjälper andra på vägen.`
+          }
+        ]
+      };
+    }
+
     return {
       seeds: [
         {
