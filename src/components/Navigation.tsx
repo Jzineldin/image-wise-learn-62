@@ -68,6 +68,9 @@ const Navigation = ({ className = "" }: NavigationProps) => {
             <Link to="/about" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
               About
             </Link>
+            <Link to="/testimonials" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
+              Testimonials
+            </Link>
             <Link to="/pricing" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
               Pricing
             </Link>

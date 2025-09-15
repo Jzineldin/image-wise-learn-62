@@ -51,6 +51,24 @@ const Index = () => {
       role: "Interactive Fiction Creator",
       content: "I wrote interactive fiction and had to calculate all of the branches. What fun to have AI do some of this! Your interactive fiction background sounds amazing!",
       rating: 5
+    },
+    {
+      name: "Anonymous Educator",
+      role: "Education Specialist",
+      content: "There's clearly a ton of thought and effort behind this—feature-rich, polished, and aimed at a well-defined audience. Could really click with parents and educators looking for creative learning tools.",
+      rating: 5
+    },
+    {
+      name: "Anonymous User",
+      role: "Product Reviewer",
+      content: "The UI cleanup and shift toward a more professional, product-focused look really helps position Tale-Forge for wider use, especially with educators and parents.",
+      rating: 5
+    },
+    {
+      name: "Anonymous User",
+      role: "Parent & Designer",
+      content: "Great app! Flows well and has a lot of features. The 'choose your own adventure' idea makes it different from others. I think people would definitely pay for that!",
+      rating: 5
     }
   ];
 
@@ -224,38 +242,49 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-heading font-bold text-fire-gradient mb-6">
-              What Our Users Say
-            </h2>
-            <p className="text-xl text-text-secondary max-w-2xl mx-auto text-with-shadow">
-              Join thousands of storytellers who've discovered the magic
-            </p>
+        {/* Testimonials Section */}
+        <section className="py-20 px-4">
+          <div className="container mx-auto max-w-6xl">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl md:text-5xl font-heading font-bold text-fire-gradient mb-6">
+                What Our Users Say
+              </h2>
+              <p className="text-xl text-text-secondary max-w-2xl mx-auto text-with-shadow">
+                Join thousands of storytellers who've discovered the magic
+              </p>
+            </div>
+            
+            <div className="max-w-6xl mx-auto">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {testimonials.slice(0, 6).map((testimonial, index) => (
+                  <Card key={index} className="glass-card hover-scale h-full">
+                    <CardHeader>
+                      <div className="flex items-center space-x-1 mb-2">
+                        {[...Array(testimonial.rating)].map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-primary text-primary" />
+                        ))}
+                      </div>
+                      <CardTitle className="text-lg text-text-primary">{testimonial.name}</CardTitle>
+                      <CardDescription className="text-primary text-sm">{testimonial.role}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <p className="text-text-secondary italic">"{testimonial.content}"</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              
+              <div className="text-center mt-12">
+                <Link to="/testimonials">
+                  <Button variant="outline" size="lg" className="btn-secondary group text-lg px-8 py-4">
+                    Read All Stories & Meet the Creator
+                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
           </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="glass-card">
-                <CardHeader>
-                  <div className="flex items-center space-x-1 mb-2">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-primary text-primary" />
-                    ))}
-                  </div>
-                  <CardTitle className="text-lg text-text-primary">{testimonial.name}</CardTitle>
-                  <CardDescription className="text-primary text-sm">{testimonial.role}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-text-secondary italic">"{testimonial.content}"</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
 
       {/* Pricing Teaser Section */}
       <section className="py-20 px-4">
