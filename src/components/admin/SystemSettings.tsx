@@ -26,6 +26,7 @@ import { logger } from '@/lib/debug';
 
 interface SystemConfig {
   ai_settings: {
+    primary_model: string;
     openai_model: string;
     max_tokens_per_request: number;
     temperature: number;
@@ -97,7 +98,8 @@ const SystemSettings = () => {
 
   const getDefaultConfig = (): SystemConfig => ({
     ai_settings: {
-      openai_model: 'gpt-3.5-turbo',
+      primary_model: 'openrouter/sonoma-dusk-alpha',
+      openai_model: 'gpt-4o-mini',
       max_tokens_per_request: 2000,
       temperature: 0.7,
       story_generation_prompt: 'Create an engaging children\'s story segment...',
@@ -262,18 +264,22 @@ const SystemSettings = () => {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="openai-model">OpenAI Model</Label>
+                  <Label htmlFor="primary-model">Primary AI Model</Label>
                   <Select
-                    value={config.ai_settings.openai_model}
-                    onValueChange={(value) => updateConfig('ai_settings', 'openai_model', value)}
+                    value={config.ai_settings.primary_model || 'openrouter/sonoma-dusk-alpha'}
+                    onValueChange={(value) => updateConfig('ai_settings', 'primary_model', value)}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                      <SelectItem value="gpt-4">GPT-4</SelectItem>
-                      <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                      <SelectItem value="openrouter/sonoma-dusk-alpha">Sonoma Dusk Alpha (2M Context)</SelectItem>
+                      <SelectItem value="Meta-Llama-3_3-70B-Instruct">Llama 3.3 70B</SelectItem>
+                      <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                      <SelectItem value="gpt-4-turbo-preview">GPT-4 Turbo</SelectItem>
+                      <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                      <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                      <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

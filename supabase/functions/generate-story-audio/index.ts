@@ -23,6 +23,8 @@ interface GenerateAudioRequest {
 }
 
 // ElevenLabs voice mapping with high-quality voices
+// Note: ElevenLabs Multilingual v2 model supports Swedish with all voices
+// The voices below work particularly well with Swedish pronunciation
 const voiceMapping = {
   en: [
     { id: '9BWtsMINqrJLrRacOk9x', name: 'Aria', description: 'Young, clear female voice' },
@@ -31,7 +33,14 @@ const voiceMapping = {
     { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', description: 'Friendly young male' },
     { id: 'XB0fDUnXU5powFXDhCwa', name: 'Charlotte', description: 'Calm female narrator' }
   ],
-  // Add more languages as needed
+  sv: [
+    // These same voices work with Swedish using eleven_multilingual_v2 model
+    { id: '9BWtsMINqrJLrRacOk9x', name: 'Aria', description: 'Ung, tydlig kvinnlig röst' },
+    { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Mjuk kvinnlig berättarröst' },
+    { id: 'XB0fDUnXU5powFXDhCwa', name: 'Charlotte', description: 'Lugn kvinnlig berättare' },
+    { id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger', description: 'Varm manlig berättare' },
+    { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', description: 'Vänlig ung man' }
+  ]
 };
 
 serve(async (req) => {
@@ -40,35 +49,52 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting generate-story-audio function');
+
     const elevenLabsApiKey = Deno.env.get('ELEVENLABS_API_KEY');
-    
+
     if (!elevenLabsApiKey) {
+      console.error('ELEVENLABS_API_KEY environment variable is not set');
       throw new Error('ElevenLabs API key not configured');
     }
+
+    console.log('ElevenLabs API key found');
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { 
-      text, 
+    console.log('Parsing request body');
+    const requestBody = await req.json();
+    console.log('Request body:', JSON.stringify(requestBody));
+
+    const {
+      text,
       voiceId = '9BWtsMINqrJLrRacOk9x', // Default to Aria
       languageCode = 'en',
       storyId,
       segmentId,
       modelId = 'eleven_multilingual_v2',
       settings = {}
-    }: GenerateAudioRequest = await req.json();
+    }: GenerateAudioRequest = requestBody;
+
+    console.log('Parsed parameters:', { voiceId, languageCode, storyId, segmentId, modelId });
 
     // Get authorization header for user authentication
     const authHeader = req.headers.get('authorization');
+    console.log('Auth header present:', !!authHeader);
+
     if (!authHeader) {
+      console.error('Authorization header is missing');
       throw new Error('Authorization header missing');
     }
 
+    console.log('Initializing credit service');
     // Initialize credit service and validate credits
     const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
+    console.log('Getting user ID');
     const userId = await creditService.getUserId();
+    console.log('User ID obtained:', userId);
 
     // Calculate required credits based on text length
     const requiredCredits = calculateAudioCredits(text);
@@ -84,8 +110,8 @@ serve(async (req) => {
     console.log(`Audio credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
 
     const requestId = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    logger.audioGeneration(segmentId || 'unknown', requestId, selectedVoice?.id || voiceId || 'default');
+
+    logger.audioGeneration(segmentId || 'unknown', requestId, voiceId || 'default');
 
     // Check permissions for audio generation
     // Allow any user to generate audio for segments without audio
@@ -114,10 +140,12 @@ serve(async (req) => {
       }
 
       const story = segmentData.stories;
-      const { data: { user } } = await supabase.auth.getUser();
-      
+
+      // Get user from credit service to ensure proper authentication
+      const authenticatedUserId = await creditService.getUserId();
+
       // Check if user can generate audio for this segment
-      const isOwner = user && (story.user_id === user.id || story.author_id === user.id);
+      const isOwner = story.user_id === authenticatedUserId || story.author_id === authenticatedUserId;
       const isPublicStory = story.visibility === 'public';
       
       if (isPublicStory && !isOwner) {
@@ -125,7 +153,7 @@ serve(async (req) => {
         const { data: userRoles } = await supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', user?.id)
+          .eq('user_id', authenticatedUserId)
           .eq('role', 'admin')
           .single();
         

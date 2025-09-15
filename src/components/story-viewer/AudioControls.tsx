@@ -26,6 +26,7 @@ interface AudioControlsProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   variant?: 'compact' | 'full';
+  disabled?: boolean;
 }
 
 export const AudioControls = ({
@@ -41,7 +42,8 @@ export const AudioControls = ({
   canSkipBack = false,
   className = "",
   size = 'md',
-  variant = 'full'
+  variant = 'full',
+  disabled = false
 }: AudioControlsProps) => {
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
@@ -97,7 +99,7 @@ export const AudioControls = ({
           <Button
             onClick={onToggleAudio}
             className={`btn-primary ${currentSize.button}`}
-            disabled={isGenerating}
+            disabled={isGenerating || disabled}
           >
             {isPlaying ? (
               <Pause className={currentSize.icon} />
@@ -108,9 +110,9 @@ export const AudioControls = ({
         ) : (
           <Button
             onClick={onGenerateAudio}
-            disabled={isGenerating}
+            disabled={isGenerating || disabled}
             className={`btn-primary ${currentSize.button}`}
-            title="Generate audio for this segment"
+            title={disabled ? "Please wait, another operation is in progress" : "Generate audio for this segment"}
           >
             {isGenerating ? (
               <Loader2 className={`${currentSize.icon} animate-spin`} />
@@ -149,7 +151,7 @@ export const AudioControls = ({
             <Button
               onClick={onToggleAudio}
               className={`btn-primary ${currentSize.button}`}
-              disabled={isGenerating}
+              disabled={isGenerating || disabled}
             >
               {isPlaying ? (
                 <Pause className={currentSize.icon} />
@@ -160,9 +162,9 @@ export const AudioControls = ({
           ) : (
             <Button
               onClick={onGenerateAudio}
-              disabled={isGenerating}
+              disabled={isGenerating || disabled}
               className={`btn-primary ${currentSize.button}`}
-              title="Generate audio for this segment"
+              title={disabled ? "Please wait, another operation is in progress" : "Generate audio for this segment"}
             >
               {isGenerating ? (
                 <Loader2 className={`${currentSize.icon} animate-spin`} />
@@ -241,7 +243,8 @@ export const AudioControls = ({
                 variant="ghost"
                 size="sm"
                 className="text-xs text-text-tertiary hover:text-text-secondary"
-                disabled={isGenerating}
+                disabled={isGenerating || disabled}
+                title={disabled ? "Please wait, another operation is in progress" : "Regenerate audio"}
               >
                 <RotateCcw className="w-3 h-3 mr-1" />
                 Regenerate
@@ -265,6 +268,7 @@ export const FloatingAudioControls = ({
   onSkipBack,
   canSkipForward = false,
   canSkipBack = false,
+  disabled = false,
   className = ""
 }: Omit<AudioControlsProps, 'variant' | 'size'>) => {
   return (
@@ -282,6 +286,7 @@ export const FloatingAudioControls = ({
         canSkipBack={canSkipBack}
         size="md"
         variant="full"
+        disabled={disabled}
         className="shadow-2xl"
       />
     </div>

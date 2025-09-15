@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, RotateCcw, ThumbsUp, BookOpen, Edit, Eye, Headphones, Home, User, Settings } from 'lucide-react';
+import { Play, Pause, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, RotateCcw, ThumbsUp, BookOpen, Edit, Eye, Headphones, Home, User, Settings, Coins } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -14,6 +14,7 @@ import { logger, generateRequestId } from '@/lib/debug';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 import CreditCostDisplay from '@/components/CreditCostDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
+import { calculateTTSCredits } from '@/utils/creditCalculations';
 
 type ViewMode = 'creation' | 'experience';
 
@@ -106,7 +107,8 @@ const StoryViewer = () => {
 
   useEffect(() => {
     // Auto-play audio in experience mode
-    if (viewMode === 'experience' && currentSegment?.audio_url && !isPlaying) {
+    const currentSeg = segments[currentSegmentIndex];
+    if (viewMode === 'experience' && currentSeg?.audio_url && !isPlaying) {
       setTimeout(() => toggleAudio(), 500); // Small delay to ensure smooth transition
     }
   }, [viewMode, currentSegmentIndex, segments]);
@@ -512,10 +514,23 @@ const StoryViewer = () => {
   };
 
   const generateAudio = async (segmentId: string, content: string) => {
+    // Calculate credit cost for TTS
+    const { credits: ttsCost, priceBreakdown } = calculateTTSCredits(content);
+
+    // Check if credit operation is in progress
+    if (creditLock) {
+      toast({
+        title: "Please wait",
+        description: "Another operation is in progress. Try again in a moment.",
+        variant: "default",
+      });
+      return;
+    }
+
     const requestId = generateRequestId();
     const retryKey = `audio-${segmentId}`;
     const currentRetries = retryAttempts[retryKey] || 0;
-    
+
     if (currentRetries >= 3) {
       logger.warn('Max audio generation retries reached', {
         requestId,
@@ -532,11 +547,13 @@ const StoryViewer = () => {
 
     logger.audioGeneration(segmentId, requestId, selectedVoice, currentRetries + 1);
     setGeneratingAudio(true);
+    setCreditLock(true); // Lock credits during audio generation
     
     try {
       const requestBody = {
         text: content,
         voiceId: selectedVoice,
+        languageCode: selectedLanguage,
         storyId: story?.id,
         segmentId,
         modelId: 'eleven_multilingual_v2',
@@ -552,7 +569,7 @@ const StoryViewer = () => {
       if (error) {
         logger.edgeFunctionResponse('generate-story-audio', requestId, data, error);
         setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
-        
+
         // Retry with exponential backoff
         setTimeout(() => {
           generateAudio(segmentId, content);
@@ -560,11 +577,43 @@ const StoryViewer = () => {
         return;
       }
 
+      // Check if the function returned an error response
+      if (data?.error) {
+        logger.edgeFunctionResponse('generate-story-audio', requestId, data, new Error(data.error));
+
+        // Handle credit errors specifically
+        if (data.error.includes('Insufficient credits')) {
+          const match = data.error.match(/Required: (\d+), Available: (\d+)/);
+          if (match) {
+            setCreditError({
+              required: parseInt(match[1]),
+              available: parseInt(match[2])
+            });
+            setShowInsufficientCredits(true);
+            return;
+          }
+        }
+
+        setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
+
+        // Retry with exponential backoff
+        setTimeout(() => {
+          generateAudio(segmentId, content);
+        }, 2000 * (currentRetries + 1));
+
+        toast({
+          title: "Audio generation failed",
+          description: `${data.error} (Retrying... Attempt ${currentRetries + 1}/3) (ID: ${requestId})`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       logger.edgeFunctionResponse('generate-story-audio', requestId, data);
 
       // Update segment with audio URL
-      setSegments(prev => prev.map(s => 
-        s.id === segmentId 
+      setSegments(prev => prev.map(s =>
+        s.id === segmentId
           ? { ...s, audio_url: data.audioUrl }
           : s
       ));
@@ -615,6 +664,7 @@ const StoryViewer = () => {
       });
     } finally {
       setGeneratingAudio(false);
+      setCreditLock(false); // Release credit lock
     }
   };
 
@@ -1028,21 +1078,41 @@ const StoryViewer = () => {
               </div>
 
               {/* Audio Controls - Always available with enhanced functionality */}
-              <div className="flex items-center justify-center mb-8">
-                <AudioControls
-                  audioUrl={currentSegment.audio_url}
-                  isPlaying={isPlaying}
-                  isGenerating={generatingAudio}
-                  onToggleAudio={toggleAudio}
-                  onGenerateAudio={() => generateAudio(currentSegment.id, currentSegment.content)}
-                  onSkipForward={() => navigateSegment('next')}
-                  onSkipBack={() => navigateSegment('prev')}
-                  showSkipControls={showImmersiveMode}
-                  canSkipForward={currentSegmentIndex < segments.length - 1}
-                  canSkipBack={currentSegmentIndex > 0}
-                  size="md"
-                  variant="full"
-                />
+              <div className="space-y-4 mb-8">
+                {/* Voice Selector and Credit Display */}
+                <div className="flex items-center justify-center gap-4">
+                  <VoiceSelector
+                    selectedVoice={selectedVoice}
+                    onVoiceChange={setSelectedVoice}
+                    className="max-w-sm"
+                  />
+                  {!currentSegment.audio_url && (
+                    <div className="flex items-center gap-2 text-sm text-text-secondary bg-surface-elevated px-3 py-2 rounded-lg">
+                      <Coins className="w-4 h-4 text-primary" />
+                      <span>{calculateTTSCredits(currentSegment.content).credits} credit{calculateTTSCredits(currentSegment.content).credits > 1 ? 's' : ''}</span>
+                      <div className="text-xs text-text-tertiary">({calculateTTSCredits(currentSegment.content).words} words)</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Audio Controls */}
+                <div className="flex items-center justify-center">
+                  <AudioControls
+                    audioUrl={currentSegment.audio_url}
+                    isPlaying={isPlaying}
+                    isGenerating={generatingAudio}
+                    onToggleAudio={toggleAudio}
+                    onGenerateAudio={() => generateAudio(currentSegment.id, currentSegment.content)}
+                    onSkipForward={() => navigateSegment('next')}
+                    onSkipBack={() => navigateSegment('prev')}
+                    showSkipControls={showImmersiveMode}
+                    canSkipForward={currentSegmentIndex < segments.length - 1}
+                    canSkipBack={currentSegmentIndex > 0}
+                    size="md"
+                    variant="full"
+                    disabled={creditLock}
+                  />
+                </div>
               </div>
 
               {/* Story Text */}
@@ -1229,6 +1299,7 @@ const StoryViewer = () => {
           onSkipBack={() => navigateSegment('prev')}
           canSkipForward={currentSegmentIndex < segments.length - 1}
           canSkipBack={currentSegmentIndex > 0}
+          disabled={creditLock}
         />
       )}
     </div>

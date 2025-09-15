@@ -131,45 +131,32 @@ export class CreditService {
 
   // Get user ID from auth context
   async getUserId(): Promise<string> {
-    if (!this.userClient) {
-      console.error('User not authenticated - no auth header provided');
-      throw new Error('User not authenticated - no auth header provided');
-    }
-    
-    try {
-      const { data: { user }, error } = await this.userClient.auth.getUser();
-      if (error) {
-        console.error('Authentication error (getUser):', error);
-      }
-      if (user?.id) {
-        console.log(`User authenticated successfully: ${user.id}`);
-        return user.id;
-      }
+    // Extract user ID directly from the JWT token
+    if (this.authHeader) {
+      try {
+        // Remove 'Bearer ' prefix if present
+        const token = this.authHeader.replace('Bearer ', '');
 
-      // Fallback: decode user ID from JWT if available
-      if (this.authHeader) {
-        try {
-          const raw = this.authHeader.startsWith('Bearer ') ? this.authHeader.slice(7) : this.authHeader;
-          const payload = raw.split('.')[1];
-          if (payload) {
-            const padded = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
-            const json = JSON.parse(atob(padded));
-            const sub = json?.sub;
-            if (sub) {
-              console.log(`User ID decoded from JWT: ${sub}`);
-              return sub;
-            }
+        // Decode JWT token (base64)
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          // Decode the payload (second part) with proper padding
+          const payload = parts[1];
+          const padded = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
+          const json = JSON.parse(atob(padded));
+
+          if (json.sub) {
+            console.log(`User ID extracted from JWT: ${json.sub}`);
+            return json.sub;
           }
-        } catch (jwtErr) {
-          console.error('JWT decode fallback failed:', jwtErr);
         }
+      } catch (e) {
+        console.error('Error decoding JWT token:', e);
       }
-
-      throw new Error('User not authenticated');
-    } catch (error) {
-      console.error('Error getting user ID:', error);
-      throw new Error(`User authentication failed: ${error.message}`);
     }
+
+    console.error('Error getting user ID: User not authenticated or invalid JWT');
+    throw new Error('User authentication failed: User not authenticated');
   }
 }
 

@@ -336,17 +336,18 @@ export const t = (key: string, language: string = 'en'): string => {
 };
 
 // Swedish voice mappings for ElevenLabs
+// Using actual ElevenLabs voice IDs that support multilingual v2
 export const SWEDISH_VOICES = {
-  'male': ['George', 'Liam', 'Brian'],
-  'female': ['Aria', 'Sarah', 'Charlotte', 'Alice', 'Jessica'],
-  'neutral': ['River', 'Charlie']
+  'male': ['CwhRBWXzGAHq8TQ4Fs17', 'TX3LPaxmHKxFdv7VOQHJ'],  // Roger, Liam
+  'female': ['9BWtsMINqrJLrRacOk9x', 'EXAVITQu4vr4xnSDxMaL', 'XB0fDUnXU5powFXDhCwa'],  // Aria, Sarah, Charlotte
+  'neutral': []
 };
 
 export const VOICE_LANGUAGE_MAP = {
   'sv': SWEDISH_VOICES,
   'en': {
-    'male': ['George', 'Liam', 'Brian', 'Daniel', 'Bill', 'Callum', 'Will'],
-    'female': ['Aria', 'Sarah', 'Charlotte', 'Alice', 'Jessica', 'Laura', 'Matilda'],
-    'neutral': ['River', 'Charlie', 'Roger']
+    'male': ['CwhRBWXzGAHq8TQ4Fs17', 'TX3LPaxmHKxFdv7VOQHJ'],  // Roger, Liam
+    'female': ['9BWtsMINqrJLrRacOk9x', 'EXAVITQu4vr4xnSDxMaL', 'XB0fDUnXU5powFXDhCwa'],  // Aria, Sarah, Charlotte
+    'neutral': []
   }
 };

@@ -18,14 +18,35 @@ const VoiceLanguageSelector: React.FC<VoiceLanguageSelectorProps> = ({
 }) => {
   const { selectedLanguage, translate } = useLanguage();
 
+  // Voice names mapping
+  const voiceNames: Record<string, string> = {
+    '9BWtsMINqrJLrRacOk9x': 'Aria',
+    'CwhRBWXzGAHq8TQ4Fs17': 'Roger',
+    'EXAVITQu4vr4xnSDxMaL': 'Sarah',
+    'TX3LPaxmHKxFdv7VOQHJ': 'Liam',
+    'XB0fDUnXU5powFXDhCwa': 'Charlotte'
+  };
+
   const getVoicesForLanguage = (languageCode: string) => {
     const voiceMap = VOICE_LANGUAGE_MAP[languageCode as keyof typeof VOICE_LANGUAGE_MAP];
     if (!voiceMap) return [];
 
     return [
-      ...voiceMap.female.map(voice => ({ id: voice, name: voice, gender: 'female' })),
-      ...voiceMap.male.map(voice => ({ id: voice, name: voice, gender: 'male' })),
-      ...voiceMap.neutral.map(voice => ({ id: voice, name: voice, gender: 'neutral' }))
+      ...voiceMap.female.map(voiceId => ({
+        id: voiceId,
+        name: voiceNames[voiceId] || voiceId,
+        gender: 'female'
+      })),
+      ...voiceMap.male.map(voiceId => ({
+        id: voiceId,
+        name: voiceNames[voiceId] || voiceId,
+        gender: 'male'
+      })),
+      ...voiceMap.neutral.map(voiceId => ({
+        id: voiceId,
+        name: voiceNames[voiceId] || voiceId,
+        gender: 'neutral'
+      }))
     ];
   };
 
