@@ -128,6 +128,15 @@ serve(async (req) => {
         // No fallback for segments - should fail if AI doesn't work
       );
 
+      // Log any validation warnings for debugging
+      const validation = Validators.storySegment.validate(aiResponse.content);
+      if (validation.warnings.length > 0) {
+        logger.info('AI response had validation warnings', {
+          requestId,
+          warnings: validation.warnings
+        });
+      }
+
       return {
         segmentData: normalizedData,
         model_used: aiResponse.model,

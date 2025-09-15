@@ -242,7 +242,7 @@ export class StorySegmentValidator extends ResponseValidator<{
       // Validate character references - look for capitalized character names
       const capitalizedCharacters = content.match(/\b[A-Z][a-z]+\s+[Cc]at\b|\b[A-Z][a-z]+\s+[Dd]og\b|\b[A-Z][a-z]+\s+[Bb]ear\b|\b[A-Z][a-z]+\s+[Bb]ird\b|\b[A-Z][a-z]+\s+[Rr]abbit\b|\b[A-Z][a-z]+\s+[Ff]ox\b|\b[A-Z][a-z]+\s+[Mm]ouse\b|\b[A-Z][a-z]+\s+[Ww]olf\b|\b[A-Z][a-z]+\s+[Bb]utterfly\b|\b[A-Z][a-z]+\s+[Oo]wl\b/g);
       if (capitalizedCharacters && capitalizedCharacters.length > 0) {
-        errors.push(`Content contains capitalized character names: ${capitalizedCharacters.join(', ')}. Use lowercase references like 'the curious cat' instead.`);
+        warnings.push(`Content contains capitalized character names: ${capitalizedCharacters.join(', ')}. Will auto-correct to lowercase references.`);
       }
     }
 
@@ -265,10 +265,10 @@ export class StorySegmentValidator extends ResponseValidator<{
         const id = typeof choice === 'object' ? choice?.id : undefined;
         if (id === undefined) warnings.push(`Choice ${index}: missing id (will auto-assign)`);
         
-        // Make impact REQUIRED - this is now an error, not warning
+        // Check impact description - warn if missing/inadequate, normalize will provide default
         const impact = typeof choice === 'object' ? (choice?.impact || choice?.implications) : undefined;
         if (!impact || impact.trim() === '' || impact.toLowerCase().includes('unknown')) {
-          errors.push(`Choice ${index}: missing or inadequate impact description. Must provide specific consequence description.`);
+          warnings.push(`Choice ${index}: missing or inadequate impact description. Will use default consequence description.`);
         }
       });
     }
