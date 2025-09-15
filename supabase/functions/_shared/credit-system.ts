@@ -37,12 +37,23 @@ export class CreditService {
     if (authHeader) {
       const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
       if (anonKey) {
+        // Extract the JWT token from "Bearer <token>" format
+        const jwt = authHeader.replace('Bearer ', '');
         this.userClient = createClient(supabaseUrl, anonKey, {
           global: {
             headers: {
               authorization: authHeader
             }
+          },
+          auth: {
+            persistSession: false,
           }
+        });
+        
+        // Set the session with the JWT token for proper authentication
+        this.userClient.auth.setSession({
+          access_token: jwt,
+          refresh_token: '',
         });
       }
     }
@@ -125,15 +136,26 @@ export class CreditService {
   // Get user ID from auth context
   async getUserId(): Promise<string> {
     if (!this.userClient) {
+      console.error('User not authenticated - no auth header provided');
       throw new Error('User not authenticated - no auth header provided');
     }
     
-    const { data: { user }, error } = await this.userClient.auth.getUser();
-    if (error || !user) {
-      console.error('Authentication error:', error);
-      throw new Error('User not authenticated');
+    try {
+      const { data: { user }, error } = await this.userClient.auth.getUser();
+      if (error) {
+        console.error('Authentication error:', error);
+        throw new Error(`Authentication failed: ${error.message}`);
+      }
+      if (!user) {
+        console.error('No user found in authentication context');
+        throw new Error('User not authenticated - no user found');
+      }
+      console.log(`User authenticated successfully: ${user.id}`);
+      return user.id;
+    } catch (error) {
+      console.error('Error getting user ID:', error);
+      throw new Error(`User authentication failed: ${error.message}`);
     }
-    return user.id;
   }
 }
 
