@@ -66,13 +66,30 @@ serve(async (req) => {
     const userId = await creditService.getUserId();
 
     // Validate and deduct credits for story segment generation
-    const creditResult = await validateAndDeductCredits(
-      creditService,
-      userId,
-      'storySegment'
-    );
+    try {
+      const creditResult = await validateAndDeductCredits(
+        creditService,
+        userId,
+        'storySegment'
+      );
+      console.log(`Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
+    } catch (error) {
+      if (error.message === 'Insufficient credits') {
+        // Return successful response with error flag for insufficient credits
+        return new Response(JSON.stringify({
+          success: false,
+          error_code: 'INSUFFICIENT_CREDITS',
+          error: 'Insufficient credits to generate story segment',
+          required: CREDIT_COSTS.storySegment,
+          available: await creditService.checkUserCredits(userId, CREDIT_COSTS.storySegment).then(result => result.currentCredits)
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...ResponseHandler.corsOptions().headers }
+        });
+      }
+      throw error;
+    }
 
-    console.log(`Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
 
     logger.storySegmentGeneration(storyId, segmentNumber || 1, requestId);
 

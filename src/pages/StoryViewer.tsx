@@ -15,6 +15,22 @@ import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 
 type ViewMode = 'read' | 'watch';
 
+// Helper function to parse function errors from supabase-js wrapper
+const parseFunctionError = (error: any): string => {
+  // Handle FunctionsHttpError from supabase-js
+  if (error?.context?.message) {
+    return error.context.message;
+  }
+  
+  // Handle direct error messages
+  if (error?.message) {
+    return error.message;
+  }
+  
+  // Fallback
+  return 'Unknown error occurred';
+};
+
 interface StorySegment {
   id: string;
   segment_number: number;
@@ -56,6 +72,7 @@ const StoryViewer = () => {
   // Credit system states
   const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
   const [creditError, setCreditError] = useState<{ required: number; available: number } | null>(null);
+  const [creditLock, setCreditLock] = useState(false); // Prevent concurrent credit operations
   
   const [story, setStory] = useState<Story | null>(null);
   const [segments, setSegments] = useState<StorySegment[]>([]);
@@ -169,12 +186,13 @@ const StoryViewer = () => {
       
       setSegments(transformedSegments);
 
-      // Auto-generate images for segments that don't have them
-      transformedSegments.forEach(segment => {
-        if (!segment.image_url && segment.content) {
-          generateSegmentImage(segment);
+      // Only auto-generate image for the latest segment if not credit locked
+      if (transformedSegments.length > 0 && !creditLock) {
+        const latestSegment = transformedSegments[transformedSegments.length - 1];
+        if (!latestSegment.image_url && latestSegment.content) {
+          generateSegmentImage(latestSegment);
         }
-      });
+      }
 
       return transformedSegments;
 
@@ -202,6 +220,16 @@ const StoryViewer = () => {
       return;
     }
     
+    // Block if credit operation is in progress
+    if (creditLock) {
+      toast({
+        title: "Please wait",
+        description: "Another operation is in progress. Please wait and try again.",
+        variant: "default",
+      });
+      return;
+    }
+    
     const currentSegment = segments[currentSegmentIndex];
     if (!currentSegment) return;
 
@@ -211,6 +239,7 @@ const StoryViewer = () => {
     logger.storySegmentGeneration(story.id, segments.length + 1, requestId);
 
     setGeneratingSegment(true);
+    setCreditLock(true); // Lock credits during segment generation
     try {
       const requestBody = {
         storyId: story.id,
@@ -245,13 +274,36 @@ const StoryViewer = () => {
 
       if (error) {
         logger.edgeFunctionResponse('generate-story-segment', requestId, data, error);
-        throw error;
+        // Parse FunctionsHttpError for better error handling
+        const errorMessage = parseFunctionError(error);
+        if (errorMessage.includes('Insufficient credits')) {
+          const match = errorMessage.match(/Required: (\d+), Available: (\d+)/);
+          if (match) {
+            setCreditError({
+              required: parseInt(match[1]),
+              available: parseInt(match[2])
+            });
+            setShowInsufficientCredits(true);
+            return;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       logger.edgeFunctionResponse('generate-story-segment', requestId, data);
 
       // Check if the edge function call was successful
       if (!data || !data.success) {
+        // Handle structured error responses from edge functions
+        if (data?.error_code === 'INSUFFICIENT_CREDITS') {
+          setCreditError({
+            required: data.required || 1,
+            available: data.available || 0
+          });
+          setShowInsufficientCredits(true);
+          return;
+        }
+        
         const errorMsg = data?.error || 'Failed to generate segment';
         logger.error('Edge function returned failure', new Error(errorMsg), {
           requestId,
@@ -308,19 +360,6 @@ const StoryViewer = () => {
         segmentNumber: segments.length + 1
       });
       
-      // Check if it's a credit error
-      if (error.message?.includes('Insufficient credits')) {
-        const match = error.message.match(/Required: (\d+), Available: (\d+)/);
-        if (match) {
-          setCreditError({
-            required: parseInt(match[1]),
-            available: parseInt(match[2])
-          });
-          setShowInsufficientCredits(true);
-          return;
-        }
-      }
-      
       toast({
         title: "Generation failed",
         description: `${error.message || "Failed to continue the story. Please try again."} (ID: ${requestId})`,
@@ -328,12 +367,23 @@ const StoryViewer = () => {
       });
     } finally {
       setGeneratingSegment(false);
+      setCreditLock(false); // Release credit lock
       logger.groupEnd();
     }
   };
 
   const generateSegmentImage = async (segment: StorySegment) => {
     if (!story) return;
+    
+    // Check if credit operation is in progress
+    if (creditLock) {
+      toast({
+        title: "Please wait",
+        description: "Another operation is in progress. Try again in a moment.",
+        variant: "default",
+      });
+      return;
+    }
 
     const requestId = generateRequestId();
     const retryKey = `image-${segment.id}`;
@@ -355,6 +405,7 @@ const StoryViewer = () => {
 
     logger.imageGeneration(segment.id, requestId, currentRetries + 1);
     setGeneratingImage(segment.id);
+    setCreditLock(true); // Lock credits during image generation
 
     try {
       const requestBody = {
@@ -377,6 +428,19 @@ const StoryViewer = () => {
 
       if (error) {
         logger.edgeFunctionResponse('generate-story-image', requestId, data, error);
+        // Parse FunctionsHttpError for better error handling
+        const errorMessage = parseFunctionError(error);
+        if (errorMessage.includes('Insufficient credits')) {
+          const match = errorMessage.match(/Required: (\d+), Available: (\d+)/);
+          if (match) {
+            setCreditError({
+              required: parseInt(match[1]),
+              available: parseInt(match[2])
+            });
+            setShowInsufficientCredits(true);
+            return;
+          }
+        }
         setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
         
         setTimeout(() => {
@@ -385,12 +449,32 @@ const StoryViewer = () => {
         return;
       }
 
+      // Handle structured responses from edge functions
+      if (data && !data.success) {
+        if (data.error_code === 'INSUFFICIENT_CREDITS') {
+          setCreditError({
+            required: data.required || 2,
+            available: data.available || 0
+          });
+          setShowInsufficientCredits(true);
+          return;
+        }
+        
+        // Handle other structured errors
+        const errorMsg = data.error || 'Image generation failed';
+        setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
+        setTimeout(() => {
+          generateSegmentImage(segment);
+        }, 2000 * (currentRetries + 1));
+        return;
+      }
+
       logger.edgeFunctionResponse('generate-story-image', requestId, data);
       
       // Update segment with image URL when ready
       setSegments(prev => prev.map(s => 
         s.id === segment.id 
-          ? { ...s, image_url: data.imageUrl }
+          ? { ...s, image_url: data.imageUrl || data.data?.imageUrl }
           : s
       ));
 
@@ -414,24 +498,12 @@ const StoryViewer = () => {
       });
       setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
       
-      // Check if it's a credit error
-      if (error.message?.includes('Insufficient credits')) {
-        const match = error.message.match(/Required: (\d+), Available: (\d+)/);
-        if (match) {
-          setCreditError({
-            required: parseInt(match[1]),
-            available: parseInt(match[2])
-          });
-          setShowInsufficientCredits(true);
-          return;
-        }
-      }
-      
       setTimeout(() => {
         generateSegmentImage(segment);
       }, 2000 * (currentRetries + 1));
     } finally {
       setGeneratingImage(null);
+      setCreditLock(false); // Release credit lock
     }
   };
 
@@ -954,9 +1026,9 @@ const StoryViewer = () => {
                             variant="outline"
                             size="sm"
                             className="mt-2"
-                            disabled={generatingImage === currentSegment.id}
+                            disabled={generatingImage === currentSegment.id || creditLock}
                           >
-                            Generate Image
+                            {creditLock ? 'Please wait...' : 'Generate Image'}
                           </Button>
                         </>
                       )}
@@ -1107,24 +1179,24 @@ const StoryViewer = () => {
                 Segment {currentSegmentIndex + 1} of {segments.length}
               </span>
               {viewMode === 'read' && isOwner && !currentSegment?.is_ending && (
-                <Button
-                  onClick={handleEndStory}
-                  disabled={generatingEnding}
-                  variant="outline"
-                  className="btn-secondary"
-                >
-                  {generatingEnding ? (
-                    <>
-                      <div className="loading-spinner w-4 h-4 mr-2" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <RotateCcw className="w-4 h-4 mr-2" />
-                      End Story
-                    </>
-                  )}
-                </Button>
+          <Button
+            onClick={handleEndStory}
+            disabled={generatingEnding || creditLock}
+            variant="outline"
+            className="btn-secondary"
+          >
+            {generatingEnding ? (
+              <>
+                <div className="loading-spinner w-4 h-4 mr-2" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <RotateCcw className="w-4 h-4 mr-2" />
+                End Story
+              </>
+            )}
+          </Button>
               )}
             </div>
 

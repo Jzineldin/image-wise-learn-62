@@ -60,13 +60,29 @@ serve(async (req) => {
     const userId = await creditService.getUserId();
 
     // Validate and deduct credits for image generation
-    const creditResult = await validateAndDeductCredits(
-      creditService,
-      userId,
-      'imageGeneration'
-    );
-
-    console.log(`Image credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
+    try {
+      const creditResult = await validateAndDeductCredits(
+        creditService,
+        userId,
+        'imageGeneration'
+      );
+      console.log(`Image credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
+    } catch (error) {
+      if (error.message === 'Insufficient credits') {
+        // Return successful response with error flag for insufficient credits
+        return new Response(JSON.stringify({
+          success: false,
+          error_code: 'INSUFFICIENT_CREDITS',
+          error: 'Insufficient credits to generate image',
+          required: CREDIT_COSTS.imageGeneration,
+          available: await creditService.checkUserCredits(userId, CREDIT_COSTS.imageGeneration).then(result => result.currentCredits)
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      throw error;
+    }
 
     console.log('Image generation request:', { 
       contentLength: storyContent.length, 
@@ -201,6 +217,7 @@ serve(async (req) => {
     console.log('Image generated successfully');
 
     return new Response(JSON.stringify({ 
+      success: true,
       imageUrl: imageUrl,
       imageData: base64Image,
       prompt: visualPrompt.prompt,
