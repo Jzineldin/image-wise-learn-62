@@ -256,8 +256,14 @@ serve(async (req) => {
       isInitialGeneration = true
     }: GenerateStoryRequest = await req.json();
 
-    // Initialize credit service
-    const creditService = new CreditService(supabaseUrl, supabaseKey);
+    // Get authorization header for user authentication
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      throw new Error('Authorization header missing');
+    }
+
+    // Initialize credit service with auth header
+    const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
     const userId = await creditService.getUserId();
 
     // Validate and deduct credits for story generation

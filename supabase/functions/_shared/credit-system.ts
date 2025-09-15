@@ -28,9 +28,24 @@ export function calculateAudioCredits(text: string): number {
 // Credit validation and deduction service
 export class CreditService {
   private supabase: any;
+  private userClient: any;
 
-  constructor(supabaseUrl: string, supabaseKey: string) {
+  constructor(supabaseUrl: string, supabaseKey: string, authHeader?: string) {
     this.supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Create a separate client for user authentication if auth header is provided
+    if (authHeader) {
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+      if (anonKey) {
+        this.userClient = createClient(supabaseUrl, anonKey, {
+          global: {
+            headers: {
+              authorization: authHeader
+            }
+          }
+        });
+      }
+    }
   }
 
   // Check if user has sufficient credits
@@ -105,8 +120,13 @@ export class CreditService {
 
   // Get user ID from auth context
   async getUserId(): Promise<string> {
-    const { data: { user }, error } = await this.supabase.auth.getUser();
+    if (!this.userClient) {
+      throw new Error('User not authenticated - no auth header provided');
+    }
+    
+    const { data: { user }, error } = await this.userClient.auth.getUser();
     if (error || !user) {
+      console.error('Authentication error:', error);
       throw new Error('User not authenticated');
     }
     return user.id;

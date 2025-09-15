@@ -60,8 +60,14 @@ serve(async (req) => {
       settings = {}
     }: GenerateAudioRequest = await req.json();
 
+    // Get authorization header for user authentication
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      throw new Error('Authorization header missing');
+    }
+
     // Initialize credit service and validate credits
-    const creditService = new CreditService(supabaseUrl, supabaseKey);
+    const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
     const userId = await creditService.getUserId();
 
     // Calculate required credits based on text length

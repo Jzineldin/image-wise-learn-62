@@ -49,8 +49,14 @@ serve(async (req) => {
       characters = []
     }: GenerateImageRequest = await req.json();
 
+    // Get authorization header for user authentication
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      throw new Error('Authorization header missing');
+    }
+
     // Initialize credit service and validate credits
-    const creditService = new CreditService(supabaseUrl, supabaseKey);
+    const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
     const userId = await creditService.getUserId();
 
     // Validate and deduct credits for image generation
