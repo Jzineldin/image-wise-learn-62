@@ -15,31 +15,11 @@ import { toast } from 'sonner';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 import { logger } from '@/lib/debug';
 import CreditDisplay from '@/components/CreditDisplay';
+import CreditCostDisplay from '@/components/CreditCostDisplay';
+import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import LanguageAwareGenreSelector from '@/components/LanguageAwareGenreSelector';
 import LanguageAwareAgeSelector from '@/components/LanguageAwareAgeSelector';
 import { useLanguage } from '@/hooks/useLanguage';
-import CreditCostDisplay from '@/components/CreditCostDisplay';
-import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ArrowRight, Sparkles, Users, BookOpen, Wand2, Home, User, Settings } from 'lucide-react';
-import { AGE_GROUPS, GENRES } from '@/types';
-import { UserCharacter, StorySeed, StoryCreationFlow } from '@/types/character';
-import { CharacterSelector } from '@/components/story-creation/CharacterSelector';
-import { StorySeedGenerator } from '@/components/story-creation/StorySeedGenerator';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
-import { logger } from '@/lib/debug';
-import CreditDisplay from '@/components/CreditDisplay';
-import LanguageAwareGenreSelector from '@/components/LanguageAwareGenreSelector';
-import LanguageAwareAgeSelector from '@/components/LanguageAwareAgeSelector';
-import { useLanguage } from '@/hooks/useLanguage';
-import CreditCostDisplay from '@/components/CreditCostDisplay';
-import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 
 const STEPS = [
   { id: 1, title: 'Age & Genre', icon: BookOpen },

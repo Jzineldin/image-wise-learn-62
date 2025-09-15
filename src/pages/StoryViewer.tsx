@@ -10,6 +10,8 @@ import { VoiceSelector } from '@/components/VoiceSelector';
 import { ReadingModeControls } from '@/components/ReadingModeControls';
 import { logger, generateRequestId } from '@/lib/debug';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
+import CreditCostDisplay from '@/components/CreditCostDisplay';
+import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 
 type ViewMode = 'read' | 'watch';
 
@@ -50,6 +52,10 @@ const StoryViewer = () => {
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Credit system states
+  const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
+  const [creditError, setCreditError] = useState<{ required: number; available: number } | null>(null);
   
   const [story, setStory] = useState<Story | null>(null);
   const [segments, setSegments] = useState<StorySegment[]>([]);
@@ -308,8 +314,7 @@ const StoryViewer = () => {
         if (match) {
           setCreditError({
             required: parseInt(match[1]),
-            available: parseInt(match[2]),
-            operation: 'generate the next story chapter'
+            available: parseInt(match[2])
           });
           setShowInsufficientCredits(true);
           return;
@@ -415,8 +420,7 @@ const StoryViewer = () => {
         if (match) {
           setCreditError({
             required: parseInt(match[1]),
-            available: parseInt(match[2]),
-            operation: 'generate an AI illustration'
+            available: parseInt(match[2])
           });
           setShowInsufficientCredits(true);
           return;
@@ -516,8 +520,7 @@ const StoryViewer = () => {
         if (match) {
           setCreditError({
             required: parseInt(match[1]),
-            available: parseInt(match[2]),
-            operation: 'generate voice narration'
+            available: parseInt(match[2])
           });
           setShowInsufficientCredits(true);
           return;
@@ -1143,7 +1146,7 @@ const StoryViewer = () => {
         onOpenChange={setShowInsufficientCredits}
         requiredCredits={creditError?.required || 0}
         availableCredits={creditError?.available || 0}
-        operation={creditError?.operation || 'perform this action'}
+        operation="perform this action"
       />
 
       {(isReadingMode || viewMode === 'watch') && (
