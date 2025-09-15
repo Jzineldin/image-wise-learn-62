@@ -281,9 +281,24 @@ serve(async (req) => {
       });
     }
 
-    // Initialize credit service with auth header
+// Initialize credit service with auth header
     const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
-    const userId = await creditService.getUserId();
+    let userId: string;
+    try {
+      userId = await creditService.getUserId();
+    } catch (authError) {
+      console.error('Authentication failed in generate-story:', authError);
+      return new Response(JSON.stringify({
+        ok: false,
+        error: {
+          code: 'unauthorized',
+          message: authError?.message || 'User authentication failed'
+        }
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     // Validate and deduct credits for story generation
     let creditResult;

@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
-import { logger } from '@/lib/debug';
+import { logger, generateRequestId } from '@/lib/debug';
 import CreditDisplay from '@/components/CreditDisplay';
 import CreditCostDisplay from '@/components/CreditCostDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
@@ -99,8 +99,16 @@ export default function CreateStoryFlow() {
     setGenerating(true);
     
     try {
+      const requestId = generateRequestId();
       // Create TTS-optimized prompt for Swedish or English
       const storyPrompt = flow.selectedSeed?.description || flow.customSeed;
+      logger.edgeFunction('generate-story', requestId, {
+        ageGroup: flow.ageGroup,
+        genre: flow.genres[0],
+        languageCode: selectedLanguage,
+        hasCharacters: flow.selectedCharacters.length > 0,
+        promptLength: storyPrompt?.length || 0
+      });
       const storyTitle = flow.selectedSeed?.title || (selectedLanguage === 'sv' ? 'Anpassad Berättelse' : 'Custom Story');
 
       // Create the story in database first
@@ -168,8 +176,19 @@ export default function CreateStoryFlow() {
             }
           });
 
-          // Handle structured response
-          if (generationError) throw generationError;
+          logger.edgeFunctionResponse('generate-story', requestId, generationResult, generationError);
+
+          // Handle structured and error responses
+          if (generationError) {
+            const status = (generationError as any).status;
+            if (status === 401) {
+              toast.error('Please sign in to create stories');
+              navigate('/auth');
+              return;
+            }
+            // Bubble up other errors to be handled by catch
+            throw generationError;
+          }
           
           if (generationResult && !generationResult.ok) {
             if (generationResult.error?.code === 'insufficient_credits') {
@@ -180,7 +199,9 @@ export default function CreateStoryFlow() {
               setShowInsufficientCredits(true);
               return;
             }
-            throw new Error(generationResult.error?.message || 'Story generation failed');
+            // Show any specific backend error messages
+            toast.error(generationResult.error?.message || 'Story generation failed');
+            return;
           }
 
       // Save generated segments to database
@@ -224,9 +245,17 @@ export default function CreateStoryFlow() {
     } catch (error) {
       logger.error('Error generating story', error);
       
+      // Handle unauthorized
+      const status = (error as any)?.status;
+      if (status === 401) {
+        toast.error('Please sign in to create stories');
+        navigate('/auth');
+        return;
+      }
+      
       // Check if it's a credit error (fallback for old format)
-      if (error.message?.includes('Insufficient credits')) {
-        const match = error.message.match(/Required: (\d+), Available: (\d+)/);
+      if ((error as any).message?.includes('Insufficient credits')) {
+        const match = (error as any).message.match(/Required: (\d+), Available: (\d+)/);
         if (match) {
           setCreditError({
             required: parseInt(match[1]),
