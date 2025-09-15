@@ -38,9 +38,13 @@ export const useStorySeeds = () => {
 
       if (error) throw error;
 
-      if (data?.seeds && Array.isArray(data.seeds)) {
-        logger.edgeFunctionResponse('generate-story-seeds', requestId, { seedsCount: data.seeds.length });
-        setSeeds(data.seeds);
+      // Handle both raw and enveloped response formats
+      const payload = data?.data ?? data;
+      const seeds = payload?.seeds ?? payload;
+      
+      if (seeds && Array.isArray(seeds)) {
+        logger.edgeFunctionResponse('generate-story-seeds', requestId, { seedsCount: seeds.length });
+        setSeeds(seeds);
       } else {
         throw new Error('Invalid response format - seeds not found or not array');
       }
