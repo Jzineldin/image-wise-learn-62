@@ -35,21 +35,21 @@ const Index = () => {
 
   const testimonials = [
     {
-      name: "Sarah M.",
-      role: "Parent",
-      content: "My kids absolutely love Tale Forge! The stories are engaging and age-appropriate. It's become our favorite bedtime activity.",
+      name: "Parent Feedback",
+      role: "Parent & Product Evaluator",
+      content: "This product sells itself once parents see their kids' reactions! I love this because I'd want to create stories about our daily adventures with my future kids. The core concept is beautiful.",
       rating: 5
     },
     {
-      name: "Teacher Alex",
-      role: "Educator", 
-      content: "An incredible tool for inspiring creativity in my students. The AI generates stories that captivate young minds.",
+      name: "Anonymous User",
+      role: "User Experience Reviewer", 
+      content: "Demo mode is a game changer! The onboarding feels smooth and the instant story creation is fun. Loving the direction so far!",
       rating: 5
     },
     {
-      name: "Emma K.",
-      role: "Young Writer",
-      content: "Tale Forge helped me discover my love for storytelling. I've created over 20 stories and shared them with friends!",
+      name: "Krista",
+      role: "Interactive Fiction Creator",
+      content: "I wrote interactive fiction and had to calculate all of the branches. What fun to have AI do some of this! Your interactive fiction background sounds amazing!",
       rating: 5
     }
   ];
