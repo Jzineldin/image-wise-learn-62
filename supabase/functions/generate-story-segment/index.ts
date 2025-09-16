@@ -5,9 +5,12 @@ import { ResponseHandler, Validators, withTiming } from '../_shared/response-han
 
 
 interface SegmentRequest {
-  story_id: string;
+  story_id?: string;
+  storyId?: string;
   choice?: string;
-  segment_number: number;
+  choiceText?: string;
+  segment_number?: number;
+  segmentNumber?: number;
 }
 
 Deno.serve(async (req) => {
@@ -34,10 +37,18 @@ Deno.serve(async (req) => {
     console.log(`[${requestId}] Processing story segment for user: ${userId}`);
 
     // Parse request body
-    const { story_id, choice, segment_number }: SegmentRequest = await req.json();
+    const body: SegmentRequest = await req.json();
+    const story_id = body.story_id || body.storyId;
+    const choice = body.choice || body.choiceText;
+    const segment_number = body.segment_number || body.segmentNumber;
 
     if (!story_id) {
-      throw new Error('Story ID is required');
+      return ResponseHandler.error('Story ID is required', 400, { 
+        operation: 'story-segment', 
+        requestId, 
+        timestamp: Date.now(),
+        receivedParams: Object.keys(body)
+      });
     }
 
     // Validate and deduct credits

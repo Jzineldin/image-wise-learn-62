@@ -8,8 +8,10 @@ const corsHeaders = {
 };
 
 interface EndingRequest {
-  story_id: string;
+  story_id?: string;
+  storyId?: string;
   ending_type?: 'happy' | 'cliffhanger' | 'lesson' | 'open';
+  endingType?: 'happy' | 'cliffhanger' | 'lesson' | 'open';
 }
 
 Deno.serve(async (req) => {
@@ -34,7 +36,9 @@ Deno.serve(async (req) => {
     console.log(`Processing story ending for user: ${userId}`);
 
     // Parse request body
-    const { story_id, ending_type = 'happy' }: EndingRequest = await req.json();
+    const body: EndingRequest = await req.json();
+    const story_id = body.story_id || body.storyId;
+    const ending_type = body.ending_type || body.endingType || 'happy';
 
     if (!story_id) {
       throw new Error('Story ID is required');
@@ -107,7 +111,7 @@ Requirements:
         segment_number: nextSegmentNumber,
         content: endingContent,
         segment_text: endingContent,
-        choices: JSON.stringify([]),
+        choices: [],
         is_ending: true,
         is_end: true,
       })
