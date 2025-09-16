@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuthStore } from '@/stores/authStore';
 
 export const useAuth = () => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading, setUser, setLoading, logout } = useAuthStore();
 
   useEffect(() => {
     // Get initial session
@@ -22,10 +22,11 @@ export const useAuth = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [setUser, setLoading]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    logout();
   };
 
   return {

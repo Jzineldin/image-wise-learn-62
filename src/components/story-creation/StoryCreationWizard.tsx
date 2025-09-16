@@ -3,26 +3,21 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, ArrowRight, BookOpen, Users, Sparkles, Wand2 } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
-import { StoryCreationFlow } from '@/types/character';
 import { AgeGenreStep } from './AgeGenreStep';
 import { CharacterSelectionStep } from './CharacterSelectionStep';
 import { StoryIdeaStep } from './StoryIdeaStep';
 import { ReviewStep } from './ReviewStep';
+import { useStoryStore } from '@/stores/storyStore';
 
 interface StoryCreationWizardProps {
-  flow: StoryCreationFlow;
-  generating: boolean;
-  onFlowUpdate: (updates: Partial<StoryCreationFlow>) => void;
   onCreateStory: () => void;
 }
 
 export const StoryCreationWizard = ({
-  flow,
-  generating,
-  onFlowUpdate,
   onCreateStory
 }: StoryCreationWizardProps) => {
   const { translate } = useLanguage();
+  const { currentFlow: flow, isGenerating: generating, updateFlow } = useStoryStore();
 
   const STEPS = [
     { id: 1, title: translate('storyCreation.steps.ageAndGenre'), icon: BookOpen },
@@ -33,25 +28,25 @@ export const StoryCreationWizard = ({
 
   const handleNext = () => {
     if (flow.step < STEPS.length) {
-      onFlowUpdate({ step: flow.step + 1 });
+      updateFlow({ step: flow.step + 1 });
     }
   };
 
   const handleBack = () => {
     if (flow.step > 1) {
-      onFlowUpdate({ step: flow.step - 1 });
+      updateFlow({ step: flow.step - 1 });
     }
   };
 
   const handleAgeGroupSelect = (ageGroup: string) => {
-    onFlowUpdate({ ageGroup });
+    updateFlow({ ageGroup });
   };
 
   const handleGenreToggle = (genre: string) => {
     const newGenres = flow.genres.includes(genre)
       ? flow.genres.filter(g => g !== genre)
       : [...flow.genres, genre];
-    onFlowUpdate({ genres: newGenres });
+    updateFlow({ genres: newGenres });
   };
 
   const canProceedFromStep = (step: number): boolean => {
@@ -121,7 +116,7 @@ export const StoryCreationWizard = ({
           {flow.step === 2 && (
             <CharacterSelectionStep
               selectedCharacters={flow.selectedCharacters}
-              onCharactersChange={(characters) => onFlowUpdate({ selectedCharacters: characters })}
+              onCharactersChange={(characters) => updateFlow({ selectedCharacters: characters })}
             />
           )}
 
@@ -132,8 +127,8 @@ export const StoryCreationWizard = ({
               characters={flow.selectedCharacters}
               selectedSeed={flow.selectedSeed}
               customSeed={flow.customSeed}
-              onSeedSelect={(seed) => onFlowUpdate({ selectedSeed: seed })}
-              onCustomSeedChange={(seed) => onFlowUpdate({ customSeed: seed })}
+              onSeedSelect={(seed) => updateFlow({ selectedSeed: seed })}
+              onCustomSeedChange={(seed) => updateFlow({ customSeed: seed })}
             />
           )}
 

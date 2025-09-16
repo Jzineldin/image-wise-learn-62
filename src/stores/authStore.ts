@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User, Profile } from '../types';
+import { User } from '@supabase/supabase-js';
 
 interface AuthState {
   user: User | null;
-  profile: Profile | null;
+  profile: any | null;
   loading: boolean;
   setUser: (user: User | null) => void;
-  setProfile: (profile: Profile | null) => void;
+  setProfile: (profile: any | null) => void;
   setLoading: (loading: boolean) => void;
   logout: () => void;
 }

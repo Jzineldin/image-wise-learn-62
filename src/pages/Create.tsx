@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Home, Settings } from 'lucide-react';
-import { StoryCreationFlow } from '@/types/character';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -13,27 +12,23 @@ import CreditDisplay from '@/components/CreditDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import { StoryCreationWizard } from '@/components/story-creation/StoryCreationWizard';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useStoryStore } from '@/stores/storyStore';
 
 export default function CreateStoryFlow() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { translate, selectedLanguage } = useLanguage();
-  const [generating, setGenerating] = useState(false);
   const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
   const [creditError, setCreditError] = useState<{ required: number; available: number } | null>(null);
 
-  const [flow, setFlow] = useState<StoryCreationFlow>({
-    step: 1,
-    ageGroup: undefined,
-    genres: [],
-    selectedCharacters: [],
-    selectedSeed: undefined,
-    customSeed: ''
-  });
-
-  const updateFlow = (updates: Partial<StoryCreationFlow>) => {
-    setFlow(prev => ({ ...prev, ...updates }));
-  };
+  // Use centralized story state
+  const {
+    currentFlow: flow,
+    isGenerating: generating,
+    updateFlow,
+    resetFlow,
+    setGenerating
+  } = useStoryStore();
 
   const generateStory = async () => {
     if (!user) {
@@ -250,9 +245,6 @@ export default function CreateStoryFlow() {
 
         {/* Story Creation Wizard */}
         <StoryCreationWizard
-          flow={flow}
-          generating={generating}
-          onFlowUpdate={updateFlow}
           onCreateStory={generateStory}
         />
 

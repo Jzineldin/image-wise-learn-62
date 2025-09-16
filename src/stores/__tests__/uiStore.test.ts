@@ -5,7 +5,7 @@ describe('uiStore', () => {
   beforeEach(() => {
     // Reset store state before each test
     useUIStore.setState({
-      theme: 'system',
+      theme: 'midnight',
       language: 'en',
       sidebarOpen: false,
       onboardingCompleted: false,
@@ -15,7 +15,7 @@ describe('uiStore', () => {
   describe('initial state', () => {
     it('should have correct default values', () => {
       const state = useUIStore.getState();
-      expect(state.theme).toBe('system');
+      expect(state.theme).toBe('midnight');
       expect(state.language).toBe('en');
       expect(state.sidebarOpen).toBe(false);
       expect(state.onboardingCompleted).toBe(false);
@@ -25,21 +25,21 @@ describe('uiStore', () => {
   describe('theme management', () => {
     it('should update theme', () => {
       const { setTheme } = useUIStore.getState();
-      setTheme('dark');
-      expect(useUIStore.getState().theme).toBe('dark');
+      setTheme('twilight');
+      expect(useUIStore.getState().theme).toBe('twilight');
     });
 
     it('should handle all theme values', () => {
       const { setTheme } = useUIStore.getState();
       
-      setTheme('light');
-      expect(useUIStore.getState().theme).toBe('light');
+      setTheme('dawn');
+      expect(useUIStore.getState().theme).toBe('dawn');
       
-      setTheme('dark');
-      expect(useUIStore.getState().theme).toBe('dark');
+      setTheme('twilight');
+      expect(useUIStore.getState().theme).toBe('twilight');
       
-      setTheme('system');
-      expect(useUIStore.getState().theme).toBe('system');
+      setTheme('midnight');
+      expect(useUIStore.getState().theme).toBe('midnight');
     });
   });
 
@@ -93,7 +93,7 @@ describe('uiStore', () => {
     it('should persist theme, language, and onboarding state', () => {
       const { setTheme, setLanguage, setOnboardingCompleted } = useUIStore.getState();
       
-      setTheme('dark');
+      setTheme('twilight');
       setLanguage('sv');
       setOnboardingCompleted(true);
       
@@ -104,7 +104,7 @@ describe('uiStore', () => {
         onboardingCompleted: useUIStore.getState().onboardingCompleted,
       };
       
-      expect(persistedState.theme).toBe('dark');
+      expect(persistedState.theme).toBe('twilight');
       expect(persistedState.language).toBe('sv');
       expect(persistedState.onboardingCompleted).toBe(true);
     });

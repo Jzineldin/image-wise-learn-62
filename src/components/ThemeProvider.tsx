@@ -3,18 +3,16 @@
  * Provides theme context and management across the application
  */
 
-import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useCallback, ReactNode } from 'react';
 import {
   ThemeVariant,
   getCurrentTheme,
   saveTheme,
   applyTheme,
-  enableThemeTransitions,
-  disableThemeTransitions,
-  getRecommendedTheme,
   THEME_CONFIGS,
   DEFAULT_THEME,
-} from '@/lib/theme-utils';
+} from '@/lib/utils/theme';
+import { useUIStore } from '@/stores/uiStore';
 
 interface ThemeContextType {
   currentTheme: ThemeVariant;
@@ -42,26 +40,37 @@ export function ThemeProvider({
   defaultTheme = DEFAULT_THEME,
   enableAutoTheme = false
 }: ThemeProviderProps) {
-  const [currentTheme, setCurrentTheme] = useState<ThemeVariant>(defaultTheme);
-  const [isThemeTransitioning, setIsThemeTransitioning] = useState(false);
-  const [autoThemeEnabled, setAutoThemeEnabled] = useState(enableAutoTheme);
+  const { theme: currentTheme, setTheme: setStoreTheme } = useUIStore();
+  
+  // Local state for transitions only
+  const [isThemeTransitioning, setIsThemeTransitioning] = React.useState(false);
+  const [autoThemeEnabled, setAutoThemeEnabled] = React.useState(enableAutoTheme);
 
   // Initialize theme on mount
   useEffect(() => {
-    const storedTheme = getCurrentTheme();
-    setCurrentTheme(storedTheme);
-    applyTheme(storedTheme);
-    enableThemeTransitions();
-  }, []);
+    // Apply theme from store
+    applyTheme(currentTheme);
+  }, [currentTheme]);
 
   // Auto-theme based on time of day
   useEffect(() => {
     if (!autoThemeEnabled) return;
 
     const checkTimeBasedTheme = () => {
-      const recommendedTheme = getRecommendedTheme();
+      // Get recommended theme based on time of day
+      const hour = new Date().getHours();
+      let recommendedTheme: ThemeVariant;
+      
+      if (hour >= 6 && hour < 12) {
+        recommendedTheme = 'dawn'; // Morning
+      } else if (hour >= 12 && hour < 18) {
+        recommendedTheme = 'twilight'; // Afternoon/Evening
+      } else {
+        recommendedTheme = 'midnight'; // Night
+      }
+      
       if (recommendedTheme !== currentTheme) {
-        setTheme(recommendedTheme);
+        setThemeHandler(recommendedTheme);
       }
     };
 
@@ -74,7 +83,7 @@ export function ThemeProvider({
     return () => clearInterval(interval);
   }, [autoThemeEnabled, currentTheme]);
 
-  const setTheme = useCallback(async (newTheme: ThemeVariant) => {
+  const setThemeHandler = useCallback(async (newTheme: ThemeVariant) => {
     if (newTheme === currentTheme) return;
 
     setIsThemeTransitioning(true);
@@ -82,28 +91,23 @@ export function ThemeProvider({
     // Add transitioning class to prevent flicker
     document.body.classList.add('theme-transitioning');
 
-    // Briefly disable transitions for the actual theme change
-    disableThemeTransitions();
-
-    // Apply the new theme
+    // Apply the new theme - store will handle persistence
     applyTheme(newTheme);
-    saveTheme(newTheme);
-    setCurrentTheme(newTheme);
+    setStoreTheme(newTheme);
 
     // Re-enable transitions after a short delay
     setTimeout(() => {
-      enableThemeTransitions();
       document.body.classList.remove('theme-transitioning');
       setIsThemeTransitioning(false);
     }, 50);
-  }, [currentTheme]);
+  }, [currentTheme, setStoreTheme]);
 
   const toggleTheme = useCallback(() => {
     const themes: ThemeVariant[] = ['midnight', 'twilight', 'dawn'];
     const currentIndex = themes.indexOf(currentTheme);
     const nextIndex = (currentIndex + 1) % themes.length;
-    setTheme(themes[nextIndex]);
-  }, [currentTheme, setTheme]);
+    setThemeHandler(themes[nextIndex]);
+  }, [currentTheme, setThemeHandler]);
 
   const getThemeDisplayName = useCallback((theme: ThemeVariant): string => {
     return THEME_CONFIGS[theme].displayName;
@@ -122,9 +126,20 @@ export function ThemeProvider({
   }, []);
 
   const useRecommendedTheme = useCallback(() => {
-    const recommendedTheme = getRecommendedTheme();
-    setTheme(recommendedTheme);
-  }, [setTheme]);
+    // Get recommended theme based on time of day
+    const hour = new Date().getHours();
+    let recommendedTheme: ThemeVariant;
+    
+    if (hour >= 6 && hour < 12) {
+      recommendedTheme = 'dawn'; // Morning
+    } else if (hour >= 12 && hour < 18) {
+      recommendedTheme = 'twilight'; // Afternoon/Evening
+    } else {
+      recommendedTheme = 'midnight'; // Night
+    }
+    
+    setThemeHandler(recommendedTheme);
+  }, [setThemeHandler]);
 
   const setEnableAutoTheme = useCallback((enabled: boolean) => {
     setAutoThemeEnabled(enabled);
@@ -147,7 +162,7 @@ export function ThemeProvider({
 
   const contextValue: ThemeContextType = {
     currentTheme,
-    setTheme,
+    setTheme: setThemeHandler,
     toggleTheme,
     getThemeDisplayName,
     getThemeDescription,

@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { Moon, Sun, Sunset, Palette, Clock, Check } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
-import { ThemeVariant } from '@/lib/theme-utils';
+import { ThemeVariant } from '@/lib/utils/theme';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
