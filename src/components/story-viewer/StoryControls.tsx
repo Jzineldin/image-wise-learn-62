@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Share, ThumbsUp, BookOpen, Edit, Eye, Home, User, Settings, Coins } from 'lucide-react';
+import { Share, ThumbsUp, BookOpen, Edit, Eye, Home, User, Settings, Coins, Square } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StoryModeToggle, StoryModeIndicator } from './StoryModeToggle';
 import CreditDisplay from '@/components/CreditDisplay';
@@ -11,11 +11,14 @@ interface StoryControlsProps {
   isLiked: boolean;
   isReadingMode: boolean;
   isFullscreen: boolean;
+  isCompleted?: boolean;
+  generatingEnding?: boolean;
   onModeChange: (mode: 'creation' | 'experience') => void;
   onShare: () => void;
   onToggleLike: () => void;
   onToggleReadingMode: () => void;
   onToggleFullscreen: () => void;
+  onEndStory?: () => void;
 }
 
 export const StoryControls = ({
@@ -24,11 +27,14 @@ export const StoryControls = ({
   isLiked,
   isReadingMode,
   isFullscreen,
+  isCompleted = false,
+  generatingEnding = false,
   onModeChange,
   onShare,
   onToggleLike,
   onToggleReadingMode,
-  onToggleFullscreen
+  onToggleFullscreen,
+  onEndStory
 }: StoryControlsProps) => {
   return (
     <div className="space-y-4">
@@ -82,6 +88,29 @@ export const StoryControls = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* End Story Button - Only for owners in creation mode */}
+            {isOwner && viewMode === 'creation' && !isCompleted && onEndStory && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={onEndStory}
+                disabled={generatingEnding}
+                className="flex items-center gap-2"
+              >
+                {generatingEnding ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Ending...
+                  </>
+                ) : (
+                  <>
+                    <Square className="h-4 w-4" />
+                    End Story
+                  </>
+                )}
+              </Button>
+            )}
+
             {/* Reading Mode Toggle */}
             <Button
               variant={isReadingMode ? "default" : "outline"}

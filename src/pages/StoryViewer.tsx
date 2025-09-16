@@ -937,6 +937,8 @@ const StoryViewer = () => {
         isLiked={isLiked}
         isReadingMode={isReadingMode}
         isFullscreen={isFullscreen}
+        isCompleted={isCompletedStory}
+        generatingEnding={generatingEnding}
         onModeChange={(mode) => {
           setViewMode(mode);
           setSearchParams(prev => {
@@ -948,6 +950,7 @@ const StoryViewer = () => {
         onToggleLike={() => setIsLiked(!isLiked)}
         onToggleReadingMode={toggleReadingMode}
         onToggleFullscreen={toggleFullscreen}
+        onEndStory={handleEndStory}
       />
 
       <div className="container mx-auto px-4 py-8">
