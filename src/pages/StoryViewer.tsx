@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, Share, ChevronLeft, ChevronRight, Volume2, Sparkles, RotateCcw, ThumbsUp, BookOpen, Edit, Eye, Headphones, Home, User, Settings, Coins } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,10 +9,12 @@ import { VoiceSelector } from '@/components/VoiceSelector';
 import { ReadingModeControls } from '@/components/ReadingModeControls';
 import { StoryModeToggle, StoryModeIndicator } from '@/components/story-viewer/StoryModeToggle';
 import { AudioControls, FloatingAudioControls } from '@/components/story-viewer/AudioControls';
+import { StorySegmentDisplay } from '@/components/story-viewer/StorySegmentDisplay';
+import { StoryNavigation } from '@/components/story-viewer/StoryNavigation';
+import { StoryMetadata } from '@/components/story-viewer/StoryMetadata';
+import { StoryControls } from '@/components/story-viewer/StoryControls';
 import { logger, generateRequestId } from '@/lib/debug';
 import { AIClient, InsufficientCreditsError, AIClientError } from '@/lib/ai-client';
-import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
-import CreditCostDisplay from '@/components/CreditCostDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import { calculateTTSCredits } from '@/utils/creditCalculations';
 
@@ -927,348 +928,55 @@ const StoryViewer = () => {
 
   const currentSegment = segments[currentSegmentIndex];
   const isCompletedStory = story?.status === 'completed' || story?.is_completed;
-  const showChoices = viewMode === 'creation' && isOwner && !isCompletedStory;
-  const showImmersiveMode = viewMode === 'experience';
-  const showCreationTools = viewMode === 'creation' && isOwner;
 
   return (
     <div className={`min-h-screen ${isFullscreen ? 'fixed inset-0 z-40 overflow-auto' : ''}`}>
-      {/* Navigation Header */}
-      <nav className="glass-card border-b border-primary/10 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/dashboard" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-              <img 
-                src={taleForgeLogoImage} 
-                alt="Tale Forge Logo" 
-                className="w-10 h-10 object-contain"
-              />
-              <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
-            </Link>
-            
-            <div className="hidden md:flex items-center space-x-8">
-              <Link to="/dashboard" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow flex items-center gap-2">
-                <Home className="h-4 w-4" />
-                Dashboard
-              </Link>
-              <Link to="/discover" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
-                Discover
-              </Link>
-              <Link to="/my-stories" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow flex items-center gap-2">
-                <BookOpen className="h-4 w-4" />
-                My Stories
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <Link to="/settings">
-                <Button variant="outline" className="btn-secondary flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Story Header */}
-      <div className="glass-card border-b border-primary/20">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-heading font-bold text-gradient">
-                {story.title}
-              </h1>
-              <div className="flex items-center space-x-4">
-                <p className="text-text-secondary">
-                  {story.genre} • {story.age_group} • Segment {currentSegmentIndex + 1} of {segments.length}
-                  {isCompletedStory && <span className="ml-2 text-primary">• Complete</span>}
-                </p>
-                <StoryModeIndicator mode={viewMode} isOwner={isOwner} />
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              {/* Story Mode Selector */}
-              <StoryModeToggle
-                mode={viewMode}
-                onModeChange={(mode) => {
-                  setViewMode(mode);
-                  setSearchParams(prev => {
-                    prev.set('mode', mode);
-                    return prev;
-                  });
-                }}
-                isOwner={isOwner}
-              />
-
-              {showImmersiveMode && (
-                <VoiceSelector
-                  selectedVoice={selectedVoice}
-                  onVoiceChange={setSelectedVoice}
-                  className="hidden sm:block"
-                />
-              )}
-              <Button
-                onClick={toggleReadingMode}
-                variant="outline"
-                className={`btn-icon ${isReadingMode ? 'text-primary bg-primary/10' : 'text-text-secondary'}`}
-              >
-                <BookOpen className="w-5 h-5" />
-              </Button>
-              <Button
-                onClick={() => setIsLiked(!isLiked)}
-                variant="outline"
-                className={`btn-icon ${isLiked ? 'text-primary' : 'text-text-secondary'}`}
-              >
-                <ThumbsUp className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-              </Button>
-              <Button 
-                onClick={handleShare}
-                variant="outline" 
-                className="btn-icon"
-                disabled={story?.visibility === 'private'}
-                title={story?.visibility === 'private' ? 'Set story to public in settings to share' : 'Share this story'}
-              >
-                <Share className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <StoryControls
+        viewMode={viewMode}
+        isOwner={isOwner}
+        isLiked={isLiked}
+        isReadingMode={isReadingMode}
+        isFullscreen={isFullscreen}
+        onModeChange={(mode) => {
+          setViewMode(mode);
+          setSearchParams(prev => {
+            prev.set('mode', mode);
+            return prev;
+          });
+        }}
+        onShare={handleShare}
+        onToggleLike={() => setIsLiked(!isLiked)}
+        onToggleReadingMode={toggleReadingMode}
+        onToggleFullscreen={toggleFullscreen}
+      />
 
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Story Content */}
+        <div className="max-w-4xl mx-auto space-y-8">
+          {/* Story Metadata */}
+          <StoryMetadata story={story} viewMode={viewMode} />
+
+          {/* Current Segment Display */}
           {currentSegment && (
-            <div className={`glass-card-elevated p-8 mb-8 transition-all duration-300 ${
-              showImmersiveMode ? 'max-w-5xl mx-auto' : ''
-            }`}>
-              {/* Image - Shows immediately when available, placeholder while generating */}
-              <div className="mb-8">
-                {currentSegment.image_url ? (
-                  <img 
-                    src={currentSegment.image_url} 
-                    alt={`Story segment ${currentSegment.segment_number}`}
-                    className="w-full h-64 md:h-96 object-cover rounded-xl shadow-lg"
-                    onError={(e) => {
-                      logger.warn('Segment image failed to load', { 
-                        segmentId: currentSegment.id, 
-                        imageUrl: currentSegment.image_url 
-                      });
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-64 md:h-96 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl flex items-center justify-center border-2 border-dashed border-primary/30">
-                    <div className="text-center">
-                      {generatingImage === currentSegment.id ? (
-                        <>
-                          <div className="loading-spinner w-8 h-8 mx-auto mb-3" />
-                          <p className="text-text-tertiary font-medium">Creating artwork for this scene...</p>
-                          <p className="text-text-tertiary/70 text-sm mt-1">This may take a few moments</p>
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-12 h-12 text-primary/50 mx-auto mb-3" />
-                          <p className="text-text-tertiary font-medium">No image available</p>
-                          <Button
-                            onClick={() => generateSegmentImage(currentSegment)}
-                            variant="outline"
-                            size="sm"
-                            className="mt-2"
-                            disabled={generatingImage === currentSegment.id || creditLock}
-                          >
-                            {creditLock ? 'Please wait...' : 'Generate Image'}
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Audio Controls - Always available with enhanced functionality */}
-              <div className="space-y-4 mb-8">
-                {/* Voice Selector and Credit Display */}
-                <div className="flex items-center justify-center gap-4">
-                  <VoiceSelector
-                    selectedVoice={selectedVoice}
-                    onVoiceChange={setSelectedVoice}
-                    className="max-w-sm"
-                  />
-                  {!currentSegment.audio_url && (
-                    <div className="flex items-center gap-2 text-sm text-text-secondary bg-surface-elevated px-3 py-2 rounded-lg">
-                      <Coins className="w-4 h-4 text-primary" />
-                      <span>{calculateTTSCredits(currentSegment.content).credits} credit{calculateTTSCredits(currentSegment.content).credits > 1 ? 's' : ''}</span>
-                      <div className="text-xs text-text-tertiary">({calculateTTSCredits(currentSegment.content).words} words)</div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Audio Controls */}
-                <div className="flex items-center justify-center">
-                  <AudioControls
-                    audioUrl={currentSegment.audio_url}
-                    isPlaying={isPlaying}
-                    isGenerating={generatingAudio}
-                    onToggleAudio={toggleAudio}
-                    onGenerateAudio={() => generateAudio(currentSegment.id, currentSegment.content)}
-                    onSkipForward={() => navigateSegment('next')}
-                    onSkipBack={() => navigateSegment('prev')}
-                    showSkipControls={showImmersiveMode}
-                    canSkipForward={currentSegmentIndex < segments.length - 1}
-                    canSkipBack={currentSegmentIndex > 0}
-                    size="md"
-                    variant="full"
-                    disabled={creditLock}
-                  />
-                </div>
-              </div>
-
-              {/* Story Text */}
-              <div className={`prose prose-lg max-w-none transition-all duration-300 ${
-                showImmersiveMode ? 'text-center' : ''
-              }`}>
-                <div
-                  className={`text-text-primary leading-relaxed transition-all duration-300 ${
-                    showImmersiveMode ? 'text-center' : ''
-                  }`}
-                  style={{ fontSize: `${fontSize}px` }}
-                >
-                  {(currentSegment?.content ?? '').split('\n\n').map((paragraph, index) => (
-                    <p key={index} className={`mb-6 transition-all duration-300 ${
-                      showImmersiveMode ? 'text-lg md:text-xl leading-loose' : ''
-                    }`}>
-                      {paragraph}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <StorySegmentDisplay
+              segment={currentSegment}
+              story={story}
+              viewMode={viewMode}
+              isOwner={isOwner}
+              generatingSegment={generatingSegment}
+              generatingImage={generatingImage}
+              onChoice={handleChoice}
+              onGenerateImage={generateSegmentImage}
+              fontSize={fontSize}
+            />
           )}
 
-              {/* Choices Section - Only show in Creation mode for owners */}
-          {showChoices && currentSegment && !currentSegment.is_ending && currentSegment.choices.length > 0 && currentSegmentIndex === segments.length - 1 && (
-            <div className="glass-card-elevated p-8 mb-8">
-              <h3 className="text-xl font-heading font-semibold mb-6 text-center">
-                What happens next?
-              </h3>
-              <p className="text-text-secondary text-center mb-6">
-                Your choice will shape how the story continues...
-              </p>
-              {generatingSegment ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="loading-spinner w-8 h-8 mr-3" />
-                  <span className="text-text-secondary">Generating next part of your story...</span>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-4">
-                    <CreditCostDisplay operation="segment" />
-                  </div>
-                  <div className="space-y-4">
-                    {currentSegment.choices.map((choice) => (
-                      <button
-                        key={choice.id}
-                        onClick={() => handleChoice(choice.id, choice.text)}
-                        className="glass-card-interactive w-full p-6 text-left group hover:scale-[1.02] transition-all"
-                      >
-                        <p className="text-text-primary group-hover:text-primary transition-colors font-medium">
-                          {choice.text}
-                        </p>
-                        {choice.impact && (
-                          <p className="text-sm text-text-secondary mt-2 group-hover:text-text-primary transition-colors">
-                            {choice.impact}
-                          </p>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* End Story Button - Only show in Creation mode for endings */}
-          {showCreationTools && currentSegment?.is_ending && (
-            <div className="glass-card-elevated p-8 mb-8 text-center">
-              <Sparkles className="w-16 h-16 text-primary mx-auto mb-4 glow-amber" />
-              <h3 className="text-2xl font-heading font-semibold mb-4">
-                The End
-              </h3>
-              <p className="text-text-secondary mb-6">
-                What an amazing adventure! Your story is complete.
-              </p>
-              <Button 
-                onClick={handleEndStory} 
-                disabled={generatingEnding}
-                className="btn-primary text-lg px-8"
-              >
-                {generatingEnding ? (
-                  <>
-                    <div className="loading-spinner w-5 h-5 mr-2" />
-                    Generating Ending...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    Finish Story
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-
-          {/* Navigation */}
-          <div className="flex justify-between items-center">
-            <Button
-              onClick={() => navigateSegment('prev')}
-              variant="outline"
-              className="btn-secondary"
-              disabled={currentSegmentIndex === 0}
-            >
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              Previous
-            </Button>
-
-            <div className="flex items-center space-x-4">
-              <span className="text-text-secondary">
-                Segment {currentSegmentIndex + 1} of {segments.length}
-              </span>
-              {showCreationTools && !currentSegment?.is_ending && (
-          <Button
-            onClick={handleEndStory}
-            disabled={generatingEnding || creditLock}
-            variant="outline"
-            className="btn-secondary"
-          >
-            {generatingEnding ? (
-              <>
-                <div className="loading-spinner w-4 h-4 mr-2" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <RotateCcw className="w-4 h-4 mr-2" />
-                End Story
-              </>
-            )}
-          </Button>
-              )}
-            </div>
-
-            <Button
-              onClick={() => navigateSegment('next')}
-              variant="outline"
-              className="btn-secondary"
-              disabled={currentSegmentIndex === segments.length - 1}
-            >
-              Next
-              <ChevronRight className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
+          {/* Story Navigation */}
+          <StoryNavigation
+            currentSegmentIndex={currentSegmentIndex}
+            totalSegments={segments.length}
+            onNavigate={navigateSegment}
+            onJumpToSegment={jumpToSegment}
+          />
         </div>
       </div>
 
@@ -1281,7 +989,7 @@ const StoryViewer = () => {
       />
 
       {/* Enhanced Reading Controls */}
-      {(isReadingMode || showImmersiveMode) && (
+      {(isReadingMode || viewMode === 'experience') && (
         <ReadingModeControls
           isAutoPlaying={isAutoPlaying}
           onAutoPlayToggle={toggleAutoPlay}
@@ -1300,7 +1008,7 @@ const StoryViewer = () => {
       )}
 
       {/* Floating Audio Controls for Experience Mode */}
-      {showImmersiveMode && !isReadingMode && (
+      {viewMode === 'experience' && !isReadingMode && (
         <FloatingAudioControls
           audioUrl={currentSegment?.audio_url}
           isPlaying={isPlaying}

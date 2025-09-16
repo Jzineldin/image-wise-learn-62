@@ -1,14 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ArrowRight, Sparkles, Users, BookOpen, Wand2, Home, User, Settings } from 'lucide-react';
-import { AGE_GROUPS, GENRES } from '@/types';
-import { UserCharacter, StorySeed, StoryCreationFlow } from '@/types/character';
-import { CharacterSelector } from '@/components/story-creation/CharacterSelector';
-import { StorySeedGenerator } from '@/components/story-creation/StorySeedGenerator';
+import { Home, Settings } from 'lucide-react';
+import { StoryCreationFlow } from '@/types/character';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -16,10 +10,8 @@ import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 import { logger, generateRequestId } from '@/lib/debug';
 import { AIClient, InsufficientCreditsError } from '@/lib/ai-client';
 import CreditDisplay from '@/components/CreditDisplay';
-import CreditCostDisplay from '@/components/CreditCostDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
-import LanguageAwareGenreSelector from '@/components/LanguageAwareGenreSelector';
-import LanguageAwareAgeSelector from '@/components/LanguageAwareAgeSelector';
+import { StoryCreationWizard } from '@/components/story-creation/StoryCreationWizard';
 import { useLanguage } from '@/hooks/useLanguage';
 
 export default function CreateStoryFlow() {
