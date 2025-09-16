@@ -254,7 +254,7 @@ const StoryViewer = () => {
     }
     
     // Block if credit operation is in progress
-    if (creditLock) {
+    if (creditLock.current) {
       toast({
         title: "Please wait",
         description: "Another operation is in progress. Please wait and try again.",
@@ -402,7 +402,7 @@ const StoryViewer = () => {
     if (!story) return;
     
     // Check if credit operation is in progress
-    if (creditLock) {
+    if (creditLock.current) {
       toast({
         title: "Please wait",
         description: "Another operation is in progress. Try again in a moment.",
@@ -518,7 +518,7 @@ const StoryViewer = () => {
     const { credits: ttsCost, priceBreakdown } = calculateTTSCredits(content);
 
     // Check if credit operation is in progress
-    if (creditLock) {
+    if (creditLock.current) {
       toast({
         title: "Please wait",
         description: "Another operation is in progress. Try again in a moment.",

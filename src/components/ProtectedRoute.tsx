@@ -80,17 +80,10 @@ const ProtectedRoute = ({
         return;
       }
 
-      // Check if story is completed and should be in read mode
+      // Allow access to completed stories in both modes
       const isCompleted = storyData.status === 'completed' || 
                          storyData.is_completed || 
                          storyData.is_complete;
-
-      if (isCompleted && mode !== 'experience') {
-        // Redirect to experience mode for completed stories
-        setStoryAccessible(false);
-        setLoading(false);
-        return;
-      }
 
       // Check access permissions
       const isOwner = user && (storyData.author_id === user.id || storyData.user_id === user.id);
