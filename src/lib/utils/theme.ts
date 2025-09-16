@@ -336,3 +336,13 @@ export function applyTheme(theme: ThemeVariant): void {
   document.body.className = document.body.className.replace(/theme-\w+/g, '');
   document.body.classList.add(`theme-${theme}`);
 }
+
+/**
+ * Return the recommended theme based on time of day (local by default)
+ */
+export function getRecommendedTheme(date: Date = new Date()): ThemeVariant {
+  const hour = date.getHours();
+  if (hour >= 6 && hour < 12) return 'dawn';
+  if (hour >= 12 && hour < 18) return 'twilight';
+  return 'midnight';
+}
