@@ -10,15 +10,36 @@
 export interface StandardResponse<T = any> {
   success: boolean;
   data?: T;
-  error?: string;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  } | string; // Support legacy string errors
   model_used?: string;
   metadata?: {
     tokensUsed?: number;
     processingTime?: number;
     fallbackUsed?: boolean;
+    creditsUsed?: number;
+    creditsRemaining?: number;
+    provider?: string;
     [key: string]: any;
   };
 }
+
+// Standard error codes for consistent client handling
+export const ERROR_CODES = {
+  INSUFFICIENT_CREDITS: 'INSUFFICIENT_CREDITS',
+  PROVIDER_LIMIT: 'PROVIDER_LIMIT',
+  PROVIDER_ERROR: 'PROVIDER_ERROR',
+  INVALID_REQUEST: 'INVALID_REQUEST',
+  AUTHENTICATION_FAILED: 'AUTHENTICATION_FAILED',
+  RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  TIMEOUT: 'TIMEOUT'
+} as const;
+
+export type ErrorCode = typeof ERROR_CODES[keyof typeof ERROR_CODES];
 
 export interface ValidationResult {
   isValid: boolean;
@@ -60,7 +81,7 @@ export class ResponseHandler {
   }
 
   /**
-   * Create an error response
+   * Create an error response (legacy)
    */
   static error(
     message: string,
@@ -79,6 +100,123 @@ export class ResponseHandler {
       status,
       headers: CORS_HEADERS
     });
+  }
+
+  /**
+   * Create an error response with error code
+   */
+  static errorWithCode(
+    code: ErrorCode,
+    message: string,
+    details?: any,
+    context?: any
+  ): Response {
+    const response: StandardResponse = {
+      success: false,
+      error: {
+        code,
+        message,
+        details
+      },
+      ...(context && { metadata: { context } })
+    };
+
+    console.error(`[ERROR] ${code}: ${message}`, {
+      context,
+      details,
+      timestamp: new Date().toISOString()
+    });
+
+    // Use 200 status for known errors to avoid browser network error handling
+    const status = this.isClientError(code) ? 200 : 500;
+
+    return new Response(JSON.stringify(response), {
+      status,
+      headers: CORS_HEADERS
+    });
+  }
+
+  /**
+   * Map common errors to standard error codes
+   */
+  static mapError(error: any): { code: ErrorCode; message: string; details?: any } {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    
+    // Check for specific error patterns
+    if (error.code === 'INSUFFICIENT_CREDITS') {
+      return {
+        code: ERROR_CODES.INSUFFICIENT_CREDITS,
+        message: errorMessage,
+        details: {
+          required: error.required,
+          available: error.available
+        }
+      };
+    }
+
+    if (errorMessage.includes('billing_hard_limit_reached') || 
+        errorMessage.includes('rate_limit_exceeded')) {
+      return {
+        code: ERROR_CODES.PROVIDER_LIMIT,
+        message: 'AI provider limit reached. Please try again later.',
+        details: { originalError: errorMessage }
+      };
+    }
+
+    if (errorMessage.includes('API error') || 
+        errorMessage.includes('failed to fetch')) {
+      return {
+        code: ERROR_CODES.PROVIDER_ERROR,
+        message: 'AI provider temporarily unavailable',
+        details: { originalError: errorMessage }
+      };
+    }
+
+    if (errorMessage.includes('timeout') || 
+        errorMessage.includes('timed out')) {
+      return {
+        code: ERROR_CODES.TIMEOUT,
+        message: 'Operation timed out. Please try again.',
+        details: { originalError: errorMessage }
+      };
+    }
+
+    if (errorMessage.includes('authentication') || 
+        errorMessage.includes('unauthorized')) {
+      return {
+        code: ERROR_CODES.AUTHENTICATION_FAILED,
+        message: 'Authentication failed',
+        details: { originalError: errorMessage }
+      };
+    }
+
+    // Default to internal error
+    return {
+      code: ERROR_CODES.INTERNAL_ERROR,
+      message: 'An unexpected error occurred',
+      details: { originalError: errorMessage }
+    };
+  }
+
+  /**
+   * Handle errors with automatic mapping and response
+   */
+  static handleError(error: any, context?: any): Response {
+    const mapped = this.mapError(error);
+    return this.errorWithCode(mapped.code, mapped.message, mapped.details, context);
+  }
+
+  /**
+   * Check if error code represents a client error (use 200 status)
+   */
+  private static isClientError(code: ErrorCode): boolean {
+    return [
+      ERROR_CODES.INSUFFICIENT_CREDITS,
+      ERROR_CODES.PROVIDER_LIMIT,
+      ERROR_CODES.INVALID_REQUEST,
+      ERROR_CODES.AUTHENTICATION_FAILED,
+      ERROR_CODES.RATE_LIMIT_EXCEEDED
+    ].includes(code);
   }
 
   /**

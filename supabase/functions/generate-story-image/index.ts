@@ -1,10 +1,7 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { CreditService, CREDIT_COSTS, validateAndDeductCredits } from '../_shared/credit-system.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { CreditService, validateCredits, deductCreditsAfterSuccess, refundCredits } from '../_shared/credit-system.ts';
+import { createImageService } from '../_shared/image-service.ts';
+import { ResponseHandler, ERROR_CODES } from '../_shared/response-handlers.ts';
 
 interface ImageRequest {
   prompt?: string;
@@ -18,38 +15,48 @@ interface ImageRequest {
   style?: string;
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
+  const startTime = Date.now();
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return ResponseHandler.corsOptions();
   }
 
-  try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('No authorization header');
-    }
+  let userId: string | null = null;
+  let creditsRequired = 0;
 
+  try {
     // Initialize services
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const authHeader = req.headers.get('Authorization');
+
+    if (!authHeader) {
+      return ResponseHandler.errorWithCode(
+        ERROR_CODES.AUTHENTICATION_FAILED,
+        'Authorization header required'
+      );
+    }
+
     const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
+    const imageService = createImageService();
 
     // Get user ID
-    const userId = await creditService.getUserId();
+    userId = await creditService.getUserId();
     console.log(`Processing image generation for user: ${userId}`);
 
     // Parse request body
-    const { 
-      prompt, 
-      storyContent, 
-      storyTitle, 
-      ageGroup, 
-      genre, 
+    const {
+      prompt,
+      storyContent,
+      storyTitle,
+      ageGroup,
+      genre,
       characters,
-      story_id, 
-      segment_id, 
-      style = 'children_book' 
+      story_id,
+      segment_id,
+      style = 'children_book'
     }: ImageRequest = await req.json();
 
     // Build prompt if not provided
@@ -61,87 +68,85 @@ Deno.serve(async (req) => {
     }
 
     if (!finalPrompt) {
-      throw new Error('Either prompt or story content must be provided for image generation');
+      return ResponseHandler.errorWithCode(
+        ERROR_CODES.INVALID_REQUEST,
+        'Either prompt or story content must be provided for image generation'
+      );
     }
 
-    // Validate and deduct credits
-    const creditResult = await validateAndDeductCredits(creditService, userId, 'imageGeneration');
-    console.log(`Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
+    // Validate credits (don't deduct yet)
+    const validation = await validateCredits(creditService, userId, 'imageGeneration');
+    creditsRequired = validation.creditsRequired;
 
-    // Generate image using OpenAI DALL-E
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key not configured');
-    }
+    console.log(`Credits validated: ${creditsRequired} required, ${validation.currentCredits} available`);
 
-    // Enhance prompt for children's book style
-    const enhancedPrompt = `${finalPrompt}, children's book illustration style, colorful, friendly, safe for children, high quality digital art`;
-
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'dall-e-3',
-        prompt: enhancedPrompt,
-        n: 1,
-        size: '1024x1024',
-        quality: 'standard',
-        response_format: 'url',
-      }),
+    // Generate image using new service
+    const imageResult = await imageService.generateImage({
+      prompt: finalPrompt,
+      style,
+      width: 1024,
+      height: 1024,
+      steps: 25,
+      guidance: 7.5
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
+    console.log(`Image generated successfully with ${imageResult.provider}`);
+
+    // Only deduct credits AFTER successful generation
+    const creditResult = await deductCreditsAfterSuccess(
+      creditService,
+      userId,
+      'imageGeneration',
+      creditsRequired,
+      segment_id || story_id,
+      {
+        provider: imageResult.provider,
+        model: imageResult.model,
+        prompt: finalPrompt
+      }
+    );
+
+    console.log(`Credits deducted: ${creditsRequired}, New balance: ${creditResult.newBalance}`);
+
+    // Store image URL in database
+    let finalImageUrl = imageResult.imageUrl;
+
+    // If it's a data URL (base64), we should upload to Supabase Storage
+    if (imageResult.imageUrl.startsWith('data:')) {
+      try {
+        // Convert data URL to blob and upload to storage
+        const response = await fetch(imageResult.imageUrl);
+        const blob = await response.blob();
+        const fileName = `${segment_id || story_id || 'image'}_${Date.now()}.png`;
+
+        const { data: uploadData, error: uploadError } = await creditService.supabase.storage
+          .from('story-images')
+          .upload(fileName, blob, {
+            contentType: 'image/png',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Storage upload failed:', uploadError);
+        } else {
+          // Get public URL
+          const { data: urlData } = creditService.supabase.storage
+            .from('story-images')
+            .getPublicUrl(fileName);
+
+          if (urlData?.publicUrl) {
+            finalImageUrl = urlData.publicUrl;
+          }
+        }
+      } catch (storageError) {
+        console.error('Storage handling failed:', storageError);
+        // Continue with data URL if storage fails
+      }
     }
 
-    const data = await response.json();
-    const imageUrl = data.data[0]?.url;
-
-    if (!imageUrl) {
-      throw new Error('Failed to generate image');
-    }
-
-    // Download and upload to Supabase Storage
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) {
-      throw new Error('Failed to download generated image');
-    }
-
-    const imageBuffer = await imageResponse.arrayBuffer();
-    const imageFile = new Uint8Array(imageBuffer);
-
-    // Upload to Supabase Storage
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    const fileName = `image_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
-    const filePath = `${userId}/${fileName}`;
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('story-images')
-      .upload(filePath, imageFile, {
-        contentType: 'image/png',
-        upsert: false,
-      });
-
-    if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      throw new Error('Failed to upload image file');
-    }
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('story-images')
-      .getPublicUrl(filePath);
-
-    const finalImageUrl = urlData.publicUrl;
-
-    // Update story segment if segment_id provided
+    // Update story segment with image URL
     if (segment_id) {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await creditService.supabase
         .from('story_segments')
         .update({
           image_url: finalImageUrl,
@@ -151,73 +156,69 @@ Deno.serve(async (req) => {
         .eq('id', segment_id);
 
       if (updateError) {
-        console.error('Error updating segment:', updateError);
+        console.error('Failed to update story segment:', updateError);
       }
     }
 
-    // Update story cover if story_id provided
+    // Update story cover image if needed
     if (story_id) {
-      const { error: storyUpdateError } = await supabase
+      const { data: story } = await creditService.supabase
         .from('stories')
-        .update({
-          cover_image: finalImageUrl,
-        })
-        .eq('id', story_id);
+        .select('cover_image')
+        .eq('id', story_id)
+        .single();
 
-      if (storyUpdateError) {
-        console.error('Error updating story:', storyUpdateError);
+      if (!story?.cover_image) {
+        await creditService.supabase
+          .from('stories')
+          .update({ cover_image: finalImageUrl })
+          .eq('id', story_id);
       }
     }
 
-    console.log(`Image generated successfully: ${finalImageUrl}`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: {
-          imageUrl: finalImageUrl,
-          originalPrompt: finalPrompt,
-          enhancedPrompt: enhancedPrompt,
-          creditsUsed: creditResult.creditsUsed,
-          creditsRemaining: creditResult.newBalance,
-        },
-        metadata: {
-          processingTime: Date.now() - parseInt(new Date().getTime().toString()),
-        }
-      }),
+    // Return success response
+    return ResponseHandler.success(
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
+        imageUrl: finalImageUrl,
+        originalPrompt: finalPrompt,
+        provider: imageResult.provider,
+        model: imageResult.model,
+        seed: imageResult.seed
+      },
+      undefined,
+      {
+        processingTime: Date.now() - startTime,
+        provider: imageResult.provider,
+        creditsUsed: creditsRequired,
+        creditsRemaining: creditResult.newBalance
       }
     );
 
   } catch (error) {
     console.error('Image generation error:', error);
-    
-    // Handle insufficient credits error
-    if (error.message?.includes('Insufficient credits')) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error_code: 'INSUFFICIENT_CREDITS',
-          error: error.message,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      );
+
+    // Refund credits if they were deducted but operation failed
+    if (userId && creditsRequired > 0 && error.message?.includes('after deduction')) {
+      try {
+        await refundCredits(
+          new CreditService(
+            Deno.env.get('SUPABASE_URL')!,
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+          ),
+          userId,
+          creditsRequired,
+          'Image generation failed after credit deduction'
+        );
+        console.log(`Refunded ${creditsRequired} credits due to failure`);
+      } catch (refundError) {
+        console.error('Failed to refund credits:', refundError);
+      }
     }
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Failed to generate image',
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
-    );
+    return ResponseHandler.handleError(error, {
+      operation: 'generate-story-image',
+      userId,
+      creditsRequired
+    });
   }
 });

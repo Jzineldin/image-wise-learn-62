@@ -12,6 +12,7 @@ interface LogContext {
 export class DebugLogger {
   private static instance: DebugLogger;
   private isDevelopment = import.meta.env.DEV;
+  private logLevel = import.meta.env.VITE_LOG_LEVEL || 'info';
 
   static getInstance(): DebugLogger {
     if (!DebugLogger.instance) {
@@ -27,8 +28,17 @@ export class DebugLogger {
   }
 
   info(message: string, context?: LogContext): void {
-    const formattedMessage = this.formatMessage('INFO', message, context);
-    console.log(formattedMessage);
+    if (this.shouldLog('info')) {
+      const formattedMessage = this.formatMessage('INFO', message, context);
+      console.log(formattedMessage);
+    }
+  }
+
+  private shouldLog(level: string): boolean {
+    const levels = { debug: 0, info: 1, warn: 2, error: 3 };
+    const currentLevel = levels[this.logLevel as keyof typeof levels] ?? 1;
+    const messageLevel = levels[level as keyof typeof levels] ?? 1;
+    return messageLevel >= currentLevel;
   }
 
   warn(message: string, context?: LogContext): void {

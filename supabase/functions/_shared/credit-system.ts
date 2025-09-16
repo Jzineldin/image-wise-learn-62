@@ -160,13 +160,13 @@ export class CreditService {
   }
 }
 
-// Credit validation middleware for edge functions
-export async function validateAndDeductCredits(
+// Credit validation (check only, don't deduct yet)
+export async function validateCredits(
   creditService: CreditService,
   userId: string,
   operation: keyof CreditCosts,
   additionalParams?: { text?: string }
-): Promise<{ success: boolean; creditsUsed: number; newBalance: number }> {
+): Promise<{ success: boolean; creditsRequired: number; currentCredits: number }> {
   let creditsRequired: number;
 
   switch (operation) {
@@ -180,26 +180,94 @@ export async function validateAndDeductCredits(
       creditsRequired = CREDIT_COSTS[operation];
   }
 
-  // Check if user has sufficient credits
+  // Check if user has sufficient credits (don't deduct yet)
   const { hasCredits, currentCredits } = await creditService.checkUserCredits(userId, creditsRequired);
 
   if (!hasCredits) {
-    throw new Error(`Insufficient credits. Required: ${creditsRequired}, Available: ${currentCredits}`);
+    const error = new Error(`Insufficient credits. Required: ${creditsRequired}, Available: ${currentCredits}`) as any;
+    error.code = 'INSUFFICIENT_CREDITS';
+    error.required = creditsRequired;
+    error.available = currentCredits;
+    throw error;
   }
 
-  // Deduct credits
+  return {
+    success: true,
+    creditsRequired,
+    currentCredits
+  };
+}
+
+// Deduct credits after successful operation
+export async function deductCreditsAfterSuccess(
+  creditService: CreditService,
+  userId: string,
+  operation: keyof CreditCosts,
+  creditsRequired: number,
+  referenceId?: string,
+  metadata?: any
+): Promise<{ success: boolean; newBalance: number }> {
   const result = await creditService.deductCredits(
     userId,
     creditsRequired,
     `${operation} operation`,
-    undefined,
+    referenceId,
     operation,
-    { operation, creditsRequired }
+    { operation, creditsRequired, ...metadata }
   );
 
+  return result;
+}
+
+// Refund credits for failed operations (if already deducted)
+export async function refundCredits(
+  creditService: CreditService,
+  userId: string,
+  amount: number,
+  reason: string,
+  referenceId?: string
+): Promise<{ success: boolean; newBalance: number }> {
+  // Use the existing add_credits RPC function
+  const { data, error } = await creditService.supabase.rpc('add_credits', {
+    user_uuid: userId,
+    credits_to_add: amount,
+    description_text: `Credit refund: ${reason}`,
+    ref_id: referenceId,
+    ref_type: 'refund',
+    transaction_metadata: { reason, refund: true }
+  });
+
+  if (error) {
+    console.error('Credit refund failed:', error);
+    throw new Error(`Failed to refund credits: ${error.message}`);
+  }
+
+  // Get updated balance
+  const { data: userCredits } = await creditService.supabase
+    .from('user_credits')
+    .select('current_balance')
+    .eq('user_id', userId)
+    .single();
+
+  return {
+    success: true,
+    newBalance: userCredits?.current_balance || 0
+  };
+}
+
+// Legacy function for backward compatibility (now validates and deducts)
+export async function validateAndDeductCredits(
+  creditService: CreditService,
+  userId: string,
+  operation: keyof CreditCosts,
+  additionalParams?: { text?: string }
+): Promise<{ success: boolean; creditsUsed: number; newBalance: number }> {
+  const validation = await validateCredits(creditService, userId, operation, additionalParams);
+  const result = await deductCreditsAfterSuccess(creditService, userId, operation, validation.creditsRequired);
+  
   return {
     success: result.success,
-    creditsUsed: creditsRequired,
+    creditsUsed: validation.creditsRequired,
     newBalance: result.newBalance
   };
 }
