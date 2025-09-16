@@ -1,5 +1,7 @@
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles, RotateCcw } from 'lucide-react';
+import { AudioControls } from './AudioControls';
 
 interface StorySegment {
   id: string;
@@ -41,6 +43,11 @@ interface StorySegmentDisplayProps {
   onChoice: (choiceId: number, choiceText: string) => void;
   onGenerateImage: (segment: StorySegment) => void;
   fontSize: number;
+  // Audio props for creation mode
+  isPlaying?: boolean;
+  generatingAudio?: boolean;
+  onToggleAudio?: () => void;
+  onGenerateAudio?: () => void;
 }
 
 export const StorySegmentDisplay = ({
@@ -52,7 +59,11 @@ export const StorySegmentDisplay = ({
   generatingImage,
   onChoice,
   onGenerateImage,
-  fontSize
+  fontSize,
+  isPlaying = false,
+  generatingAudio = false,
+  onToggleAudio,
+  onGenerateAudio
 }: StorySegmentDisplayProps) => {
   const isCompleted = story.status === 'completed' || story.is_completed || story.is_complete;
 
@@ -114,14 +125,34 @@ export const StorySegmentDisplay = ({
       </div>
 
       {/* Story Content */}
-      <div className={`prose prose-lg max-w-none ${viewMode === 'experience' ? 'text-center' : ''}`}>
-        <div 
-          className="leading-relaxed text-foreground"
-          style={{ fontSize: `${fontSize}px`, lineHeight: '1.7' }}
-        >
-          {segment.content}
+      <Card className="border-border/50">
+        <CardContent className="p-6">
+          <div className={`prose prose-lg max-w-none ${viewMode === 'experience' ? 'text-center' : ''}`}>
+            <div 
+              className="leading-relaxed text-foreground"
+              style={{ fontSize: `${fontSize}px`, lineHeight: '1.7' }}
+            >
+              {segment.content}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Audio Controls for Creation Mode */}
+      {viewMode === 'creation' && onGenerateAudio && onToggleAudio && (
+        <div className="flex justify-center">
+          <AudioControls
+            audioUrl={segment.audio_url}
+            isPlaying={isPlaying}
+            isGenerating={generatingAudio}
+            onToggleAudio={onToggleAudio}
+            onGenerateAudio={onGenerateAudio}
+            variant="compact"
+            size="md"
+            className="bg-card border border-border/50 rounded-lg p-3"
+          />
         </div>
-      </div>
+      )}
 
       {/* Choices */}
       {segment.choices && segment.choices.length > 0 && viewMode === 'creation' && (

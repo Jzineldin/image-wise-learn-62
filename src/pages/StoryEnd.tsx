@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { Sparkles, Download, Share2, BookOpen, Volume2, RefreshCw } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Sparkles, BookOpen, Share2, Volume2, Play, CheckCircle, Clock, Users, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -341,7 +343,7 @@ const StoryEnd = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="loading-spinner h-8 w-8" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -349,185 +351,247 @@ const StoryEnd = () => {
   if (!story) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-heading mb-4">Story not found</h2>
-          <Button onClick={() => navigate('/dashboard')}>
-            Return to Dashboard
-          </Button>
-        </div>
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Story not found
+            </CardTitle>
+            <CardDescription>
+              The story you're looking for doesn't exist or has been removed.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => navigate('/dashboard')} className="w-full">
+              Return to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   const segmentsWithoutAudio = segments.filter(s => !s.audio_url).length;
+  const totalWords = segments.reduce((acc, s) => acc + s.content.split(' ').length, 0);
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto space-y-8">
+          
           {/* Header */}
-          <div className="text-center mb-12">
-            <div className="content-overlay max-w-3xl mx-auto">
-              <Sparkles className="w-16 h-16 text-primary mx-auto mb-6 glow-amber" />
-              <h1 className="text-4xl md:text-5xl font-heading font-bold text-gradient mb-4">
-                Story Complete!
-              </h1>
-              <p className="text-xl text-text-secondary">
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-secondary/5">
+            <CardHeader className="text-center pb-8">
+              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                <Sparkles className="h-8 w-8 text-primary" />
+              </div>
+              <CardTitle className="text-3xl md:text-4xl font-bold">
+                🎉 Story Complete!
+              </CardTitle>
+              <CardDescription className="text-lg max-w-2xl mx-auto">
                 Your magical adventure is finished. Let's give it the perfect title and add some final touches.
-              </p>
-            </div>
-          </div>
+              </CardDescription>
+            </CardHeader>
+          </Card>
 
           {/* Story Statistics */}
-          <div className="glass-card p-6 mb-8">
-            <h2 className="text-xl font-heading font-semibold mb-4">Your Adventure</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">{segments.length}</div>
-                <div className="text-sm text-text-secondary">Segments</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">{story.genre}</div>
-                <div className="text-sm text-text-secondary">Genre</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">{story.age_group}</div>
-                <div className="text-sm text-text-secondary">Age Group</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">
-                  {segments.length - segmentsWithoutAudio}/{segments.length}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                Your Adventure Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="text-center space-y-2">
+                  <div className="text-3xl font-bold text-primary">{segments.length}</div>
+                  <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                    <BookOpen className="h-3 w-3" />
+                    Segments
+                  </div>
                 </div>
-                <div className="text-sm text-text-secondary">With Audio</div>
+                <div className="text-center space-y-2">
+                  <Badge variant="secondary" className="text-lg px-3 py-1">
+                    {story.genre}
+                  </Badge>
+                  <div className="text-sm text-muted-foreground">Genre</div>
+                </div>
+                <div className="text-center space-y-2">
+                  <Badge variant="outline" className="text-lg px-3 py-1">
+                    {story.age_group}
+                  </Badge>
+                  <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                    <Users className="h-3 w-3" />
+                    Age Group
+                  </div>
+                </div>
+                <div className="text-center space-y-2">
+                  <div className="text-3xl font-bold text-green-500">
+                    {segments.length - segmentsWithoutAudio}/{segments.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                    <Volume2 className="h-3 w-3" />
+                    With Audio
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+              
+              <Separator className="my-4" />
+              
+              <div className="text-center">
+                <div className="text-sm text-muted-foreground mb-1">Total word count</div>
+                <div className="text-2xl font-semibold">{totalWords.toLocaleString()} words</div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Title Selection */}
-          <div className="glass-card-elevated p-8 mb-8">
-            <h2 className="text-2xl font-heading font-semibold mb-6">Choose Your Perfect Title</h2>
-            
-            {/* Custom Title Input */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-text-secondary mb-2">
-                Custom Title
-              </label>
-              <Input
-                value={customTitle}
-                onChange={(e) => setCustomTitle(e.target.value)}
-                placeholder="Enter your own title..."
-                className="input-field"
-              />
-            </div>
-
-            {/* AI Generated Suggestions */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <label className="block text-sm font-medium text-text-secondary">
-                  AI Suggestions
-                </label>
-                {generatingTitles && (
-                  <div className="flex items-center text-sm text-text-secondary">
-                    <div className="loading-spinner w-4 h-4 mr-2" />
-                    Generating...
-                  </div>
-                )}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                Choose Your Perfect Title
+              </CardTitle>
+              <CardDescription>
+                Select an AI-generated suggestion or create your own custom title.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              
+              {/* Custom Title Input */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Custom Title</label>
+                <Input
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  placeholder="Enter your own title..."
+                  className="text-lg"
+                />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {(titleSuggestions || []).map((title, index) => (
-                  <Card
-                    key={index}
-                    className={`glass-card-interactive p-4 cursor-pointer transition-all ${
-                      selectedTitle === title ? 'ring-2 ring-primary' : ''
-                    }`}
-                    onClick={() => setSelectedTitle(title)}
-                  >
-                    <p className="text-text-primary font-medium">{title}</p>
-                  </Card>
-                ))}
-              </div>
-            </div>
 
-            <div className="text-center">
-              <p className="text-sm text-text-secondary">
-                Selected: <span className="font-medium text-primary">
-                  {customTitle.trim() || selectedTitle}
-                </span>
-              </p>
-            </div>
-          </div>
+              {/* AI Generated Suggestions */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">AI Suggestions</label>
+                  {generatingTitles && (
+                    <div className="flex items-center text-sm text-muted-foreground gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      Generating...
+                    </div>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {(titleSuggestions || []).map((title, index) => (
+                    <Card
+                      key={index}
+                      className={`cursor-pointer transition-all hover:shadow-md ${
+                        selectedTitle === title 
+                          ? 'ring-2 ring-primary bg-primary/5' 
+                          : 'hover:bg-muted/50'
+                      }`}
+                      onClick={() => setSelectedTitle(title)}
+                    >
+                      <CardContent className="p-4">
+                        <p className="font-medium text-center">{title}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              <div className="text-center p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  Selected: <span className="font-medium text-foreground">
+                    {customTitle.trim() || selectedTitle}
+                  </span>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Audio Completion */}
           {segmentsWithoutAudio > 0 && (
-            <div className="glass-card p-6 mb-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">Complete Audio Experience</h3>
-                  <p className="text-text-secondary">
-                    {segmentsWithoutAudio} segments don't have audio yet
-                  </p>
-                </div>
+            <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                  <Volume2 className="h-5 w-5" />
+                  Complete Audio Experience
+                </CardTitle>
+                <CardDescription>
+                  {segmentsWithoutAudio} segments don't have audio yet. Generate audio to create a fully immersive experience.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <Button
                   onClick={generateMissingAudio}
                   disabled={generatingAudio}
-                  className="btn-primary"
+                  className="w-full md:w-auto"
+                  size="lg"
                 >
                   {generatingAudio ? (
                     <>
-                      <div className="loading-spinner w-5 h-5 mr-2" />
-                      Generating...
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current mr-2" />
+                      Generating Audio...
                     </>
                   ) : (
                     <>
-                      <Volume2 className="w-5 h-5 mr-2" />
-                      Generate Audio
+                      <Play className="h-5 w-5 mr-2" />
+                      Generate Missing Audio
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Final Actions */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col md:flex-row gap-4">
+                <Button
+                  onClick={() => navigate(`/story/${story.id}?mode=experience`)}
+                  variant="outline"
+                  size="lg"
+                  className="flex-1"
+                >
+                  <BookOpen className="h-5 w-5 mr-2" />
+                  Read Story
+                </Button>
+                
+                <Button
+                  onClick={shareStory}
+                  variant="outline"
+                  size="lg"
+                  className="flex-1"
+                >
+                  <Share2 className="h-5 w-5 mr-2" />
+                  Share Story
+                </Button>
+                
+                <Button
+                  onClick={finalizeStory}
+                  disabled={finalizing}
+                  size="lg"
+                  className="flex-1"
+                >
+                  {finalizing ? (
+                    <>
+                      <Clock className="h-5 w-5 mr-2 animate-spin" />
+                      Finalizing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-5 w-5 mr-2" />
+                      Complete Story
                     </>
                   )}
                 </Button>
               </div>
-            </div>
-          )}
+            </CardContent>
+          </Card>
 
-          {/* Actions */}
-          <div className="glass-card-elevated p-8">
-            <div className="flex flex-col md:flex-row gap-4">
-              <Button
-                onClick={() => navigate(`/story/${story.id}?mode=read`)}
-                variant="outline"
-                className="btn-secondary flex-1"
-              >
-                <BookOpen className="w-5 h-5 mr-2" />
-                Read Story
-              </Button>
-              
-              <Button
-                onClick={shareStory}
-                variant="outline"
-                className="btn-secondary flex-1"
-              >
-                <Share2 className="w-5 h-5 mr-2" />
-                Share Story
-              </Button>
-              
-              <Button
-                onClick={finalizeStory}
-                disabled={finalizing}
-                className="btn-primary flex-1 text-lg"
-              >
-                {finalizing ? (
-                  <>
-                    <div className="loading-spinner w-5 h-5 mr-2" />
-                    Finalizing...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    Complete Story
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -1,24 +1,31 @@
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 
 interface StoryNavigationProps {
   currentSegmentIndex: number;
   totalSegments: number;
   onNavigate: (direction: 'prev' | 'next') => void;
   onJumpToSegment: (index: number) => void;
+  onEndStory?: () => void;
+  showEndStory?: boolean;
+  viewMode?: 'creation' | 'experience';
 }
 
 export const StoryNavigation = ({
   currentSegmentIndex,
   totalSegments,
   onNavigate,
-  onJumpToSegment
+  onJumpToSegment,
+  onEndStory,
+  showEndStory = false,
+  viewMode = 'creation'
 }: StoryNavigationProps) => {
   const canGoPrevious = currentSegmentIndex > 0;
   const canGoNext = currentSegmentIndex < totalSegments - 1;
 
   return (
-    <div className="flex items-center justify-between bg-card border rounded-lg p-4">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between bg-card border rounded-lg p-4">
       <Button
         variant="outline"
         size="sm"
@@ -80,6 +87,21 @@ export const StoryNavigation = ({
         Next
         <ChevronRight className="h-4 w-4" />
       </Button>
+      </div>
+
+      {/* End Story Button - Only show in creation mode */}
+      {showEndStory && viewMode === 'creation' && onEndStory && (
+        <div className="flex justify-center">
+          <Button
+            onClick={onEndStory}
+            variant="secondary"
+            className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 border-amber-200 hover:border-amber-300"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            End Story
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

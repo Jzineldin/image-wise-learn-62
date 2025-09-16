@@ -85,8 +85,8 @@ const ProtectedRoute = ({
                          storyData.is_completed || 
                          storyData.is_complete;
 
-      if (isCompleted && mode !== 'read') {
-        // Redirect to read mode for completed stories
+      if (isCompleted && mode !== 'experience') {
+        // Redirect to experience mode for completed stories
         setStoryAccessible(false);
         setLoading(false);
         return;
@@ -96,8 +96,8 @@ const ProtectedRoute = ({
       const isOwner = user && (storyData.author_id === user.id || storyData.user_id === user.id);
       const isPublic = storyData.visibility === 'public';
       
-      if (mode === 'read') {
-        // Read mode: accessible if public or user is owner
+      if (mode === 'experience') {
+        // Experience mode: accessible if public or user is owner
         setStoryAccessible(isPublic || !!isOwner);
       } else {
         // Edit/create mode: only accessible by owner
@@ -132,9 +132,9 @@ const ProtectedRoute = ({
   // Handle story access for story-specific routes
   if (checkStoryAccess && storyId) {
     if (!storyAccessible) {
-      // Check if we need to redirect to read mode for completed stories
-      if (mode !== 'read') {
-        return <Navigate to={`/story/${storyId}?mode=read`} replace />;
+      // Check if we need to redirect to experience mode for completed stories
+      if (mode !== 'experience') {
+        return <Navigate to={`/story/${storyId}?mode=experience`} replace />;
       }
       // Otherwise redirect to discover page
       return <Navigate to="/discover" replace />;

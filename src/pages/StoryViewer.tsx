@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -77,7 +77,8 @@ const StoryViewer = () => {
   // Credit system states
   const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
   const [creditError, setCreditError] = useState<{ required: number; available: number } | null>(null);
-  const [creditLock, setCreditLock] = useState(false); // Prevent concurrent credit operations
+  // Add credit lock reference
+  const creditLock = useRef(false);
   
   const [story, setStory] = useState<Story | null>(null);
   const [segments, setSegments] = useState<StorySegment[]>([]);
@@ -271,7 +272,7 @@ const StoryViewer = () => {
     logger.storySegmentGeneration(story.id, segments.length + 1, requestId);
 
     setGeneratingSegment(true);
-    setCreditLock(true); // Lock credits during segment generation
+    creditLock.current = true; // Lock credits during segment generation
     try {
       const requestBody = {
         storyId: story.id,
@@ -341,22 +342,25 @@ const StoryViewer = () => {
       if (updatedSegments.length > 0) {
         setCurrentSegmentIndex(updatedSegments.length - 1);
         
-      // Generate image for the new segment
-      const newSegment = updatedSegments[updatedSegments.length - 1];
-      if (newSegment && !newSegment.image_url) {
-        logger.debug('Triggering image generation for new segment', {
-          requestId,
-          segmentId: newSegment.id
-        });
-        console.log('🖼️ Auto-generating image for new segment:', newSegment.id);
-        generateSegmentImage(newSegment);
-      } else {
-        console.log('📷 Skipping auto-image generation:', {
-          hasSegment: !!newSegment,
-          hasImage: !!newSegment?.image_url,
-          segmentId: newSegment?.id
-        });
-      }
+        // Schedule image generation for the new segment after creditLock is released
+        const newSegment = updatedSegments[updatedSegments.length - 1];
+        if (newSegment && !newSegment.image_url) {
+          logger.debug('Scheduling image generation for new segment', {
+            requestId,
+            segmentId: newSegment.id
+          });
+          console.log('🖼️ Scheduling auto-image generation for new segment:', newSegment.id);
+          
+          // Schedule image generation after a short delay to ensure creditLock is released
+          setTimeout(() => {
+            if (!creditLock.current) {
+              console.log('🖼️ Executing auto-image generation for segment:', newSegment.id);
+              generateSegmentImage(newSegment);
+            } else {
+              console.log('📷 Credit lock still active, skipping auto-image generation');
+            }
+          }, 1000);
+        }
       }
 
       toast({
@@ -389,7 +393,7 @@ const StoryViewer = () => {
       });
     } finally {
       setGeneratingSegment(false);
-      setCreditLock(false); // Release credit lock
+      creditLock.current = false; // Release credit lock
       logger.groupEnd();
     }
   };
@@ -427,7 +431,7 @@ const StoryViewer = () => {
 
     logger.imageGeneration(segment.id, requestId, currentRetries + 1);
     setGeneratingImage(segment.id);
-    setCreditLock(true); // Lock credits during image generation
+    creditLock.current = true; // Lock credits during image generation
 
     try {
       const requestBody = {
@@ -505,7 +509,7 @@ const StoryViewer = () => {
       }, 2000 * (currentRetries + 1));
     } finally {
       setGeneratingImage(null);
-      setCreditLock(false); // Release credit lock
+      creditLock.current = false; // Release credit lock
     }
   };
 
@@ -554,7 +558,7 @@ const StoryViewer = () => {
 
     logger.audioGeneration(segmentId, requestId, selectedVoice, currentRetries + 1);
     setGeneratingAudio(true);
-    setCreditLock(true); // Lock credits during audio generation
+    creditLock.current = true; // Lock credits during audio generation
     
     try {
       const requestBody = {
@@ -692,7 +696,7 @@ const StoryViewer = () => {
       }
     } finally {
       setGeneratingAudio(false);
-      setCreditLock(false); // Release credit lock
+      creditLock.current = false; // Release credit lock
     }
   };
 
@@ -985,6 +989,10 @@ const StoryViewer = () => {
               onChoice={handleChoice}
               onGenerateImage={generateSegmentImage}
               fontSize={fontSize}
+              isPlaying={isPlaying}
+              generatingAudio={generatingAudio}
+              onToggleAudio={toggleAudio}
+              onGenerateAudio={() => generateAudio(currentSegment.id, currentSegment.content)}
             />
           )}
 
@@ -994,6 +1002,9 @@ const StoryViewer = () => {
             totalSegments={segments.length}
             onNavigate={navigateSegment}
             onJumpToSegment={jumpToSegment}
+            onEndStory={handleEndStory}
+            showEndStory={isOwner && !isCompletedStory}
+            viewMode={viewMode}
           />
         </div>
       </div>
@@ -1037,7 +1048,7 @@ const StoryViewer = () => {
           onSkipBack={() => navigateSegment('prev')}
           canSkipForward={currentSegmentIndex < segments.length - 1}
           canSkipBack={currentSegmentIndex > 0}
-          disabled={creditLock}
+          disabled={creditLock.current}
         />
       )}
     </div>
