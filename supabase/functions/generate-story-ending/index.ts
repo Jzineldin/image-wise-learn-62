@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { CreditService, CREDIT_COSTS, validateAndDeductCredits } from '../_shared/credit-system.ts';
+import { createAIService } from '../_shared/ai-service.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -65,12 +66,9 @@ Deno.serve(async (req) => {
 
     const storyContent = segments?.map(s => s.content).join('\n\n') || '';
     
-    // Generate ending using OpenAI
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key not configured');
-    }
-
+    // Generate ending using AI service (OpenRouter Sonoma Dusk Alpha)
+    const aiService = createAIService();
+    
     const systemPrompt = `You are creating a satisfying ending for a children's story. The ending should feel natural and complete while teaching a positive lesson.`;
     
     const userPrompt = `Write a ${ending_type} ending for this children's story (age ${story.age_group}, ${story.genre} genre):
@@ -86,33 +84,17 @@ Requirements:
 - Length: 2-3 paragraphs
 - Return ONLY the ending content, no formatting`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        max_tokens: 1000,
-        temperature: 0.7,
-      }),
+    const aiResponse = await aiService.generate('story-segments', {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      responseFormat: 'text',
+      temperature: 0.7
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const endingContent = data.choices[0]?.message?.content;
-
-    if (!endingContent) {
-      throw new Error('Failed to generate ending content');
-    }
+    const endingContent = aiResponse.content;
+    console.log(`Story ending generated using ${aiResponse.provider} - ${aiResponse.model}`);
 
     // Get next segment number
     const nextSegmentNumber = (segments?.length || 0) + 1;

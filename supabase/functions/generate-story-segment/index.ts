@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { CreditService, CREDIT_COSTS, validateAndDeductCredits } from '../_shared/credit-system.ts';
+import { createAIService } from '../_shared/ai-service.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,12 +67,9 @@ Deno.serve(async (req) => {
 
     const previousContent = segments?.map(s => s.content).join('\n\n') || '';
     
-    // Generate continuation using OpenAI
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key not configured');
-    }
-
+    // Generate continuation using AI service (OpenRouter Sonoma Dusk Alpha)
+    const aiService = createAIService();
+    
     const systemPrompt = `You are continuing an interactive children's story. Generate the next segment based on the previous content and user choice.`;
     
     let userPrompt = `Continue this story for children aged ${story.age_group} in the ${story.genre} genre.
@@ -89,33 +87,17 @@ Requirements:
 - End with 2-3 choices for what happens next
 - Return ONLY the story continuation and choices, no formatting`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        max_tokens: 1000,
-        temperature: 0.8,
-      }),
+    const aiResponse = await aiService.generate('story-segments', {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      responseFormat: 'text',
+      temperature: 0.8
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const segmentContent = data.choices[0]?.message?.content;
-
-    if (!segmentContent) {
-      throw new Error('Failed to generate segment content');
-    }
+    const segmentContent = aiResponse.content;
+    console.log(`Story segment generated using ${aiResponse.provider} - ${aiResponse.model}`);
 
     // Parse choices from content (simple implementation)
     const choiceMatches = segmentContent.match(/(?:Choice \d+:|Option \d+:|\d+\.)([^\n]+)/g) || [];

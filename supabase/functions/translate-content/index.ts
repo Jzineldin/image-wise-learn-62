@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createAIService } from '../_shared/ai-service.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,12 +53,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Translate content using OpenAI
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key not configured');
-    }
-
+    // Translate content using AI service (OpenRouter Sonoma Dusk Alpha)
+    const aiService = createAIService();
+    
     const languageNames = {
       'en': 'English',
       'sv': 'Swedish',
@@ -89,33 +87,19 @@ Requirements:
 - Use natural, fluent ${toLang}
 - Return ONLY the translated content, no additional text`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        max_tokens: Math.min(4000, Math.max(500, content.length * 2)),
-        temperature: 0.3,
-      }),
+    // Use story-generation for translation (same model, different operation)
+    const aiResponse = await aiService.generate('story-generation', {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      responseFormat: 'text',
+      temperature: 0.3,
+      maxTokens: Math.min(4000, Math.max(500, content.length * 2))
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const translatedContent = data.choices[0]?.message?.content;
-
-    if (!translatedContent) {
-      throw new Error('Failed to translate content');
-    }
+    const translatedContent = aiResponse.content;
+    console.log(`Translation completed using ${aiResponse.provider} - ${aiResponse.model}`);
 
     console.log(`Content translated from ${fromLang} to ${toLang} (${content_type})`);
 

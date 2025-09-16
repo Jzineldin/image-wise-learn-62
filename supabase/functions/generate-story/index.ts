@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { CreditService, CREDIT_COSTS, validateAndDeductCredits } from '../_shared/credit-system.ts';
+import { createAIService } from '../_shared/ai-service.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,12 +44,9 @@ Deno.serve(async (req) => {
     const creditResult = await validateAndDeductCredits(creditService, userId, 'storyGeneration');
     console.log(`Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
 
-    // Generate story using OpenAI
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key not configured');
-    }
-
+    // Generate story using AI service (OpenRouter Sonoma Dusk Alpha)
+    const aiService = createAIService();
+    
     const systemPrompt = `You are a skilled children's story writer. Create engaging, age-appropriate stories that capture imagination while teaching valuable lessons.`;
     
     const userPrompt = `Create a ${storyType} story for children aged ${ageGroup} in the ${genre} genre.
@@ -63,33 +61,17 @@ Requirements:
 - Length: 3-5 paragraphs for short stories
 - Return only the story content, no additional formatting`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        max_tokens: 2000,
-        temperature: 0.8,
-      }),
+    const aiResponse = await aiService.generate('story-generation', {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      responseFormat: 'text',
+      temperature: 0.8
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const storyContent = data.choices[0]?.message?.content;
-
-    if (!storyContent) {
-      throw new Error('Failed to generate story content');
-    }
+    const storyContent = aiResponse.content;
+    console.log(`Story generated using ${aiResponse.provider} - ${aiResponse.model}`);
 
     // Create story record
     const supabase = createClient(supabaseUrl, supabaseKey);

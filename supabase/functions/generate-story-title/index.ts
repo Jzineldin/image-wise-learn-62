@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createAIService } from '../_shared/ai-service.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,12 +32,9 @@ Deno.serve(async (req) => {
       throw new Error('Prompt is required for title generation');
     }
 
-    // Generate title using OpenAI (free operation - no credits needed)
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      throw new Error('OpenAI API key not configured');
-    }
-
+    // Generate title using AI service (OpenRouter Sonoma Dusk Alpha) - free operation
+    const aiService = createAIService();
+    
     const systemPrompt = `You are a creative children's book title generator. Create engaging, age-appropriate titles that capture the essence of the story.`;
     
     const userPrompt = `Generate 3 creative titles for a children's story with these details:
@@ -52,33 +50,17 @@ Requirements:
 - Each title should be 2-6 words
 - Return only the titles, one per line, no numbering`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        max_tokens: 200,
-        temperature: 0.9,
-      }),
+    const aiResponse = await aiService.generate('story-titles', {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      responseFormat: 'text',
+      temperature: 0.9
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const titleContent = data.choices[0]?.message?.content;
-
-    if (!titleContent) {
-      throw new Error('Failed to generate titles');
-    }
+    const titleContent = aiResponse.content;
+    console.log(`Titles generated using ${aiResponse.provider} - ${aiResponse.model}`);
 
     // Parse titles from response
     const titles = titleContent
