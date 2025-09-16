@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/production-logger';
 
 export interface SubscriptionStatus {
   subscribed: boolean;
@@ -62,7 +63,10 @@ export const useSubscription = () => {
         error: null,
       });
     } catch (error) {
-      console.error('Error checking subscription:', error);
+      logger.error('Error checking subscription', error, {
+        operation: 'subscription-check',
+        userId: user?.id
+      });
       setSubscriptionStatus(prev => ({
         ...prev,
         loading: false,
@@ -93,7 +97,12 @@ export const useSubscription = () => {
       
       return data.url;
     } catch (error) {
-      console.error('Error creating checkout:', error);
+      logger.error('Error creating checkout', error, {
+        operation: 'checkout-create',
+        priceId,
+        type,
+        userId: user?.id
+      });
       toast({
         title: "Checkout Error",
         description: error instanceof Error ? error.message : 'Failed to create checkout session',
@@ -125,7 +134,10 @@ export const useSubscription = () => {
       // Open customer portal in new tab
       window.open(data.url, '_blank');
     } catch (error) {
-      console.error('Error opening customer portal:', error);
+      logger.error('Error opening customer portal', error, {
+        operation: 'customer-portal',
+        userId: user?.id
+      });
       toast({
         title: "Portal Error",
         description: error instanceof Error ? error.message : 'Failed to open customer portal',

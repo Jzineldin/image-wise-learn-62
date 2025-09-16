@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import CreditDisplay from './CreditDisplay';
 import { useOnboarding } from './OnboardingTour';
 import { ThemeToggle } from './ThemeToggle';
+import { logger } from '@/lib/production-logger';
 
 interface NavigationProps {
   className?: string;
@@ -30,7 +31,10 @@ const Navigation = ({ className = "" }: NavigationProps) => {
       const { data } = await supabase.rpc('has_role', { check_role: 'admin' });
       setIsAdmin(data || false);
     } catch (error) {
-      console.error('Error checking admin status:', error);
+      logger.error('Error checking admin status', error, {
+        operation: 'admin-status-check',
+        userId: user?.id
+      });
     }
   };
 

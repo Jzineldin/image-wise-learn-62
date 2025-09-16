@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
+import { logger } from '@/lib/production-logger';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -63,7 +64,11 @@ const ProtectedRoute = ({
         .maybeSingle();
 
       if (error) {
-        console.error('Error checking story:', error);
+        logger.error('Error checking story', error, {
+          operation: 'story-access-check',
+          storyId,
+          userId: user?.id
+        });
         setStoryAccessible(false);
         setLoading(false);
         return;
@@ -100,7 +105,11 @@ const ProtectedRoute = ({
       }
 
     } catch (error) {
-      console.error('Error checking story access:', error);
+      logger.error('Error checking story access', error, {
+        operation: 'story-access-check-general',
+        storyId,
+        userId: user?.id
+      });
       setStoryAccessible(false);
     } finally {
       setLoading(false);

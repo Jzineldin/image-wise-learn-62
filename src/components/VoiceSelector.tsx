@@ -6,6 +6,7 @@ import { Volume2, Play, Pause } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/hooks/useLanguage';
 import VoiceLanguageSelector from '@/components/VoiceLanguageSelector';
+import { logger } from '@/lib/production-logger';
 
 interface Voice {
   id: string;
@@ -70,7 +71,10 @@ export const VoiceSelector = memo(({ selectedVoice, onVoiceChange, className }: 
       }, 3000);
 
     } catch (error) {
-      console.error('Error playing voice preview:', error);
+      logger.error('Error playing voice preview', error, {
+        operation: 'voice-preview',
+        voiceId
+      });
       setIsPlaying(null);
       toast({
         title: "Preview Error",

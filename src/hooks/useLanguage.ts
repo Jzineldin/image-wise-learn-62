@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { TRANSLATIONS, t } from '@/constants/translations';
+import { logger } from '@/lib/production-logger';
 
 interface Language {
   code: string;
@@ -47,7 +48,10 @@ export const useLanguage = () => {
 
       setSelectedLanguage(preferredLanguage);
     } catch (error) {
-      console.error('Error initializing language:', error);
+      logger.error('Error initializing language', error, {
+        operation: 'language-initialization',
+        userId: user?.id
+      });
     }
   };
 
@@ -63,7 +67,9 @@ export const useLanguage = () => {
 
       setAvailableLanguages(data || []);
     } catch (error) {
-      console.error('Error fetching languages:', error);
+      logger.error('Error fetching languages', error, {
+        operation: 'language-fetch'
+      });
     } finally {
       setLoading(false);
     }
@@ -84,7 +90,11 @@ export const useLanguage = () => {
         localStorage.setItem('preferred_language', languageCode);
       }
     } catch (error) {
-      console.error('Error saving language preference:', error);
+      logger.error('Error saving language preference', error, {
+        operation: 'language-save',
+        languageCode,
+        userId: user?.id
+      });
     }
   };
 

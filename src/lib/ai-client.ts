@@ -7,6 +7,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { generateRequestId } from '@/lib/debug';
+import { logger } from '@/lib/production-logger';
 
 export interface AIClientResponse<T = any> {
   success: boolean;
@@ -92,7 +93,12 @@ export class AIClient {
       try {
         const shouldLog = attempt === 0 || this.shouldLogRetry(functionName, attempt);
         if (shouldLog) {
-          console.log(`🚀 Calling ${functionName} (attempt ${attempt + 1}/${retries + 1})`);
+          logger.info(`🚀 Calling ${functionName}`, {
+            operation: 'edge-function-call',
+            functionName,
+            attempt: attempt + 1,
+            maxRetries: retries + 1
+          });
         }
         
         // Get fresh session
@@ -117,7 +123,10 @@ export class AIClient {
 
           // Handle supabase-js errors (network, auth, etc.)
           if (error) {
-            console.error(`❌ ${functionName} supabase error:`, error);
+            logger.error(`❌ ${functionName} supabase error`, error, {
+              operation: 'edge-function-error',
+              functionName
+            });
             
             // Check for specific error patterns
             const errorMessage = this.parseSupabaseError(error);
@@ -142,7 +151,9 @@ export class AIClient {
           }
 
           if (shouldLog) {
-            console.log(`✅ ${functionName} response received:`, { 
+            logger.info(`✅ ${functionName} response received`, {
+              operation: 'edge-function-response',
+              functionName,
               success: data?.success,
               hasData: !!data?.data,
               errorCode: data?.error_code
@@ -188,7 +199,11 @@ export class AIClient {
       } catch (error) {
         const shouldLogError = attempt === 0 || this.shouldLogRetry(functionName, attempt);
         if (shouldLogError) {
-          console.error(`❌ ${functionName} attempt ${attempt + 1} failed:`, error);
+          logger.error(`❌ ${functionName} attempt ${attempt + 1} failed`, error, {
+            operation: 'edge-function-retry',
+            functionName,
+            attempt: attempt + 1
+          });
         }
         lastError = error as Error;
         
@@ -210,7 +225,11 @@ export class AIClient {
           const delay = baseDelay + jitter;
           
           if (shouldLogError) {
-            console.log(`⏳ Retrying ${functionName} in ${Math.round(delay)}ms...`);
+            logger.info(`⏳ Retrying ${functionName} in ${Math.round(delay)}ms`, {
+              operation: 'edge-function-retry-delay',
+              functionName,
+              delay: Math.round(delay)
+            });
           }
           await new Promise(resolve => setTimeout(resolve, delay));
         }

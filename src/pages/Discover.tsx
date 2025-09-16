@@ -7,28 +7,24 @@ import Footer from '@/components/Footer';
 import StoryCard from '@/components/StoryCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { logger } from '@/lib/production-logger';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-client';
 
 const Discover = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('all');
-  const [publicStories, setPublicStories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadPublicStories();
-  }, [selectedGenre, searchQuery]);
-
-  useEffect(() => {
-    supabase.auth.getUser()
-      .then(({ data }) => setCurrentUserId(data.user?.id ?? null))
-      .catch(() => setCurrentUserId(null));
-  }, []);
-
-  const loadPublicStories = async () => {
-    try {
-      setLoading(true);
+  // Fetch public stories with React Query for better caching and performance
+  const {
+    data: publicStories = [],
+    isLoading: loading,
+    error
+  } = useQuery({
+    queryKey: [...queryKeys.featuredStories, selectedGenre, searchQuery],
+    queryFn: async () => {
       let query = supabase
         .from('stories')
         .select(`
@@ -59,14 +55,26 @@ const Discover = () => {
 
       const { data, error } = await query;
       
-      if (error) throw error;
-      setPublicStories(data || []);
-    } catch (error) {
-      console.error('Error loading public stories:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      if (error) {
+        logger.error('Error loading public stories', error, {
+          operation: 'discover-load-stories',
+          selectedGenre,
+          searchQuery
+        });
+        throw error;
+      }
+      
+      return data || [];
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes for public content
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
+  });
+
+  useEffect(() => {
+    supabase.auth.getUser()
+      .then(({ data }) => setCurrentUserId(data.user?.id ?? null))
+      .catch(() => setCurrentUserId(null));
+  }, []);
 
   const genres = [
     'all', 'Fantasy & Magic', 'Adventure & Exploration', 'Mystery & Detective', 

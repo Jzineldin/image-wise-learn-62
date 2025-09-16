@@ -3,6 +3,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/production-logger';
 
 /**
  * Get the preview image URL for a story
@@ -18,7 +19,10 @@ export async function getStoryPreviewImage(storyId: string): Promise<string | nu
       .single();
 
     if (storyError) {
-      console.error('Error fetching story:', storyError);
+      logger.error('Error fetching story', storyError, {
+        operation: 'story-preview-fetch',
+        storyId
+      });
       return null;
     }
 
@@ -53,13 +57,20 @@ export async function getStoryPreviewImage(storyId: string): Promise<string | nu
       .eq('id', storyId)
       .then(({ error }) => {
         if (error) {
-          console.error('Error updating story preview image:', error);
+          logger.error('Error updating story preview image', error, {
+            operation: 'story-preview-update',
+            storyId,
+            imageUrl: segment.image_url
+          });
         }
       });
 
     return segment.image_url;
   } catch (error) {
-    console.error('Error getting story preview image:', error);
+    logger.error('Error getting story preview image', error, {
+      operation: 'story-preview-get',
+      storyId
+    });
     return null;
   }
 }
@@ -76,7 +87,10 @@ export async function ensureStoryPreviewImage(storyId: string): Promise<void> {
       .single();
 
     if (storyError) {
-      console.error('Error fetching story:', storyError);
+      logger.error('Error fetching story', storyError, {
+        operation: 'story-preview-ensure-fetch',
+        storyId
+      });
       return;
     }
 
@@ -110,10 +124,17 @@ export async function ensureStoryPreviewImage(storyId: string): Promise<void> {
       .eq('id', storyId);
 
     if (updateError) {
-      console.error('Error updating story preview image:', updateError);
+      logger.error('Error updating story preview image', updateError, {
+        operation: 'story-preview-ensure-update',
+        storyId,
+        imageUrl: segment.image_url
+      });
     }
   } catch (error) {
-    console.error('Error ensuring story preview image:', error);
+    logger.error('Error ensuring story preview image', error, {
+      operation: 'story-preview-ensure',
+      storyId
+    });
   }
 }
 
