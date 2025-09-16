@@ -507,11 +507,22 @@ const StoryViewer = () => {
       return;
     }
 
+    // Reload segments to check if audio already exists
+    const updatedSegments = await reloadSegments();
+    const targetSegment = updatedSegments.find(s => s.id === segmentId);
+    if (targetSegment?.audio_url) {
+      toast({
+        title: "Audio already exists",
+        description: "This segment already has audio.",
+      });
+      return;
+    }
+
     const requestId = generateRequestId();
     const retryKey = `audio-${segmentId}`;
     const currentRetries = retryAttempts[retryKey] || 0;
 
-    if (currentRetries >= 3) {
+    if (currentRetries >= 1) { // Limit to 1 retry instead of 3
       logger.warn('Max audio generation retries reached', {
         requestId,
         segmentId,
@@ -574,16 +585,26 @@ const StoryViewer = () => {
           }
         }
 
+        // Only retry for network/server errors, not for 4xx errors
+        if (!data.error_code || data.error_code === 'INSUFFICIENT_CREDITS') {
+          toast({
+            title: "Audio generation failed",
+            description: `${data.error} (ID: ${requestId})`,
+            variant: "destructive",
+          });
+          return;
+        }
+
         setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
 
-        // Retry with exponential backoff
+        // Retry with exponential backoff only for retryable errors
         setTimeout(() => {
           generateAudio(segmentId, content);
         }, 2000 * (currentRetries + 1));
 
         toast({
           title: "Audio generation failed",
-          description: `${data.error} (Retrying... Attempt ${currentRetries + 1}/3) (ID: ${requestId})`,
+          description: `${data.error} (Retrying... Attempt ${currentRetries + 1}/1) (ID: ${requestId})`,
           variant: "destructive",
         });
         return;
@@ -591,10 +612,11 @@ const StoryViewer = () => {
 
       logger.edgeFunctionResponse('generate-story-audio', requestId, data);
 
-      // Update segment with audio URL
+      // Update segment with audio URL - handle both response formats
+      const audioUrl = data.audioUrl || data.audio_url;
       setSegments(prev => prev.map(s =>
         s.id === segmentId
-          ? { ...s, audio_url: data.audioUrl }
+          ? { ...s, audio_url: audioUrl }
           : s
       ));
 
@@ -632,16 +654,26 @@ const StoryViewer = () => {
         }
       }
       
-      // Retry with exponential backoff
-      setTimeout(() => {
-        generateAudio(segmentId, content);
-      }, 2000 * (currentRetries + 1));
-      
-      toast({
-        title: "Audio generation failed",
-        description: `Retrying... (Attempt ${currentRetries + 1}/3) (ID: ${requestId})`,
-        variant: "destructive",
-      });
+      // Only retry for network errors, not for 4xx client errors
+      if (currentRetries === 0 && !error.status || (error.status && error.status >= 500)) {
+        setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
+        
+        setTimeout(() => {
+          generateAudio(segmentId, content);
+        }, 2000 * (currentRetries + 1));
+        
+        toast({
+          title: "Audio generation failed",
+          description: `Retrying... (Attempt ${currentRetries + 1}/1) (ID: ${requestId})`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Audio generation failed",
+          description: `${error.message} (ID: ${requestId})`,
+          variant: "destructive",
+        });
+      }
     } finally {
       setGeneratingAudio(false);
       setCreditLock(false); // Release credit lock

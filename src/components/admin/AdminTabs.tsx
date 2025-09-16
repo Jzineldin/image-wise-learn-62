@@ -1,10 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, FileText, BarChart3, Settings, Shield, Activity } from 'lucide-react';
+import { Users, FileText, BarChart3, Settings, Shield, Activity, Volume2 } from 'lucide-react';
 import UserManagement from './UserManagement';
 import ContentModeration from './ContentModeration';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import SystemSettings from './SystemSettings';
 import AuditLog from './AuditLog';
+import { AudioChargeMonitor } from './AudioChargeMonitor';
 
 interface AdminTabsProps {
   defaultTab?: string;
@@ -13,7 +14,7 @@ interface AdminTabsProps {
 const AdminTabs = ({ defaultTab = 'users' }: AdminTabsProps) => {
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-5 glass-card mb-8">
+      <TabsList className="grid w-full grid-cols-6 glass-card mb-8">
         <TabsTrigger value="users" className="flex items-center gap-2">
           <Users className="w-4 h-4" />
           Users
@@ -33,6 +34,10 @@ const AdminTabs = ({ defaultTab = 'users' }: AdminTabsProps) => {
         <TabsTrigger value="audit" className="flex items-center gap-2">
           <Activity className="w-4 h-4" />
           Audit Log
+        </TabsTrigger>
+        <TabsTrigger value="audio" className="flex items-center gap-2">
+          <Volume2 className="w-4 h-4" />
+          Audio Monitor
         </TabsTrigger>
       </TabsList>
 
@@ -54,6 +59,10 @@ const AdminTabs = ({ defaultTab = 'users' }: AdminTabsProps) => {
 
       <TabsContent value="audit" className="mt-0">
         <AuditLog />
+      </TabsContent>
+
+      <TabsContent value="audio" className="mt-0">
+        <AudioChargeMonitor />
       </TabsContent>
     </Tabs>
   );

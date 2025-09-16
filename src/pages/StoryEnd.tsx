@@ -167,6 +167,9 @@ const StoryEnd = () => {
   };
 
   const generateMissingAudio = async () => {
+    // Reload segments to get fresh data
+    await loadStory();
+    
     const segmentsWithoutAudio = segments.filter(s => !s.audio_url);
     
     if (segmentsWithoutAudio.length === 0) {
@@ -178,8 +181,22 @@ const StoryEnd = () => {
     }
 
     setGeneratingAudio(true);
+    let successCount = 0;
+    
     try {
       for (const segment of segmentsWithoutAudio) {
+        // Double-check segment doesn't have audio
+        const { data: freshSegment } = await supabase
+          .from('story_segments')
+          .select('audio_url')
+          .eq('id', segment.id)
+          .single();
+          
+        if (freshSegment?.audio_url) {
+          console.log(`Segment ${segment.id} already has audio, skipping`);
+          continue;
+        }
+
         const { data, error } = await supabase.functions.invoke('generate-story-audio', {
           body: {
             text: segment.content,
@@ -195,18 +212,34 @@ const StoryEnd = () => {
           continue;
         }
 
-        // Update local state
-        setSegments(prev => prev.map(s => 
-          s.id === segment.id 
-            ? { ...s, audio_url: data.audioUrl }
-            : s
-        ));
+        if (data?.error_code === 'INSUFFICIENT_CREDITS') {
+          toast({
+            title: "Insufficient Credits",
+            description: data.error,
+            variant: "destructive",
+          });
+          break;
+        }
+
+        // Handle both response formats
+        const audioUrl = data.audioUrl || data.audio_url;
+        if (audioUrl) {
+          // Update local state
+          setSegments(prev => prev.map(s => 
+            s.id === segment.id 
+              ? { ...s, audio_url: audioUrl }
+              : s
+          ));
+          successCount++;
+        }
       }
 
-      toast({
-        title: "Audio generation complete!",
-        description: `Generated audio for ${segmentsWithoutAudio.length} segments.`,
-      });
+      if (successCount > 0) {
+        toast({
+          title: "Audio generation complete!",
+          description: `Generated audio for ${successCount} segments.`,
+        });
+      }
 
     } catch (error) {
       console.error('Error generating audio:', error);

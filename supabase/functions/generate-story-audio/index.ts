@@ -1,6 +1,17 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { CreditService, calculateAudioCredits, validateAndDeductCredits } from '../_shared/credit-system.ts';
 
+// Helper function to get current credits
+const getCurrentCredits = async (creditService: any, userId: string): Promise<number> => {
+  try {
+    const { currentCredits } = await creditService.checkUserCredits(userId, 0);
+    return currentCredits;
+  } catch (error) {
+    console.error('Error getting current credits:', error);
+    return 0;
+  }
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -9,8 +20,11 @@ const corsHeaders = {
 interface AudioRequest {
   text: string;
   voice_id?: string;
+  voiceId?: string; // Support both formats
   story_id?: string;
   segment_id?: string;
+  languageCode?: string;
+  modelId?: string;
 }
 
 Deno.serve(async (req) => {
@@ -35,16 +49,64 @@ Deno.serve(async (req) => {
     console.log(`Processing audio generation for user: ${userId}`);
 
     // Parse request body
-    const { text, voice_id = '21m00Tcm4TlvDq8ikWAM', story_id, segment_id }: AudioRequest = await req.json();
+const { text, voice_id = '21m00Tcm4TlvDq8ikWAM', story_id, segment_id, voiceId, languageCode, modelId }: AudioRequest = await req.json();
 
     if (!text) {
       throw new Error('Text is required for audio generation');
     }
 
-    // Calculate and validate credits
+    // Map request parameters for backwards compatibility
+    const finalVoiceId = voiceId || voice_id;
+    const finalModelId = modelId || 'eleven_monolingual_v1';
+
+    // Initialize Supabase client for checking existing audio
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Check if segment already has audio (idempotency)
+    if (segment_id) {
+      const { data: existingSegment, error: segmentError } = await supabase
+        .from('story_segments')
+        .select('audio_url, audio_generation_status')
+        .eq('id', segment_id)
+        .single();
+
+      if (!segmentError && existingSegment?.audio_url) {
+        console.log(`Audio already exists for segment ${segment_id}, returning existing URL`);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            audio_url: existingSegment.audio_url,
+            audioUrl: existingSegment.audio_url, // Support both formats
+            credits_used: 0,
+            credits_remaining: await getCurrentCredits(creditService, userId),
+            word_count: text.trim().split(/\s+/).length,
+            from_cache: true
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        );
+      }
+
+      // Mark as in progress to prevent concurrent requests
+      if (existingSegment?.audio_generation_status !== 'in_progress') {
+        await supabase
+          .from('story_segments')
+          .update({ audio_generation_status: 'in_progress' })
+          .eq('id', segment_id);
+      }
+    }
+
+    // Validate credits before processing (don't deduct yet)
     const creditsRequired = calculateAudioCredits(text);
-    const creditResult = await validateAndDeductCredits(creditService, userId, 'audioGeneration', { text });
-    console.log(`Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
+    const { success: hasCredits, currentCredits } = await creditService.checkUserCredits(userId, creditsRequired);
+    
+    if (!hasCredits) {
+      throw new Error(`Insufficient credits. Required: ${creditsRequired}, Available: ${currentCredits}`);
+    }
+
+    console.log(`Processing audio generation. Credits required: ${creditsRequired}, Available: ${currentCredits}`);
 
     // Generate audio using ElevenLabs
     const elevenlabsApiKey = Deno.env.get('ELEVENLABS_API_KEY');
@@ -52,7 +114,7 @@ Deno.serve(async (req) => {
       throw new Error('ElevenLabs API key not configured');
     }
 
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice_id}`, {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${finalVoiceId}`, {
       method: 'POST',
       headers: {
         'Accept': 'audio/mpeg',
@@ -61,7 +123,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         text: text,
-        model_id: 'eleven_monolingual_v1',
+        model_id: finalModelId,
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.5,
@@ -77,7 +139,6 @@ Deno.serve(async (req) => {
     const audioFile = new Uint8Array(audioBuffer);
 
     // Upload to Supabase Storage
-    const supabase = createClient(supabaseUrl, supabaseKey);
     const fileName = `audio_${Date.now()}_${Math.random().toString(36).substring(7)}.mp3`;
     const filePath = `${userId}/${fileName}`;
 
@@ -90,6 +151,13 @@ Deno.serve(async (req) => {
 
     if (uploadError) {
       console.error('Storage upload error:', uploadError);
+      // Mark segment as failed
+      if (segment_id) {
+        await supabase
+          .from('story_segments')
+          .update({ audio_generation_status: 'failed' })
+          .eq('id', segment_id);
+      }
       throw new Error('Failed to upload audio file');
     }
 
@@ -99,6 +167,10 @@ Deno.serve(async (req) => {
       .getPublicUrl(filePath);
 
     const audioUrl = urlData.publicUrl;
+
+    // NOW deduct credits after successful generation
+    const creditResult = await validateAndDeductCredits(creditService, userId, 'audioGeneration', { text, audioUrl });
+    console.log(`Credits deducted after success: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
 
     // Update story segment if segment_id provided
     if (segment_id) {
@@ -136,9 +208,11 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         audio_url: audioUrl,
+        audioUrl: audioUrl, // Support both formats for frontend compatibility
         credits_used: creditResult.creditsUsed,
         credits_remaining: creditResult.newBalance,
         word_count: text.trim().split(/\s+/).length,
+        from_cache: false
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -148,6 +222,15 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Audio generation error:', error);
+    
+    // Mark segment as failed if segment_id provided
+    if (segment_id) {
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      await supabase
+        .from('story_segments')
+        .update({ audio_generation_status: 'failed' })
+        .eq('id', segment_id);
+    }
     
     // Handle insufficient credits error
     if (error.message?.includes('Insufficient credits')) {
