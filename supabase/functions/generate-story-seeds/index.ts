@@ -1,124 +1,123 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createAIService } from '../_shared/ai-service.ts';
-import { PromptTemplateManager, FallbackGenerators } from '../_shared/prompt-templates.ts';
-import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
-// ============= TYPES =============
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
-interface GenerateStorySeedsRequest {
-  ageGroup: string;
-  genres: string[];
+interface SeedsRequest {
+  genre?: string;
+  ageGroup?: string;
   language?: string;
-  characters: Array<{
-    id: string;
-    name: string;
-    description: string;
-    character_type: string;
-    personality_traits: string[];
-  }>;
+  count?: number;
 }
 
-// ============= MAIN HANDLER =============
-
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return ResponseHandler.corsOptions();
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Parse request
-    const {
-      ageGroup,
-      genres,
-      language = 'en',
-      characters
-    }: GenerateStorySeedsRequest = await req.json();
-
-    console.log('Generating story seeds for:', {
-      ageGroup,
-      genres,
-      language,
-      charactersCount: characters.length
-    });
-
-    // Validate input
-    if (!ageGroup || !genres || !Array.isArray(genres) || genres.length === 0) {
-      return ResponseHandler.error('Missing required fields: ageGroup, genres', 400);
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
     }
 
-    // Create AI service
-    const aiService = createAIService();
+    // Parse request body
+    const { 
+      genre = 'fantasy', 
+      ageGroup = '7-9', 
+      language = 'en',
+      count = 5 
+    }: SeedsRequest = await req.json();
 
-// Fix the context structure - we need to fix the duplicate language property
-    const context = {
-      ageGroup,
-      genre: genres.join(', '),
-      language,  
-      characters: characters.map(char => ({
-        name: char.name,
-        description: char.description,
-        role: char.character_type,
-        personality_traits: char.personality_traits
-      }))
-    };
+    // Generate story seeds using OpenAI (free operation - no credits needed)
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
 
-    // Generate prompt using template
-    const promptTemplate = PromptTemplateManager.generateStorySeeds(context);
+    const systemPrompt = `You are a creative children's story idea generator. Create engaging, age-appropriate story concepts that spark imagination.`;
+    
+    const userPrompt = `Generate ${count} creative story ideas for children's books with these parameters:
+Genre: ${genre}
+Age Group: ${ageGroup}
+Language: ${language}
 
-    // Measure processing time
-    const { result, duration } = await withTiming(async () => {
-      // Call AI service
-      const aiResponse = await aiService.generate('story-seeds', {
+Requirements:
+- Age-appropriate for ${ageGroup} year olds
+- Engaging and imaginative concepts
+- Suitable for the ${genre} genre
+- Each idea should be 1-2 sentences
+- Include diverse characters and settings
+- Focus on themes of friendship, adventure, learning, and growth
+- Return only the story ideas, one per line, no numbering`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: promptTemplate.system },
-          { role: 'user', content: promptTemplate.user }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
         ],
-        responseFormat: 'json',
-        schema: promptTemplate.schema
-      });
-
-      // Validate and normalize response
-      const normalizedData = ResponseHandler.validateAndNormalize(
-        aiResponse.content,
-        Validators.storySeeds,
-        () => FallbackGenerators.generateStorySeeds(context)
-      );
-
-      return {
-        seeds: normalizedData.seeds,
-        model_used: aiResponse.model,
-        provider: aiResponse.provider,
-        tokensUsed: aiResponse.tokensUsed
-      };
+        max_tokens: 800,
+        temperature: 0.9,
+      }),
     });
 
-    console.log('✅ Story seeds generated successfully:', {
-      seedsCount: result.seeds.length,
-      model: result.model_used,
-      provider: result.provider,
-      duration: `${duration}ms`
-    });
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
 
-    return ResponseHandler.success(result, result.model_used, {
-      tokensUsed: result.tokensUsed,
-      processingTime: duration,
-      provider: result.provider
-    });
+    const data = await response.json();
+    const seedsContent = data.choices[0]?.message?.content;
+
+    if (!seedsContent) {
+      throw new Error('Failed to generate story seeds');
+    }
+
+    // Parse seeds from response
+    const seeds = seedsContent
+      .split('\n')
+      .map(seed => seed.trim())
+      .filter(seed => seed.length > 0)
+      .slice(0, count); // Ensure only requested count
+
+    console.log(`Generated ${seeds.length} story seeds for ${genre}/${ageGroup}`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        seeds,
+        genre,
+        age_group: ageGroup,
+        language,
+        count: seeds.length,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
+    );
 
   } catch (error) {
-    console.error('❌ Story seeds generation failed:', error);
+    console.error('Story seeds generation error:', error);
     
-    // Return appropriate error response
-    if (error.message.includes('API keys not configured')) {
-      return ResponseHandler.error('AI services not configured', 503);
-    }
-    
-    return ResponseHandler.error(
-      error.message || 'Failed to generate story seeds',
-      500,
-      { stack: error.stack }
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || 'Failed to generate story seeds',
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      }
     );
   }
 });

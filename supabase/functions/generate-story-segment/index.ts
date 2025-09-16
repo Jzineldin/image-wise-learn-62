@@ -1,277 +1,194 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { createAIService } from '../_shared/ai-service.ts';
-import { PromptTemplateManager } from '../_shared/prompt-templates.ts';
-import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
-import { logger } from '../_shared/logger.ts';
-import { CreditService, validateAndDeductCredits, CREDIT_COSTS } from '../_shared/credit-system.ts';
+import { CreditService, CREDIT_COSTS, validateAndDeductCredits } from '../_shared/credit-system.ts';
 
-// ============= TYPES =============
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
-interface GenerateSegmentRequest {
-  storyId: string;
-  choiceId: number;
-  choiceText: string;
-  previousSegmentContent: string;
-  storyContext: {
-    title: string;
-    description: string;
-    ageGroup: string;
-    genre: string;
-    languageCode?: string;
-    characters: Array<{
-      name: string;
-      description: string;
-      role: string;
-    }>;
-  };
-  segmentNumber: number;
-  requestId?: string;
+interface SegmentRequest {
+  story_id: string;
+  choice?: string;
+  segment_number: number;
 }
 
-// ============= MAIN HANDLER =============
-
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return ResponseHandler.corsOptions();
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Initialize Supabase client
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
+    }
+
+    // Initialize services
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Parse request
-    const {
-      storyId,
-      choiceId,
-      choiceText,
-      previousSegmentContent,
-      storyContext,
-      segmentNumber,
-      requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    }: GenerateSegmentRequest = await req.json();
-
-    // Get authorization header for user authentication
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      throw new Error('Authorization header missing');
-    }
-
-    // Initialize credit service and validate credits
     const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
+
+    // Get user ID
     const userId = await creditService.getUserId();
+    console.log(`Processing story segment for user: ${userId}`);
 
-    // Validate and deduct credits for story segment generation
-    try {
-      const creditResult = await validateAndDeductCredits(
-        creditService,
-        userId,
-        'storySegment'
-      );
-      console.log(`Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
-    } catch (error) {
-      if (error.message === 'Insufficient credits') {
-        // Return successful response with error flag for insufficient credits
-        return new Response(JSON.stringify({
-          success: false,
-          error_code: 'INSUFFICIENT_CREDITS',
-          error: 'Insufficient credits to generate story segment',
-          required: CREDIT_COSTS.storySegment,
-          available: await creditService.checkUserCredits(userId, CREDIT_COSTS.storySegment).then(result => result.currentCredits)
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', ...ResponseHandler.corsOptions().headers }
-        });
-      }
-      throw error;
+    // Parse request body
+    const { story_id, choice, segment_number }: SegmentRequest = await req.json();
+
+    if (!story_id) {
+      throw new Error('Story ID is required');
     }
 
+    // Validate and deduct credits
+    const creditResult = await validateAndDeductCredits(creditService, userId, 'storySegment');
+    console.log(`Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
 
-    logger.storySegmentGeneration(storyId, segmentNumber || 1, requestId);
+    // Get story details
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { data: story, error: storyError } = await supabase
+      .from('stories')
+      .select('title, genre, age_group, language_code')
+      .eq('id', story_id)
+      .eq('user_id', userId)
+      .single();
 
-    // Validate input
-    if (!storyId || !choiceText || !previousSegmentContent || !storyContext) {
-      logger.error('Validation failed: Missing required fields', new Error('Missing required fields'), {
-        requestId,
-        hasStoryId: !!storyId,
-        hasChoiceText: !!choiceText,
-        hasPreviousContent: !!previousSegmentContent,
-        hasStoryContext: !!storyContext
-      });
-      return ResponseHandler.error('Missing required fields', 400);
+    if (storyError) {
+      throw new Error('Story not found or access denied');
     }
 
-    // Create AI service
-    const aiService = createAIService();
+    // Get previous segments for context
+    const { data: segments } = await supabase
+      .from('story_segments')
+      .select('content, choices')
+      .eq('story_id', story_id)
+      .order('segment_number');
 
-    // Determine if this should be an ending segment
-    const shouldBeEnding = segmentNumber >= 4 && Math.random() > 0.4;
+    const previousContent = segments?.map(s => s.content).join('\n\n') || '';
+    
+    // Generate continuation using OpenAI
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
 
-    // Prepare context for prompt generation
-    const context = {
-      ageGroup: storyContext.ageGroup,
-      genre: storyContext.genre,
-      language: storyContext.languageCode || 'en',
-      characters: storyContext.characters,
-      previousContent: previousSegmentContent,
-      choiceText,
-      segmentNumber,
-      shouldBeEnding
-    };
+    const systemPrompt = `You are continuing an interactive children's story. Generate the next segment based on the previous content and user choice.`;
+    
+    let userPrompt = `Continue this story for children aged ${story.age_group} in the ${story.genre} genre.
 
-    // Generate prompt using template
-    const promptTemplate = PromptTemplateManager.generateStorySegment(context);
+Story so far:
+${previousContent}
 
-    // Measure processing time
-    const { result, duration } = await withTiming(async () => {
-      // Call AI service
-      const aiResponse = await aiService.generate('story-segments', {
+${choice ? `User chose: ${choice}` : 'Continue the story naturally.'}
+
+Requirements:
+- Age-appropriate content for ${story.age_group} year olds
+- Continue the narrative smoothly from previous segments
+- Include dialogue and descriptive scenes
+- Length: 2-3 paragraphs
+- End with 2-3 choices for what happens next
+- Return ONLY the story continuation and choices, no formatting`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: promptTemplate.system },
-          { role: 'user', content: promptTemplate.user }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
         ],
-        responseFormat: 'json',
-        schema: promptTemplate.schema
-      });
-
-      // Validate and normalize response
-      const normalizedData = ResponseHandler.validateAndNormalize(
-        aiResponse.content,
-        Validators.storySegment
-        // No fallback for segments - should fail if AI doesn't work
-      );
-
-      // Log any validation warnings for debugging
-      const validation = Validators.storySegment.validate(aiResponse.content);
-      if (validation.warnings.length > 0) {
-        logger.info('AI response had validation warnings', {
-          requestId,
-          warnings: validation.warnings
-        });
-      }
-
-      return {
-        segmentData: normalizedData,
-        model_used: aiResponse.model,
-        provider: aiResponse.provider,
-        tokensUsed: aiResponse.tokensUsed
-      };
+        max_tokens: 1000,
+        temperature: 0.8,
+      }),
     });
 
-    logger.info('AI generation completed', {
-      requestId,
-      contentLength: result.segmentData.content.length,
-      choicesCount: result.segmentData.choices.length,
-      isEnding: result.segmentData.is_ending,
-      model: result.model_used,
-      provider: result.provider,
-      duration: `${duration}ms`,
-      tokensUsed: result.tokensUsed
-    });
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
 
-    // Create the segment in the database
-    const { data: newSegment, error: segmentError } = await supabase
+    const data = await response.json();
+    const segmentContent = data.choices[0]?.message?.content;
+
+    if (!segmentContent) {
+      throw new Error('Failed to generate segment content');
+    }
+
+    // Parse choices from content (simple implementation)
+    const choiceMatches = segmentContent.match(/(?:Choice \d+:|Option \d+:|\d+\.)([^\n]+)/g) || [];
+    const choices = choiceMatches.map((match, index) => ({
+      id: index + 1,
+      text: match.replace(/^(?:Choice \d+:|Option \d+:|\d+\.)/, '').trim()
+    }));
+
+    // Create story segment
+    const { data: segment, error: segmentError } = await supabase
       .from('story_segments')
       .insert({
-        story_id: storyId,
-        segment_number: segmentNumber,
-        content: result.segmentData.content,
-        choices: result.segmentData.choices,
-        is_ending: result.segmentData.is_ending || false,
-        metadata: {
-          generated_from_choice: {
-            id: choiceId,
-            text: choiceText
-          },
-          model_used: result.model_used,
-          provider: result.provider,
-          generation_timestamp: new Date().toISOString(),
-          processing_time_ms: duration
-        }
+        story_id,
+        segment_number,
+        content: segmentContent,
+        segment_text: segmentContent,
+        choices: JSON.stringify(choices),
+        is_ending: choices.length === 0,
       })
       .select()
       .single();
 
     if (segmentError) {
-      logger.error('Database error creating segment', segmentError, {
-        requestId,
-        storyId,
-        segmentNumber
-      });
-      return ResponseHandler.error('Failed to save segment to database', 500, segmentError);
+      console.error('Error creating segment:', segmentError);
+      throw new Error('Failed to save story segment');
     }
 
-    // If this is an ending, update the story status
-    if (result.segmentData.is_ending) {
-      const { error: updateError } = await supabase
-        .from('stories')
-        .update({
-          status: 'completed',
-          is_completed: true,
-          is_complete: true,
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', storyId);
+    // Update story credits used
+    await creditService.updateStoryCreditsUsed(story_id, creditResult.creditsUsed);
 
-      if (updateError) {
-        logger.warn('Failed to update story completion status', updateError, {
-          requestId,
-          storyId
-        });
-      } else {
-        logger.info('Story marked as completed', {
-          requestId,
-          storyId
-        });
+    console.log(`Story segment created successfully: ${segment.id}`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        segment_id: segment.id,
+        content: segmentContent,
+        choices,
+        credits_used: creditResult.creditsUsed,
+        credits_remaining: creditResult.newBalance,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
       }
-    }
-
-    logger.info('Story segment created successfully', {
-      requestId,
-      segmentId: newSegment.id,
-      storyId,
-      segmentNumber: newSegment.segment_number,
-      isEnding: result.segmentData.is_ending || false
-    });
-
-    return ResponseHandler.success({
-      segment: newSegment,
-      is_ending: result.segmentData.is_ending || false,
-      requestId
-    }, result.model_used, {
-      tokensUsed: result.tokensUsed,
-      processingTime: duration,
-      provider: result.provider,
-      requestId
-    });
+    );
 
   } catch (error) {
-    const requestId = (req as any).requestId || 'unknown';
-    logger.error('Story segment generation failed', error, {
-      requestId,
-      timestamp: new Date().toISOString()
-    });
-
-    // Return appropriate error response
-    if (error.message.includes('API keys not configured')) {
-      return ResponseHandler.error('AI services not configured', 503, { requestId });
+    console.error('Story segment generation error:', error);
+    
+    // Handle insufficient credits error
+    if (error.message?.includes('Insufficient credits')) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error_code: 'INSUFFICIENT_CREDITS',
+          error: error.message,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
     }
 
-    if (error.message.includes('Invalid response format')) {
-      return ResponseHandler.error('AI generated invalid content format', 502, { requestId });
-    }
-
-    return ResponseHandler.error(
-      error.message || 'Segment generation failed',
-      500,
-      { 
-        stack: error.stack,
-        requestId,
-        timestamp: new Date().toISOString()
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || 'Failed to generate story segment',
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
       }
     );
   }

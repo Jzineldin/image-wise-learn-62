@@ -1,125 +1,120 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createAIService } from '../_shared/ai-service.ts';
-import { PromptTemplateManager, FallbackGenerators } from '../_shared/prompt-templates.ts';
-import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
-// ============= TYPES =============
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
-interface GenerateTitleRequest {
-  storyContent: string;
-  ageGroup: string;
+interface TitleRequest {
+  prompt: string;
   genre: string;
-  characters?: Array<{
-    name: string;
-    role: string;
-  }>;
-  currentTitle?: string;
+  ageGroup: string;
+  language?: string;
 }
 
-// ============= MAIN HANDLER =============
-
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return ResponseHandler.corsOptions();
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Parse request
-    const {
-      storyContent,
-      ageGroup,
-      genre,
-      characters = [],
-      currentTitle
-    }: GenerateTitleRequest = await req.json();
-
-    console.log('Generating story titles:', {
-      contentLength: storyContent.length,
-      ageGroup,
-      genre,
-      charactersCount: characters.length
-    });
-
-    // Validate input
-    if (!storyContent || !ageGroup || !genre) {
-      return ResponseHandler.error('Missing required fields: storyContent, ageGroup, genre', 400);
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
     }
 
-    // Create AI service
-    const aiService = createAIService();
+    // Parse request body
+    const { prompt, genre, ageGroup, language = 'en' }: TitleRequest = await req.json();
 
-    // Prepare context for prompt generation
-    const context = {
-      ageGroup,
-      genre,
-      storyContent,
-      currentTitle,
-      characters: characters.map(char => ({
-        name: char.name,
-        role: char.role
-      }))
-    };
+    if (!prompt) {
+      throw new Error('Prompt is required for title generation');
+    }
 
-    // Generate prompt using template
-    const promptTemplate = PromptTemplateManager.generateStoryTitles(context);
+    // Generate title using OpenAI (free operation - no credits needed)
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
 
-    // Measure processing time
-    const { result, duration } = await withTiming(async () => {
-      // Call AI service
-      const aiResponse = await aiService.generate('story-titles', {
+    const systemPrompt = `You are a creative children's book title generator. Create engaging, age-appropriate titles that capture the essence of the story.`;
+    
+    const userPrompt = `Generate 3 creative titles for a children's story with these details:
+Genre: ${genre}
+Age Group: ${ageGroup}
+Story Concept: ${prompt}
+Language: ${language}
+
+Requirements:
+- Age-appropriate for ${ageGroup} year olds
+- Catchy and memorable
+- Reflects the ${genre} genre
+- Each title should be 2-6 words
+- Return only the titles, one per line, no numbering`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: promptTemplate.system },
-          { role: 'user', content: promptTemplate.user }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
         ],
-        responseFormat: 'json',
-        schema: promptTemplate.schema,
-        temperature: 0.9 // Higher creativity for titles
-      });
-
-      // Validate and normalize response
-      const normalizedData = ResponseHandler.validateAndNormalize(
-        aiResponse.content,
-        Validators.storyTitles,
-        () => FallbackGenerators.generateStoryTitles(context)
-      );
-
-      return {
-        titles: normalizedData.titles,
-        recommended: normalizedData.recommended,
-        model_used: aiResponse.model,
-        provider: aiResponse.provider,
-        tokensUsed: aiResponse.tokensUsed
-      };
+        max_tokens: 200,
+        temperature: 0.9,
+      }),
     });
 
-    console.log('✅ Story titles generated successfully:', {
-      titlesCount: result.titles.length,
-      recommended: result.recommended,
-      model: result.model_used,
-      provider: result.provider,
-      duration: `${duration}ms`
-    });
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
 
-    return ResponseHandler.success(result, result.model_used, {
-      tokensUsed: result.tokensUsed,
-      processingTime: duration,
-      provider: result.provider
-    });
+    const data = await response.json();
+    const titleContent = data.choices[0]?.message?.content;
+
+    if (!titleContent) {
+      throw new Error('Failed to generate titles');
+    }
+
+    // Parse titles from response
+    const titles = titleContent
+      .split('\n')
+      .map(title => title.trim())
+      .filter(title => title.length > 0)
+      .slice(0, 3); // Ensure only 3 titles
+
+    console.log(`Generated ${titles.length} titles for prompt: ${prompt}`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        titles,
+        prompt,
+        genre,
+        age_group: ageGroup,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
+    );
 
   } catch (error) {
-    console.error('❌ Story title generation failed:', error);
-
-    // Return appropriate error response
-    if (error.message.includes('API keys not configured')) {
-      return ResponseHandler.error('AI services not configured', 503);
-    }
-
-    return ResponseHandler.error(
-      error.message || 'Title generation failed',
-      500,
-      { stack: error.stack }
+    console.error('Title generation error:', error);
+    
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || 'Failed to generate titles',
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      }
     );
   }
 });

@@ -1,5 +1,3 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
@@ -7,185 +5,147 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface TranslateRequest {
+interface TranslationRequest {
   content: string;
-  fromLanguage: string;
-  toLanguage: string;
-  contentType: 'story' | 'segment' | 'title' | 'description';
-  storyId?: string;
-  segmentId?: string;
+  from_language: string;
+  to_language: string;
+  content_type?: 'story' | 'segment' | 'title' | 'description';
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
+    }
+
+    // Parse request body
+    const { 
+      content, 
+      from_language, 
+      to_language, 
+      content_type = 'story' 
+    }: TranslationRequest = await req.json();
+
+    if (!content || !from_language || !to_language) {
+      throw new Error('Content, from_language, and to_language are required');
+    }
+
+    if (from_language === to_language) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          translated_content: content,
+          from_language,
+          to_language,
+          content_type,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
+    // Translate content using OpenAI
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiApiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const languageNames = {
+      'en': 'English',
+      'sv': 'Swedish',
+      'es': 'Spanish',
+      'fr': 'French',
+      'de': 'German',
+      'it': 'Italian',
+      'pt': 'Portuguese',
+      'nl': 'Dutch',
+      'ru': 'Russian',
+      'ja': 'Japanese',
+      'ko': 'Korean',
+      'zh': 'Chinese',
+    };
 
-    const { 
-      content, 
-      fromLanguage, 
-      toLanguage, 
-      contentType,
-      storyId,
-      segmentId
-    }: TranslateRequest = await req.json();
+    const fromLang = languageNames[from_language as keyof typeof languageNames] || from_language;
+    const toLang = languageNames[to_language as keyof typeof languageNames] || to_language;
 
-    console.log('Translation request:', { 
-      fromLanguage, 
-      toLanguage, 
-      contentType, 
-      contentLength: content.length 
-    });
-
-    if (!content || content.trim().length === 0) {
-      throw new Error('Content is required for translation');
-    }
-
-    // Get target language configuration
-    const { data: targetLang, error: langError } = await supabase
-      .from('languages')
-      .select('ai_model_config, native_name')
-      .eq('code', toLanguage)
-      .eq('is_active', true)
-      .single();
-
-    if (langError) {
-      console.error('Target language error:', langError);
-      throw new Error(`Target language ${toLanguage} not supported`);
-    }
-
-    const langConfig = targetLang.ai_model_config as any;
-    const languageName = targetLang.native_name;
-
-    // Build translation prompt based on content type
-    let translationPrompt = '';
+    const systemPrompt = `You are a professional translator specializing in children's literature. Translate content while preserving the tone, style, and age-appropriateness of the original text.`;
     
-    switch (contentType) {
-      case 'story':
-        translationPrompt = `Translate this children's story from ${fromLanguage} to ${languageName}. Maintain the storytelling style, age-appropriate language, and emotional tone. Preserve all character names and story structure.\n\nStory:\n${content}`;
-        break;
-      case 'segment':
-        translationPrompt = `Translate this story segment from ${fromLanguage} to ${languageName}. Keep the narrative flow and child-friendly language.\n\nSegment:\n${content}`;
-        break;
-      case 'title':
-        translationPrompt = `Translate this story title from ${fromLanguage} to ${languageName}. Keep it engaging and appropriate for children.\n\nTitle: ${content}`;
-        break;
-      case 'description':
-        translationPrompt = `Translate this story description from ${fromLanguage} to ${languageName}. Maintain the appealing and descriptive nature.\n\nDescription:\n${content}`;
-        break;
-      default:
-        translationPrompt = `Translate the following text from ${fromLanguage} to ${languageName}:\n\n${content}`;
-    }
+    const userPrompt = `Translate this children's ${content_type} from ${fromLang} to ${toLang}:
 
-    // Prepare OpenAI request
-    const messages = [
-      {
-        role: 'system',
-        content: `You are a professional translator specializing in children's literature. Translate accurately while preserving the storytelling magic, emotional impact, and age-appropriate language. Always respond with ONLY the translated text, no explanations or additional content.`
-      },
-      {
-        role: 'user',
-        content: translationPrompt
-      }
-    ];
+${content}
 
-    console.log('Calling OpenAI for translation with model:', langConfig.primary_model);
+Requirements:
+- Maintain the original tone and style
+- Keep age-appropriate language
+- Preserve formatting and structure
+- Use natural, fluent ${toLang}
+- Return ONLY the translated content, no additional text`;
 
-    // Call OpenAI API
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: langConfig.primary_model || 'gpt-4o-mini',
-        messages: messages,
-        max_tokens: Math.min(2000, content.length * 2), // Allow for language expansion
-        temperature: 0.3, // Lower temperature for more consistent translations
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        max_tokens: Math.min(4000, Math.max(500, content.length * 2)),
+        temperature: 0.3,
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI translation error:', errorText);
-      throw new Error(`Translation failed: ${response.status}`);
+      throw new Error(`OpenAI API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const translatedContent = data.choices[0].message.content.trim();
+    const translatedContent = data.choices[0]?.message?.content;
 
-    console.log('Translation completed successfully');
-
-    // Store translation in database if storyId provided
-    if (storyId) {
-      if (segmentId) {
-        // Store segment translation
-        await supabase
-          .from('story_segments_i18n')
-          .upsert({
-            segment_id: segmentId,
-            language_code: toLanguage,
-            content: translatedContent,
-          });
-      } else {
-        // Store story translation
-        if (contentType === 'story') {
-          await supabase
-            .from('story_content_i18n')
-            .upsert({
-              story_id: storyId,
-              language_code: toLanguage,
-              content: { full_text: translatedContent },
-            });
-        } else if (contentType === 'title' || contentType === 'description') {
-          // Update or insert story metadata translation
-          const updateData: any = {};
-          if (contentType === 'title') updateData.title = translatedContent;
-          if (contentType === 'description') updateData.description = translatedContent;
-          
-          await supabase
-            .from('story_content_i18n')
-            .upsert({
-              story_id: storyId,
-              language_code: toLanguage,
-              ...updateData,
-            });
-        }
-      }
+    if (!translatedContent) {
+      throw new Error('Failed to translate content');
     }
 
-    return new Response(JSON.stringify({ 
-      translatedContent,
-      fromLanguage,
-      toLanguage,
-      contentType,
-      originalLength: content.length,
-      translatedLength: translatedContent.length
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.log(`Content translated from ${fromLang} to ${toLang} (${content_type})`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        translated_content: translatedContent,
+        from_language,
+        to_language,
+        content_type,
+        original_content: content,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
+    );
 
   } catch (error) {
-    console.error('Error in translate-content function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      details: 'Translation failed' 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error('Translation error:', error);
+    
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || 'Failed to translate content',
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      }
+    );
   }
 });
