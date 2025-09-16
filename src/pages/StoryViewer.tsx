@@ -993,6 +993,8 @@ const StoryViewer = () => {
               generatingAudio={generatingAudio}
               onToggleAudio={toggleAudio}
               onGenerateAudio={() => generateAudio(currentSegment.id, currentSegment.content)}
+              selectedVoice={selectedVoice}
+              onVoiceChange={setSelectedVoice}
             />
           )}
 
@@ -1049,6 +1051,9 @@ const StoryViewer = () => {
           canSkipForward={currentSegmentIndex < segments.length - 1}
           canSkipBack={currentSegmentIndex > 0}
           disabled={creditLock.current}
+          selectedVoice={selectedVoice}
+          onVoiceChange={setSelectedVoice}
+          showVoiceSelector={true}
         />
       )}
     </div>

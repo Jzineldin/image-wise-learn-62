@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Loader2
 } from 'lucide-react';
+import CompactVoiceSelector from '@/components/CompactVoiceSelector';
 
 interface AudioControlsProps {
   audioUrl?: string;
@@ -27,6 +28,10 @@ interface AudioControlsProps {
   size?: 'sm' | 'md' | 'lg';
   variant?: 'compact' | 'full';
   disabled?: boolean;
+  // Voice selector props
+  selectedVoice?: string;
+  onVoiceChange?: (voiceId: string) => void;
+  showVoiceSelector?: boolean;
 }
 
 export const AudioControls = ({
@@ -43,7 +48,10 @@ export const AudioControls = ({
   className = "",
   size = 'md',
   variant = 'full',
-  disabled = false
+  disabled = false,
+  selectedVoice,
+  onVoiceChange,
+  showVoiceSelector = false
 }: AudioControlsProps) => {
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
@@ -122,6 +130,15 @@ export const AudioControls = ({
           </Button>
         )}
 
+        {/* Voice Selector for compact mode */}
+        {showVoiceSelector && onVoiceChange && (
+          <CompactVoiceSelector
+            selectedVoice={selectedVoice}
+            onVoiceSelect={onVoiceChange}
+            size={size === 'lg' ? 'md' : 'sm'}
+          />
+        )}
+
         {audioUrl && (
           <span className={`text-text-secondary ${currentSize.text}`}>
             {isPlaying ? 'Playing' : 'Ready'}
@@ -189,6 +206,15 @@ export const AudioControls = ({
             <span className={`text-text-secondary ${currentSize.text} min-w-[80px]`}>
               {isGenerating ? 'Generating...' : audioUrl ? (isPlaying ? 'Playing' : 'Ready') : 'Generate Audio'}
             </span>
+
+            {/* Voice Selector for full mode */}
+            {showVoiceSelector && onVoiceChange && (
+              <CompactVoiceSelector
+                selectedVoice={selectedVoice}
+                onVoiceSelect={onVoiceChange}
+                size={size === 'lg' ? 'md' : 'sm'}
+              />
+            )}
           </div>
         </div>
 
@@ -269,7 +295,10 @@ export const FloatingAudioControls = ({
   canSkipForward = false,
   canSkipBack = false,
   disabled = false,
-  className = ""
+  className = "",
+  selectedVoice,
+  onVoiceChange,
+  showVoiceSelector = false
 }: Omit<AudioControlsProps, 'variant' | 'size'>) => {
   return (
     <div className={`fixed bottom-6 right-6 z-40 ${className}`}>
@@ -288,6 +317,9 @@ export const FloatingAudioControls = ({
         variant="full"
         disabled={disabled}
         className="shadow-2xl"
+        selectedVoice={selectedVoice}
+        onVoiceChange={onVoiceChange}
+        showVoiceSelector={showVoiceSelector}
       />
     </div>
   );

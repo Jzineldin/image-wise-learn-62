@@ -48,6 +48,9 @@ interface StorySegmentDisplayProps {
   generatingAudio?: boolean;
   onToggleAudio?: () => void;
   onGenerateAudio?: () => void;
+  // Voice selector props
+  selectedVoice?: string;
+  onVoiceChange?: (voiceId: string) => void;
 }
 
 export const StorySegmentDisplay = ({
@@ -63,7 +66,9 @@ export const StorySegmentDisplay = ({
   isPlaying = false,
   generatingAudio = false,
   onToggleAudio,
-  onGenerateAudio
+  onGenerateAudio,
+  selectedVoice,
+  onVoiceChange
 }: StorySegmentDisplayProps) => {
   const isCompleted = story.status === 'completed' || story.is_completed || story.is_complete;
 
@@ -150,6 +155,9 @@ export const StorySegmentDisplay = ({
             variant="compact"
             size="md"
             className="bg-card border border-border/50 rounded-lg p-3"
+            selectedVoice={selectedVoice}
+            onVoiceChange={onVoiceChange}
+            showVoiceSelector={true}
           />
         </div>
       )}
