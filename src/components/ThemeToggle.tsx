@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 interface ThemeIconProps {
   theme: ThemeVariant;

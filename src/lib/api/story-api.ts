@@ -4,7 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { getOperationEstimate, isOperationSupported } from '@/utils/aiConfig';
+import { getOperationEstimate, isOperationSupported } from '@/lib/constants/ai-constants';
 
 // ============= TYPES & INTERFACES =============
 
