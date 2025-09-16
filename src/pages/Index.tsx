@@ -5,11 +5,28 @@ import { Sparkles, BookOpen, Users, ArrowRight, Play, Star, CheckCircle, Zap, Tr
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import FeaturedStoriesCarousel from '@/components/FeaturedStoriesCarousel';
+import { addSampleFeaturedStories } from '@/utils/sampleData';
 import heroBookImage from '@/assets/hero-book.jpg';
 import childrenStoriesImage from '@/assets/children-stories.jpg';
 import aiStorytellingImage from '@/assets/ai-storytelling.jpg';
+import { useEffect, useState } from 'react';
 
 const Index = () => {
+  const [sampleDataAdded, setSampleDataAdded] = useState(false);
+
+  // Add sample featured stories on first visit (development aid)
+  useEffect(() => {
+    const initializeSampleData = async () => {
+      if (!sampleDataAdded && process.env.NODE_ENV === 'development') {
+        const success = await addSampleFeaturedStories();
+        if (success) {
+          setSampleDataAdded(true);
+        }
+      }
+    };
+    initializeSampleData();
+  }, [sampleDataAdded]);
+
   const features = [
     {
       icon: <Sparkles className="w-8 h-8 text-primary" />,
