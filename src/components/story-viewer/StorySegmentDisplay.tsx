@@ -73,9 +73,9 @@ export const StorySegmentDisplay = ({
   const isCompleted = story.status === 'completed' || story.is_completed || story.is_complete;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Story Image */}
-      <div className="relative aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5">
+      <div className="relative aspect-video rounded-xl overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5 shadow-lg">
         {segment.image_url ? (
           <img
             src={segment.image_url}
@@ -130,12 +130,12 @@ export const StorySegmentDisplay = ({
       </div>
 
       {/* Story Content */}
-      <Card className="border-border/50">
-        <CardContent className="p-6">
+      <Card className="border-border/50 shadow-sm">
+        <CardContent className="p-8">
           <div className={`prose prose-lg max-w-none ${viewMode === 'experience' ? 'text-center' : ''}`}>
             <div 
               className="leading-relaxed text-foreground"
-              style={{ fontSize: `${fontSize}px`, lineHeight: '1.7' }}
+              style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}
             >
               {segment.content}
             </div>
@@ -154,7 +154,7 @@ export const StorySegmentDisplay = ({
             onGenerateAudio={onGenerateAudio}
             variant="compact"
             size="md"
-            className="bg-card border border-border/50 rounded-lg p-3"
+            className="bg-card border border-border/50 rounded-xl p-4 shadow-sm"
             selectedVoice={selectedVoice}
             onVoiceChange={onVoiceChange}
             showVoiceSelector={true}
@@ -164,21 +164,21 @@ export const StorySegmentDisplay = ({
 
       {/* Choices */}
       {segment.choices && segment.choices.length > 0 && viewMode === 'creation' && (
-        <div className="space-y-3">
-          <h3 className="font-semibold text-lg">What happens next?</h3>
-          <div className="grid gap-3">
+        <div className="space-y-4">
+          <h3 className="font-semibold text-xl text-center">What happens next?</h3>
+          <div className="grid gap-4">
             {segment.choices.map((choice) => (
               <Button
                 key={choice.id}
                 variant="outline"
-                className="p-4 h-auto text-left justify-start hover:bg-primary/5"
+                className="p-6 h-auto text-left justify-start hover:bg-primary/5 rounded-xl border-2 hover:border-primary/20 transition-all duration-200"
                 onClick={() => onChoice(choice.id, choice.text)}
                 disabled={generatingSegment || isCompleted}
               >
-                <div className="space-y-1">
-                  <div className="font-medium">{choice.text}</div>
+                <div className="space-y-2">
+                  <div className="font-medium text-base">{choice.text}</div>
                   {choice.impact && (
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       Impact: {choice.impact}
                     </div>
                   )}
@@ -188,9 +188,9 @@ export const StorySegmentDisplay = ({
           </div>
           
           {generatingSegment && (
-            <div className="flex items-center justify-center space-x-2 p-4 bg-muted/50 rounded-lg">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-              <span className="text-sm">Continuing your story...</span>
+            <div className="flex items-center justify-center space-x-3 p-6 bg-muted/50 rounded-xl">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+              <span className="text-base font-medium">Continuing your story...</span>
             </div>
           )}
         </div>
@@ -198,9 +198,9 @@ export const StorySegmentDisplay = ({
 
       {/* Ending indicator */}
       {segment.is_ending && (
-        <div className="text-center p-6 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg">
-          <h3 className="text-lg font-semibold mb-2">The End</h3>
-          <p className="text-muted-foreground">This adventure has reached its conclusion.</p>
+        <div className="text-center p-8 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl border border-primary/20">
+          <h3 className="text-2xl font-bold mb-3 text-gradient">The End</h3>
+          <p className="text-lg text-muted-foreground">This adventure has reached its conclusion.</p>
         </div>
       )}
     </div>

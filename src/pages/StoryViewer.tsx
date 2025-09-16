@@ -220,9 +220,10 @@ const StoryViewer = () => {
       setSegments(transformedSegments);
 
       // Only auto-generate image for the latest segment if not credit locked
-      if (transformedSegments.length > 0 && !creditLock) {
+      if (transformedSegments.length > 0 && !creditLock.current) {
         const latestSegment = transformedSegments[transformedSegments.length - 1];
         if (!latestSegment.image_url && latestSegment.content) {
+          console.log('🖼️ Auto-generating image for latest segment on load:', latestSegment.id);
           generateSegmentImage(latestSegment);
         }
       }

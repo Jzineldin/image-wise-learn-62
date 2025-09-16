@@ -24,8 +24,8 @@ export const StoryNavigation = ({
   const canGoNext = currentSegmentIndex < totalSegments - 1;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between bg-card border rounded-lg p-4">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between bg-card border rounded-xl p-6 shadow-sm">
       <Button
         variant="outline"
         size="sm"
