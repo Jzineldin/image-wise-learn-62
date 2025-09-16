@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { logger } from "./lib/debug";
+import { logger } from "./lib/production-logger";
 
 // Global error handlers for better debugging
 window.addEventListener('error', (event) => {

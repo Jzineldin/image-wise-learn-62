@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/production-logger';
 
 interface CreditDisplayProps {
   compact?: boolean;
@@ -34,7 +35,7 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
       if (error) throw error;
       setCredits(data?.current_balance || 0);
     } catch (error) {
-      console.error('Error fetching credits:', error);
+      logger.error('Error fetching credits', error, { component: 'CreditDisplay' });
     } finally {
       setLoading(false);
     }

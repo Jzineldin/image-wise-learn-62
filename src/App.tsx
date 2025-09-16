@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -30,7 +30,8 @@ const TestimonialsPage = lazy(() => import("./pages/Testimonials"));
 const NotFoundPage = lazy(() => import("./pages/NotFound"));
 
 
-const queryClient = new QueryClient();
+import { queryClient } from "@/lib/query-client";
+import { logger } from "@/lib/production-logger";
 
 // Force refresh - Testimonials component should be available
 

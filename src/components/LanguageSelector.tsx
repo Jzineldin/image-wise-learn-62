@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Globe, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/production-logger';
 
 interface Language {
   code: string;
@@ -46,7 +47,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
 
       setLanguages(data || []);
     } catch (error) {
-      console.error('Error fetching languages:', error);
+      logger.error('Error fetching languages', error, { component: 'LanguageSelector' });
       toast({
         title: "Error",
         description: "Failed to load available languages",
@@ -94,7 +95,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         });
       }
     } catch (error) {
-      console.error('Error saving language preference:', error);
+      logger.error('Error saving language preference', error, { component: 'LanguageSelector' });
       toast({
         title: "Error",
         description: "Failed to save language preference",
