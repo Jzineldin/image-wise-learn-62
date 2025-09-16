@@ -11,7 +11,7 @@ import { ReadingModeControls } from '@/components/ReadingModeControls';
 import { StoryModeToggle, StoryModeIndicator } from '@/components/story-viewer/StoryModeToggle';
 import { AudioControls, FloatingAudioControls } from '@/components/story-viewer/AudioControls';
 import { logger, generateRequestId } from '@/lib/debug';
-import { AIClient, InsufficientCreditsError } from '@/lib/ai-client';
+import { AIClient, InsufficientCreditsError, AIClientError } from '@/lib/ai-client';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 import CreditCostDisplay from '@/components/CreditCostDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';

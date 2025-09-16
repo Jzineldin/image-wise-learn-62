@@ -170,17 +170,38 @@ export class ImageService {
       throw new Error(`OVH API error: ${response.status} - ${errorText}`);
     }
 
-    // Response should contain the image data
-    const result = await response.json();
+    // Check content type to handle both JSON and binary responses
+    const contentType = response.headers.get('content-type') || '';
     
-    if (!result.generated_image) {
-      throw new Error('No image generated from OVH API');
-    }
+    if (contentType.includes('image/') || contentType.includes('application/octet-stream')) {
+      // Binary image response - convert to base64 data URL
+      const imageBlob = await response.blob();
+      const arrayBuffer = await imageBlob.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      
+      return {
+        imageUrl: `data:image/png;base64,${base64}`,
+        seed: request.seed
+      };
+    } else {
+      // JSON response with image URL or base64
+      try {
+        const result = await response.json();
+        
+        if (!result.generated_image && !result.image && !result.data) {
+          throw new Error('No image generated from OVH API');
+        }
 
-    return {
-      imageUrl: result.generated_image,
-      seed: request.seed
-    };
+        const imageUrl = result.generated_image || result.image || result.data;
+        
+        return {
+          imageUrl,
+          seed: result.seed || request.seed
+        };
+      } catch (jsonError) {
+        throw new Error(`OVH API returned invalid JSON: ${jsonError.message}`);
+      }
+    }
   }
 
   /**

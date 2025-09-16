@@ -86,19 +86,26 @@ Deno.serve(async (req) => {
 ${characters.map(c => `- ${c.name}: ${c.description} (Personality: ${c.personality})`).join('\n')}`;
     }
     
-    const systemPrompt = `You are a skilled children's story writer. Create engaging, age-appropriate stories that capture imagination while teaching valuable lessons. Write complete stories with clear beginnings, middles, and ends.`;
+    const systemPrompt = `You are a skilled children's story writer creating interactive stories. Create engaging opening segments that set up the story world and present meaningful choices for the reader to continue the adventure.`;
     
-    const userPrompt = `Create a ${existingStory.story_type || 'short'} story for children aged ${ageGroup} in the ${genre} genre.
+    const userPrompt = `Create an opening segment for an interactive ${existingStory.story_type || 'short'} story for children aged ${ageGroup} in the ${genre} genre.
 
 Story prompt: ${prompt}
 Language: ${languageCode}${characterContext}
 
 Requirements:
 - Age-appropriate content for ${ageGroup} year olds
-- Engaging narrative with clear beginning, middle, and end
-- Include dialogue and descriptive scenes
-- Length: 3-5 paragraphs for short stories, longer for other types
-- Return only the story content, no additional formatting`;
+- Create an engaging opening that introduces the setting, main character(s), and initial situation
+- End with a cliffhanger or decision point that leads to 2-3 meaningful choices
+- Length: 2-3 paragraphs for the opening segment
+- The story should continue based on reader choices, not end immediately
+
+Format your response as:
+CONTENT: [story opening content]
+CHOICES: 
+1. [choice 1 - brief description]
+2. [choice 2 - brief description]  
+3. [choice 3 - brief description]`;
 
     console.log(`[${requestId}] Generating story with AI service...`);
     const aiResponse = await aiService.generate('story-generation', {
@@ -110,14 +117,42 @@ Requirements:
       temperature: 0.8
     });
 
-    const storyContent = aiResponse.content;
+    const rawContent = aiResponse.content;
     console.log(`[${requestId}] Story generated using ${aiResponse.provider} - ${aiResponse.model}`);
 
-    // Update story status and credits
+    // Parse content and choices
+    const contentMatch = rawContent.match(/CONTENT:\s*([\s\S]*?)(?=CHOICES:|$)/);
+    const choicesMatch = rawContent.match(/CHOICES:\s*([\s\S]*)/);
+    
+    const storyContent = contentMatch?.[1]?.trim() || rawContent;
+    let choices = [];
+    
+    if (choicesMatch) {
+      const choiceLines = choicesMatch[1].split('\n').filter(line => line.trim());
+      choices = choiceLines.map((line, index) => {
+        const cleanLine = line.replace(/^\d+\.\s*/, '').trim();
+        return {
+          id: index + 1,
+          text: cleanLine,
+          consequences: null
+        };
+      }).filter(choice => choice.text);
+    }
+
+    // If no choices were parsed, create default ones
+    if (choices.length === 0) {
+      choices = [
+        { id: 1, text: "Continue the adventure", consequences: null },
+        { id: 2, text: "Explore a different path", consequences: null },
+        { id: 3, text: "Take a moment to think", consequences: null }
+      ];
+    }
+
+    // Update story status (in progress, not completed yet)
     const { data: updatedStory, error: updateError } = await supabase
       .from('stories')
       .update({
-        status: 'completed',
+        status: 'in_progress',
         credits_used: (existingStory.credits_used || 0) + creditResult.creditsUsed,
       })
       .eq('id', storyId)
@@ -129,7 +164,7 @@ Requirements:
       throw new Error('Failed to update story');
     }
 
-    // Create story segment with content
+    // Create story segment with content and choices
     const { error: segmentError } = await supabase
       .from('story_segments')
       .insert({
@@ -137,7 +172,8 @@ Requirements:
         segment_number: 1,
         content: storyContent,
         segment_text: storyContent,
-        is_ending: true,
+        is_ending: false,
+        choices: choices
       });
 
     if (segmentError) {

@@ -1,4 +1,5 @@
 // Debug utility for comprehensive logging with correlation IDs
+import { LogControl, type LogLevel } from './log-control';
 
 interface LogContext {
   requestId?: string;
@@ -12,7 +13,12 @@ interface LogContext {
 export class DebugLogger {
   private static instance: DebugLogger;
   private isDevelopment = import.meta.env.DEV;
-  private logLevel = import.meta.env.VITE_LOG_LEVEL || 'info';
+  private logLevel: string;
+
+  constructor() {
+    // Use LogControl for centralized log level management
+    this.logLevel = LogControl.getLogLevel();
+  }
 
   static getInstance(): DebugLogger {
     if (!DebugLogger.instance) {

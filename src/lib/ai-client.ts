@@ -6,6 +6,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { generateRequestId } from '@/lib/debug';
 
 export interface AIClientResponse<T = any> {
   success: boolean;
@@ -52,21 +53,47 @@ export class InsufficientCreditsError extends AIClientError {
  * Unified AI client for making edge function calls
  */
 export class AIClient {
+  private static failureCount = new Map<string, number>();
+  private static lastFailureTime = new Map<string, number>();
+  private static readonly MAX_FAILURES = 3;
+  private static readonly CIRCUIT_BREAKER_TIMEOUT = 60000; // 1 minute
+
   /**
-   * Call an edge function with unified error handling
+   * Call an edge function with unified error handling and circuit breaker
    */
   static async invoke<T = any>(
     functionName: string,
     body: any,
     options: { timeout?: number; retries?: number } = {}
   ): Promise<AIClientResponse<T>> {
-    const { timeout = 30000, retries = 0 } = options;
+    const { timeout = 30000, retries = 1 } = options; // Reduced default retries
+    
+    // Check circuit breaker
+    const failures = this.failureCount.get(functionName) || 0;
+    const lastFailure = this.lastFailureTime.get(functionName) || 0;
+    const now = Date.now();
+    
+    if (failures >= this.MAX_FAILURES && now - lastFailure < this.CIRCUIT_BREAKER_TIMEOUT) {
+      throw new AIClientError(
+        `Circuit breaker open for ${functionName}. Too many failures.`,
+        'CIRCUIT_BREAKER_OPEN',
+        503
+      );
+    }
+    
+    // Reset circuit breaker if timeout passed
+    if (now - lastFailure > this.CIRCUIT_BREAKER_TIMEOUT) {
+      this.failureCount.set(functionName, 0);
+    }
     
     let lastError: Error;
     
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        console.log(`🚀 Calling ${functionName} (attempt ${attempt + 1}/${retries + 1})`);
+        const shouldLog = attempt === 0 || this.shouldLogRetry(functionName, attempt);
+        if (shouldLog) {
+          console.log(`🚀 Calling ${functionName} (attempt ${attempt + 1}/${retries + 1})`);
+        }
         
         // Get fresh session
         const { data: { session } } = await supabase.auth.getSession();
@@ -94,6 +121,8 @@ export class AIClient {
             
             // Check for specific error patterns
             const errorMessage = this.parseSupabaseError(error);
+            const errorCode = this.classifyError(error, errorMessage);
+            
             if (errorMessage.includes('Insufficient credits')) {
               const match = errorMessage.match(/Required: (\d+), Available: (\d+)/);
               if (match) {
@@ -106,17 +135,19 @@ export class AIClient {
             
             throw new AIClientError(
               errorMessage,
-              'EDGE_FUNCTION_ERROR',
+              errorCode,
               (error as any).status || 500,
               error
             );
           }
 
-          console.log(`✅ ${functionName} response received:`, { 
-            success: data?.success,
-            hasData: !!data?.data,
-            errorCode: data?.error_code
-          });
+          if (shouldLog) {
+            console.log(`✅ ${functionName} response received:`, { 
+              success: data?.success,
+              hasData: !!data?.data,
+              errorCode: data?.error_code
+            });
+          }
 
           // Handle structured error responses from edge functions
           if (data && !data.success) {
@@ -140,6 +171,9 @@ export class AIClient {
             throw new AIClientError('No response data received', 'NO_DATA', 500);
           }
 
+          // Reset failure count on success
+          this.failureCount.set(functionName, 0);
+
           return {
             success: true,
             data: data.data || data, // Handle both wrapped and unwrapped responses
@@ -152,24 +186,32 @@ export class AIClient {
         }
 
       } catch (error) {
-        console.error(`❌ ${functionName} attempt ${attempt + 1} failed:`, error);
+        const shouldLogError = attempt === 0 || this.shouldLogRetry(functionName, attempt);
+        if (shouldLogError) {
+          console.error(`❌ ${functionName} attempt ${attempt + 1} failed:`, error);
+        }
         lastError = error as Error;
         
-        // Don't retry on authentication or credit errors
-        if (error instanceof AIClientError && 
-            ['AUTH_REQUIRED', 'INSUFFICIENT_CREDITS'].includes(error.code || '')) {
+        // Update failure tracking
+        if (error instanceof AIClientError) {
+          this.failureCount.set(functionName, failures + 1);
+          this.lastFailureTime.set(functionName, now);
+        }
+        
+        // Check if error is retryable
+        if (!this.isRetryableError(error as AIClientError)) {
           throw error;
         }
         
-        // Don't retry on client errors (4xx)
-        if (error instanceof AIClientError && error.statusCode && error.statusCode < 500) {
-          throw error;
-        }
-        
-        // Wait before retry (exponential backoff)
+        // Wait before retry with exponential backoff + jitter
         if (attempt < retries) {
-          const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
-          console.log(`⏳ Retrying ${functionName} in ${delay}ms...`);
+          const baseDelay = Math.min(1000 * Math.pow(2, attempt), 8000);
+          const jitter = Math.random() * 1000;
+          const delay = baseDelay + jitter;
+          
+          if (shouldLogError) {
+            console.log(`⏳ Retrying ${functionName} in ${Math.round(delay)}ms...`);
+          }
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
@@ -177,6 +219,59 @@ export class AIClient {
     
     // All retries failed
     throw lastError!;
+  }
+
+  /**
+   * Determine if an error is retryable
+   */
+  private static isRetryableError(error: AIClientError): boolean {
+    if (!error.code) return true; // Unknown errors are retryable
+    
+    const nonRetryableCodes = [
+      'AUTH_REQUIRED',
+      'INSUFFICIENT_CREDITS', 
+      'VALIDATION_ERROR',
+      'PROVIDER_RESPONSE_ERROR',
+      'API_FORMAT_ERROR',
+      'CIRCUIT_BREAKER_OPEN'
+    ];
+    
+    if (nonRetryableCodes.includes(error.code)) return false;
+    
+    // Don't retry 4xx errors except for specific cases
+    if (error.statusCode && error.statusCode >= 400 && error.statusCode < 500) {
+      return error.statusCode === 408 || error.statusCode === 429; // Timeout or rate limit
+    }
+    
+    return true;
+  }
+
+  /**
+   * Classify error type for better handling
+   */
+  private static classifyError(error: any, message: string): string {
+    if (message.includes('Insufficient credits')) return 'INSUFFICIENT_CREDITS';
+    if (message.includes('Authentication') || message.includes('Unauthorized')) return 'AUTH_REQUIRED';
+    if (message.includes('not valid JSON') || message.includes('unexpected token')) return 'API_FORMAT_ERROR';
+    if (message.includes('Rate limit') || message.includes('429')) return 'RATE_LIMITED';
+    if (message.includes('timeout') || message.includes('aborted')) return 'TIMEOUT';
+    
+    return 'EDGE_FUNCTION_ERROR';
+  }
+
+  /**
+   * Determine if retry attempts should be logged (reduce noise)
+   */
+  private static shouldLogRetry(functionName: string, attempt: number): boolean {
+    // Always log first attempt and final attempt
+    if (attempt === 0) return true;
+    
+    // Log every retry for critical functions
+    const criticalFunctions = ['generate-story', 'generate-story-segment'];
+    if (criticalFunctions.includes(functionName)) return true;
+    
+    // For other functions, only log final retry attempt
+    return attempt >= 2;
   }
 
   /**
