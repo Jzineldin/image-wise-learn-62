@@ -13,10 +13,10 @@ import { StorySegmentDisplay } from '@/components/story-viewer/StorySegmentDispl
 import { StoryNavigation } from '@/components/story-viewer/StoryNavigation';
 import { StoryMetadata } from '@/components/story-viewer/StoryMetadata';
 import { StoryControls } from '@/components/story-viewer/StoryControls';
-import { logger, generateRequestId } from '@/lib/debug';
-import { AIClient, InsufficientCreditsError, AIClientError } from '@/lib/ai-client';
+import { logger, generateRequestId } from '@/lib/utils/debug';
+import { AIClient, InsufficientCreditsError, AIClientError } from '@/lib/api/ai-client';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
-import { calculateTTSCredits } from '@/utils/creditCalculations';
+import { calculateTTSCredits } from '@/lib/api/credit-api';
 
 type ViewMode = 'creation' | 'experience';
 
