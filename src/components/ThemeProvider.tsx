@@ -52,37 +52,6 @@ export function ThemeProvider({
     applyTheme(currentTheme);
   }, [currentTheme]);
 
-  // Auto-theme based on time of day
-  useEffect(() => {
-    if (!autoThemeEnabled) return;
-
-    const checkTimeBasedTheme = () => {
-      // Get recommended theme based on time of day
-      const hour = new Date().getHours();
-      let recommendedTheme: ThemeVariant;
-      
-      if (hour >= 6 && hour < 12) {
-        recommendedTheme = 'dawn'; // Morning
-      } else if (hour >= 12 && hour < 18) {
-        recommendedTheme = 'twilight'; // Afternoon/Evening
-      } else {
-        recommendedTheme = 'midnight'; // Night
-      }
-      
-      if (recommendedTheme !== currentTheme) {
-        setThemeHandler(recommendedTheme);
-      }
-    };
-
-    // Check immediately
-    checkTimeBasedTheme();
-
-    // Check every hour
-    const interval = setInterval(checkTimeBasedTheme, 60 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, [autoThemeEnabled, currentTheme]);
-
   const setThemeHandler = useCallback(async (newTheme: ThemeVariant) => {
     if (newTheme === currentTheme) return;
 
@@ -101,6 +70,39 @@ export function ThemeProvider({
       setIsThemeTransitioning(false);
     }, 50);
   }, [currentTheme, setStoreTheme]);
+
+  // Auto-theme based on time of day
+  useEffect(() => {
+    if (!autoThemeEnabled) return;
+
+    const checkTimeBasedTheme = () => {
+      // Get recommended theme based on time of day
+      const hour = new Date().getHours();
+      let recommendedTheme: ThemeVariant;
+      
+      if (hour >= 6 && hour < 12) {
+        recommendedTheme = 'dawn'; // Morning
+      } else if (hour >= 12 && hour < 18) {
+        recommendedTheme = 'twilight'; // Afternoon/Evening
+      } else {
+        recommendedTheme = 'midnight'; // Night
+      }
+      
+      // Get current theme from store to avoid circular dependency
+      const { theme: storeTheme } = useUIStore.getState();
+      if (recommendedTheme !== storeTheme) {
+        setThemeHandler(recommendedTheme);
+      }
+    };
+
+    // Check immediately
+    checkTimeBasedTheme();
+
+    // Check every hour
+    const interval = setInterval(checkTimeBasedTheme, 60 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [autoThemeEnabled, setThemeHandler]); // Removed currentTheme to prevent circular dependency
 
   const toggleTheme = useCallback(() => {
     const themes: ThemeVariant[] = ['midnight', 'twilight', 'dawn'];
