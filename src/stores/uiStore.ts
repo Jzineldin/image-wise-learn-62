@@ -1,15 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { ThemeVariant } from '@/lib/utils/theme';
 
-export type Theme = 'midnight' | 'twilight' | 'dawn';
 export type Language = 'en' | 'sv';
 
 interface UIState {
-  theme: Theme;
+  theme: ThemeVariant;
   language: Language;
   sidebarOpen: boolean;
   onboardingCompleted: boolean;
-  setTheme: (theme: Theme) => void;
+  setTheme: (theme: ThemeVariant) => void;
   setLanguage: (language: Language) => void;
   setSidebarOpen: (open: boolean) => void;
   setOnboardingCompleted: (completed: boolean) => void;

@@ -5,6 +5,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { getOperationEstimate, isOperationSupported } from '@/lib/constants/ai-constants';
+import { logger, generateRequestId } from '@/lib/debug';
 
 // ============= TYPES & INTERFACES =============
 
@@ -77,11 +78,14 @@ export const generateStory = async (options: StoryGenerationOptions): Promise<St
     throw new Error(`Story generation not supported for age group: ${options.ageGroup}, genre: ${options.genre}`);
   }
 
-  console.log('Generating story with centralized AI service:', {
+  const requestId = generateRequestId();
+  logger.info('Generating story with centralized AI service', {
+    requestId,
     ageGroup: options.ageGroup,
     genre: options.genre,
     charactersCount: options.characters.length,
-    estimate: getOperationEstimate('story-generation')
+    estimate: getOperationEstimate('story-generation'),
+    operation: 'story-generation'
   });
 
   const { data, error } = await supabase.functions.invoke('generate-story', {
@@ -89,7 +93,7 @@ export const generateStory = async (options: StoryGenerationOptions): Promise<St
   });
 
   if (error) {
-    console.error('Story generation error:', error);
+    logger.error('Story generation failed', error, { requestId });
     throw new Error(error.message || 'Failed to generate story');
   }
 
@@ -109,7 +113,7 @@ export const generateAudio = async (options: AudioGenerationOptions): Promise<Au
   });
 
   if (error) {
-    console.error('Audio generation error:', error);
+    logger.error('Audio generation failed', error, { options });
     throw new Error(error.message || 'Failed to generate audio');
   }
 
@@ -129,7 +133,7 @@ export const translateContent = async (options: TranslationOptions): Promise<Tra
   });
 
   if (error) {
-    console.error('Translation error:', error);
+    logger.error('Translation failed', error, { options });
     throw new Error(error.message || 'Failed to translate content');
   }
 
