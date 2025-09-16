@@ -181,13 +181,29 @@ const StoryViewer = () => {
         content: segment.content || '',
         image_url: segment.image_url,
         audio_url: segment.audio_url,
-        choices: Array.isArray(segment.choices) 
-          ? (segment.choices as any[]).map((choice: any) => ({
-              id: choice?.id ?? 0,
-              text: choice?.text ?? '',
-              impact: choice?.impact
-            }))
-          : [],
+        choices: (() => {
+          try {
+            // Handle both string (legacy) and array formats
+            const rawChoices = segment.choices;
+            if (Array.isArray(rawChoices)) {
+              return rawChoices.map((choice: any) => ({
+                id: choice?.id ?? 0,
+                text: choice?.text ?? '',
+                impact: choice?.impact
+              }));
+            } else if (typeof rawChoices === 'string') {
+              const parsed = JSON.parse(rawChoices);
+              return Array.isArray(parsed) ? parsed.map((choice: any) => ({
+                id: choice?.id ?? 0,
+                text: choice?.text ?? '',
+                impact: choice?.impact
+              })) : [];
+            }
+            return [];
+          } catch {
+            return [];
+          }
+        })(),
         is_ending: !!segment.is_ending
       }));
       

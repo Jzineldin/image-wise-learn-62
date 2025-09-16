@@ -5,6 +5,8 @@
  * Supports multiple providers with fallback strategies.
  */
 
+import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
+
 export interface ImageProvider {
   name: string;
   baseUrl: string;
@@ -174,10 +176,11 @@ export class ImageService {
     const contentType = response.headers.get('content-type') || '';
     
     if (contentType.includes('image/') || contentType.includes('application/octet-stream')) {
-      // Binary image response - convert to base64 data URL
+      // Binary image response - convert to base64 data URL safely
       const imageBlob = await response.blob();
       const arrayBuffer = await imageBlob.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const base64 = encodeBase64(uint8Array);
       
       return {
         imageUrl: `data:image/png;base64,${base64}`,

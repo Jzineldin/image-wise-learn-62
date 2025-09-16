@@ -172,7 +172,7 @@ CHOICES:
         segment_number: 1,
         content: storyContent,
         segment_text: storyContent,
-        is_ending: false,
+        is_ending: choices.length === 0,
         choices: choices
       });
 

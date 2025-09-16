@@ -113,7 +113,7 @@ Requirements:
         segment_number,
         content: segmentContent,
         segment_text: segmentContent,
-        choices: JSON.stringify(choices),
+        choices: choices,
         is_ending: choices.length === 0,
       })
       .select()
