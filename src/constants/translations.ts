@@ -338,8 +338,8 @@ export const t = (key: string, language: string = 'en'): string => {
 // Swedish voice mappings for ElevenLabs
 // Using actual ElevenLabs voice IDs that support multilingual v2
 export const SWEDISH_VOICES = {
-  'male': ['CwhRBWXzGAHq8TQ4Fs17', 'TX3LPaxmHKxFdv7VOQHJ'],  // Roger, Liam
-  'female': ['9BWtsMINqrJLrRacOk9x', 'EXAVITQu4vr4xnSDxMaL', 'XB0fDUnXU5powFXDhCwa'],  // Aria, Sarah, Charlotte
+  'male': ['x0u3EW21dbrORJzOq1m9', 'kkwvaJeTPw4KK0sBdyvD'],  // Adam, J.Bengt
+  'female': ['aSLKtNoVBZlxQEMsnGL2', '4Ct5uMEndw4cJ7q0Jx0l'],  // Sanna, Elin
   'neutral': []
 };
 

@@ -130,6 +130,14 @@ const StoryViewer = () => {
     if (story && user) {
       const isUserStory = story.author_id === user.id || story.user_id === user.id;
       setIsOwner(isUserStory);
+      console.log('🔒 Ownership check:', {
+        isOwner: isUserStory,
+        userId: user.id,
+        authorId: story.author_id,
+        storyUserId: story.user_id,
+        viewMode,
+        isCompleted: story.status === 'completed' || story.is_completed || story.is_complete
+      });
     }
   }, [searchParams, story, user]);
 
@@ -333,15 +341,22 @@ const StoryViewer = () => {
       if (updatedSegments.length > 0) {
         setCurrentSegmentIndex(updatedSegments.length - 1);
         
-        // Generate image for the new segment
-        const newSegment = updatedSegments[updatedSegments.length - 1];
-        if (newSegment && !newSegment.image_url) {
-          logger.debug('Triggering image generation for new segment', {
-            requestId,
-            segmentId: newSegment.id
-          });
-          generateSegmentImage(newSegment);
-        }
+      // Generate image for the new segment
+      const newSegment = updatedSegments[updatedSegments.length - 1];
+      if (newSegment && !newSegment.image_url) {
+        logger.debug('Triggering image generation for new segment', {
+          requestId,
+          segmentId: newSegment.id
+        });
+        console.log('🖼️ Auto-generating image for new segment:', newSegment.id);
+        generateSegmentImage(newSegment);
+      } else {
+        console.log('📷 Skipping auto-image generation:', {
+          hasSegment: !!newSegment,
+          hasImage: !!newSegment?.image_url,
+          segmentId: newSegment?.id
+        });
+      }
       }
 
       toast({

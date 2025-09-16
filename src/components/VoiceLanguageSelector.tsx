@@ -20,11 +20,17 @@ const VoiceLanguageSelector: React.FC<VoiceLanguageSelectorProps> = ({
 
   // Voice names mapping
   const voiceNames: Record<string, string> = {
+    // English voices
     '9BWtsMINqrJLrRacOk9x': 'Aria',
     'CwhRBWXzGAHq8TQ4Fs17': 'Roger',
     'EXAVITQu4vr4xnSDxMaL': 'Sarah',
     'TX3LPaxmHKxFdv7VOQHJ': 'Liam',
-    'XB0fDUnXU5powFXDhCwa': 'Charlotte'
+    'XB0fDUnXU5powFXDhCwa': 'Charlotte',
+    // Swedish voices
+    'x0u3EW21dbrORJzOq1m9': 'Adam',
+    'aSLKtNoVBZlxQEMsnGL2': 'Sanna',
+    'kkwvaJeTPw4KK0sBdyvD': 'J.Bengt',
+    '4Ct5uMEndw4cJ7q0Jx0l': 'Elin'
   };
 
   const getVoicesForLanguage = (languageCode: string) => {
