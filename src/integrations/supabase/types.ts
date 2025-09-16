@@ -617,6 +617,39 @@ export type Database = {
           },
         ]
       }
+      system_config: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       tier_limits: {
         Row: {
           created_at: string | null
@@ -840,6 +873,10 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_delete_story: {
+        Args: { p_story_id: string }
+        Returns: boolean
+      }
       admin_feature_story: {
         Args: {
           p_featured_until?: string
@@ -847,6 +884,47 @@ export type Database = {
           p_story_id: string
         }
         Returns: boolean
+      }
+      admin_get_age_group_distribution: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          age_group: string
+          count: number
+          percentage: number
+        }[]
+      }
+      admin_get_all_stories: {
+        Args: { limit_count?: number }
+        Returns: {
+          author_name: string
+          created_at: string
+          credits_used: number
+          id: string
+          status: string
+          title: string
+          visibility: string
+        }[]
+      }
+      admin_get_analytics_overview: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active_users_30d: number
+          total_credits_used: number
+          total_stories: number
+          total_users: number
+        }[]
+      }
+      admin_get_audit_logs: {
+        Args: { limit_count?: number }
+        Returns: {
+          action: string
+          created_at: string
+          details: Json
+          id: string
+          resource_id: string
+          resource_type: string
+          user_id: string
+        }[]
       }
       admin_get_completed_stories: {
         Args: { limit_count?: number }
@@ -858,6 +936,34 @@ export type Database = {
           id: string
           is_featured: boolean
           title: string
+        }[]
+      }
+      admin_get_content_flags: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          flag_type: string
+          id: string
+          reason: string
+          story_id: string
+        }[]
+      }
+      admin_get_daily_usage: {
+        Args: { days_back?: number }
+        Returns: {
+          credits: number
+          date: string
+          stories: number
+          users: number
+        }[]
+      }
+      admin_get_featured_performance: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          author: string
+          story_id: string
+          title: string
+          views: number
         }[]
       }
       admin_get_featured_stories: {
@@ -874,12 +980,33 @@ export type Database = {
           title: string
         }[]
       }
+      admin_get_genre_distribution: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          count: number
+          genre: string
+          percentage: number
+        }[]
+      }
+      admin_get_top_users: {
+        Args: { limit_count?: number }
+        Returns: {
+          credits_used: number
+          stories_count: number
+          user_id: string
+          user_name: string
+        }[]
+      }
       admin_unfeature_story: {
         Args: { p_story_id: string }
         Returns: boolean
       }
       admin_update_featured_priority: {
         Args: { p_priority: number; p_story_id: string }
+        Returns: boolean
+      }
+      admin_update_story_visibility: {
+        Args: { p_story_id: string; p_visibility: string }
         Returns: boolean
       }
       deduct_credits: {
