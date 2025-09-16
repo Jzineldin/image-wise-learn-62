@@ -1,26 +1,30 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { CreditService, CREDIT_COSTS, validateAndDeductCredits } from '../_shared/credit-system.ts';
+import { CreditService, validateAndDeductCredits } from '../_shared/credit-system.ts';
 import { createAIService } from '../_shared/ai-service.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { ResponseHandler } from '../_shared/response-handlers.ts';
 
 interface StoryRequest {
-  title: string;
+  storyId: string;
+  prompt: string;
   genre: string;
   ageGroup: string;
-  prompt: string;
-  language?: string;
-  storyType?: string;
+  languageCode?: string;
+  isInitialGeneration?: boolean;
+  characters?: Array<{
+    name: string;
+    description: string;
+    personality: string;
+  }>;
 }
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return ResponseHandler.corsOptions();
   }
+
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[${requestId}] Story generation request started`);
 
   try {
     const authHeader = req.headers.get('Authorization');
@@ -35,32 +39,68 @@ Deno.serve(async (req) => {
 
     // Get user ID
     const userId = await creditService.getUserId();
-    console.log(`Processing story generation for user: ${userId}`);
+    console.log(`[${requestId}] Processing story generation for user: ${userId}`);
 
-    // Parse request body
-    const { title, genre, ageGroup, prompt, language = 'en', storyType = 'short' }: StoryRequest = await req.json();
+    // Parse and validate request body
+    const body = await req.json();
+    const { 
+      storyId, 
+      prompt, 
+      genre, 
+      ageGroup, 
+      languageCode = 'en', 
+      isInitialGeneration = true,
+      characters = []
+    }: StoryRequest = body;
+
+    if (!storyId || !prompt || !genre || !ageGroup) {
+      throw new Error('Missing required fields');
+    }
+
+    console.log(`[${requestId}] Request validated:`, { storyId, genre, ageGroup, languageCode, hasCharacters: characters.length > 0 });
 
     // Validate and deduct credits
     const creditResult = await validateAndDeductCredits(creditService, userId, 'storyGeneration');
-    console.log(`Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
+    console.log(`[${requestId}] Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
 
-    // Generate story using AI service (OpenRouter Sonoma Dusk Alpha)
+    // Get the existing story to update
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { data: existingStory, error: fetchError } = await supabase
+      .from('stories')
+      .select('*')
+      .eq('id', storyId)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !existingStory) {
+      console.error(`[${requestId}] Story not found:`, fetchError);
+      throw new Error('Story not found or access denied');
+    }
+
+    // Generate story using AI service
     const aiService = createAIService();
     
-    const systemPrompt = `You are a skilled children's story writer. Create engaging, age-appropriate stories that capture imagination while teaching valuable lessons.`;
+    let characterContext = '';
+    if (characters.length > 0) {
+      characterContext = `\n\nMain characters to include:
+${characters.map(c => `- ${c.name}: ${c.description} (Personality: ${c.personality})`).join('\n')}`;
+    }
     
-    const userPrompt = `Create a ${storyType} story for children aged ${ageGroup} in the ${genre} genre.
-Title: ${title}
+    const systemPrompt = `You are a skilled children's story writer. Create engaging, age-appropriate stories that capture imagination while teaching valuable lessons. Write complete stories with clear beginnings, middles, and ends.`;
+    
+    const userPrompt = `Create a ${existingStory.story_type || 'short'} story for children aged ${ageGroup} in the ${genre} genre.
+
 Story prompt: ${prompt}
-Language: ${language}
+Language: ${languageCode}${characterContext}
 
 Requirements:
 - Age-appropriate content for ${ageGroup} year olds
 - Engaging narrative with clear beginning, middle, and end
 - Include dialogue and descriptive scenes
-- Length: 3-5 paragraphs for short stories
+- Length: 3-5 paragraphs for short stories, longer for other types
 - Return only the story content, no additional formatting`;
 
+    console.log(`[${requestId}] Generating story with AI service...`);
     const aiResponse = await aiService.generate('story-generation', {
       messages: [
         { role: 'system', content: systemPrompt },
@@ -71,38 +111,29 @@ Requirements:
     });
 
     const storyContent = aiResponse.content;
-    console.log(`Story generated using ${aiResponse.provider} - ${aiResponse.model}`);
+    console.log(`[${requestId}] Story generated using ${aiResponse.provider} - ${aiResponse.model}`);
 
-    // Create story record
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    const { data: story, error: storyError } = await supabase
+    // Update story status and credits
+    const { data: updatedStory, error: updateError } = await supabase
       .from('stories')
-      .insert({
-        title,
-        prompt,
-        genre,
-        age_group: ageGroup,
-        language_code: language,
-        story_type: storyType,
-        user_id: userId,
-        author_id: userId,
+      .update({
         status: 'completed',
-        visibility: 'private',
-        credits_used: creditResult.creditsUsed,
+        credits_used: (existingStory.credits_used || 0) + creditResult.creditsUsed,
       })
+      .eq('id', storyId)
       .select()
       .single();
 
-    if (storyError) {
-      console.error('Error creating story:', storyError);
-      throw new Error('Failed to save story');
+    if (updateError) {
+      console.error(`[${requestId}] Error updating story:`, updateError);
+      throw new Error('Failed to update story');
     }
 
     // Create story segment with content
     const { error: segmentError } = await supabase
       .from('story_segments')
       .insert({
-        story_id: story.id,
+        story_id: storyId,
         segment_number: 1,
         content: storyContent,
         segment_text: storyContent,
@@ -110,53 +141,34 @@ Requirements:
       });
 
     if (segmentError) {
-      console.error('Error creating story segment:', segmentError);
+      console.error(`[${requestId}] Error creating story segment:`, segmentError);
       throw new Error('Failed to save story content');
     }
 
-    console.log(`Story created successfully: ${story.id}`);
+    console.log(`[${requestId}] Story completed successfully: ${storyId}`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        story_id: story.id,
-        content: storyContent,
-        credits_used: creditResult.creditsUsed,
-        credits_remaining: creditResult.newBalance,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
+    return ResponseHandler.success({
+      story_id: storyId,
+      content: storyContent,
+      credits_used: creditResult.creditsUsed,
+      credits_remaining: creditResult.newBalance,
+    }, aiResponse.model, { requestId });
 
   } catch (error) {
-    console.error('Story generation error:', error);
+    console.error(`[${requestId}] Story generation error:`, error);
     
     // Handle insufficient credits error
     if (error.message?.includes('Insufficient credits')) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error_code: 'INSUFFICIENT_CREDITS',
-          error: error.message,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      );
+      return ResponseHandler.error('Insufficient credits', 400, { 
+        error_code: 'INSUFFICIENT_CREDITS',
+        requestId 
+      });
     }
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Failed to generate story',
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
+    return ResponseHandler.error(
+      error.message || 'Failed to generate story', 
+      500, 
+      { requestId }
     );
   }
 });

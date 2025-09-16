@@ -15,6 +15,9 @@ Deno.serve(async (req) => {
     return ResponseHandler.corsOptions();
   }
 
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[${requestId}] Story segment generation request started`);
+
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -28,7 +31,7 @@ Deno.serve(async (req) => {
 
     // Get user ID
     const userId = await creditService.getUserId();
-    console.log(`Processing story segment for user: ${userId}`);
+    console.log(`[${requestId}] Processing story segment for user: ${userId}`);
 
     // Parse request body
     const { story_id, choice, segment_number }: SegmentRequest = await req.json();
@@ -39,7 +42,7 @@ Deno.serve(async (req) => {
 
     // Validate and deduct credits
     const creditResult = await validateAndDeductCredits(creditService, userId, 'storySegment');
-    console.log(`Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
+    console.log(`[${requestId}] Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
 
     // Get story details
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -93,7 +96,7 @@ Requirements:
     });
 
     const segmentContent = aiResponse.content;
-    console.log(`Story segment generated using ${aiResponse.provider} - ${aiResponse.model}`);
+    console.log(`[${requestId}] Story segment generated using ${aiResponse.provider} - ${aiResponse.model}`);
 
     // Parse choices from content (simple implementation)
     const choiceMatches = segmentContent.match(/(?:Choice \d+:|Option \d+:|\d+\.)([^\n]+)/g) || [];
@@ -117,14 +120,14 @@ Requirements:
       .single();
 
     if (segmentError) {
-      console.error('Error creating segment:', segmentError);
+      console.error(`[${requestId}] Error creating segment:`, segmentError);
       throw new Error('Failed to save story segment');
     }
 
     // Update story credits used
     await creditService.updateStoryCreditsUsed(story_id, creditResult.creditsUsed);
 
-    console.log(`Story segment created successfully: ${segment.id}`);
+    console.log(`[${requestId}] Story segment created successfully: ${segment.id}`);
 
     return ResponseHandler.success(
       {
@@ -138,25 +141,25 @@ Requirements:
         credits_remaining: creditResult.newBalance
       },
       aiResponse.model,
-      { tokensUsed: aiResponse.tokensUsed, processingTime: Date.now() }
+      { requestId, tokensUsed: aiResponse.tokensUsed, processingTime: Date.now() }
     );
 
   } catch (error) {
-    console.error('Story segment generation error:', error);
+    console.error(`[${requestId}] Story segment generation error:`, error);
     
     // Handle insufficient credits error
     if (error.message?.includes('Insufficient credits')) {
       return ResponseHandler.error(
         error.message,
         400,
-        { error_code: 'INSUFFICIENT_CREDITS', operation: 'story-segment' }
+        { error_code: 'INSUFFICIENT_CREDITS', operation: 'story-segment', requestId }
       );
     }
 
     return ResponseHandler.error(
       error.message || 'Failed to generate story segment',
       500,
-      { operation: 'story-segment', timestamp: Date.now() }
+      { operation: 'story-segment', requestId, timestamp: Date.now() }
     );
   }
 });
