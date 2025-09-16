@@ -233,7 +233,13 @@ export class AIClient {
     characters?: any[];
     requestId: string;
   }) {
-    return this.invoke('generate-story-image', params, { timeout: 60000, retries: 2 });
+    // Build comprehensive prompt from story details
+    const characterNames = params.characters?.map(c => c.name).filter(Boolean).join(', ') || '';
+    const characterDesc = characterNames ? ` featuring characters ${characterNames}` : '';
+    
+    const prompt = `A children's book illustration for "${params.storyTitle}" (${params.ageGroup} age group, ${params.genre} genre). Scene: ${params.storyContent.slice(0, 200)}...${characterDesc}. Style: colorful, friendly, safe for children, high quality digital art.`;
+    
+    return this.invoke('generate-story-image', { ...params, prompt }, { timeout: 60000, retries: 2 });
   }
 
   /**

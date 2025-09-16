@@ -7,7 +7,12 @@ const corsHeaders = {
 };
 
 interface ImageRequest {
-  prompt: string;
+  prompt?: string;
+  storyContent?: string;
+  storyTitle?: string;
+  ageGroup?: string;
+  genre?: string;
+  characters?: any[];
   story_id?: string;
   segment_id?: string;
   style?: string;
@@ -35,10 +40,28 @@ Deno.serve(async (req) => {
     console.log(`Processing image generation for user: ${userId}`);
 
     // Parse request body
-    const { prompt, story_id, segment_id, style = 'children_book' }: ImageRequest = await req.json();
+    const { 
+      prompt, 
+      storyContent, 
+      storyTitle, 
+      ageGroup, 
+      genre, 
+      characters,
+      story_id, 
+      segment_id, 
+      style = 'children_book' 
+    }: ImageRequest = await req.json();
 
-    if (!prompt) {
-      throw new Error('Prompt is required for image generation');
+    // Build prompt if not provided
+    let finalPrompt = prompt;
+    if (!finalPrompt && storyContent) {
+      const characterNames = characters?.map((c: any) => c.name).filter(Boolean).join(', ') || '';
+      const characterDesc = characterNames ? ` featuring characters ${characterNames}` : '';
+      finalPrompt = `A children's book illustration for "${storyTitle || 'story'}" (${ageGroup || 'children'} age group, ${genre || 'adventure'} genre). Scene: ${storyContent.slice(0, 200)}...${characterDesc}. Style: colorful, friendly, safe for children, high quality digital art.`;
+    }
+
+    if (!finalPrompt) {
+      throw new Error('Either prompt or story content must be provided for image generation');
     }
 
     // Validate and deduct credits
@@ -52,7 +75,7 @@ Deno.serve(async (req) => {
     }
 
     // Enhance prompt for children's book style
-    const enhancedPrompt = `${prompt}, children's book illustration style, colorful, friendly, safe for children, high quality digital art`;
+    const enhancedPrompt = `${finalPrompt}, children's book illustration style, colorful, friendly, safe for children, high quality digital art`;
 
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
@@ -122,7 +145,7 @@ Deno.serve(async (req) => {
         .from('story_segments')
         .update({
           image_url: finalImageUrl,
-          image_prompt: prompt,
+          image_prompt: finalPrompt,
           image_generation_status: 'completed',
         })
         .eq('id', segment_id);
@@ -151,11 +174,16 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        image_url: finalImageUrl,
-        original_prompt: prompt,
-        enhanced_prompt: enhancedPrompt,
-        credits_used: creditResult.creditsUsed,
-        credits_remaining: creditResult.newBalance,
+        data: {
+          imageUrl: finalImageUrl,
+          originalPrompt: finalPrompt,
+          enhancedPrompt: enhancedPrompt,
+          creditsUsed: creditResult.creditsUsed,
+          creditsRemaining: creditResult.newBalance,
+        },
+        metadata: {
+          processingTime: Date.now() - parseInt(new Date().getTime().toString()),
+        }
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

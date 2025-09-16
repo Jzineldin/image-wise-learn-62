@@ -453,6 +453,21 @@ const StoryViewer = () => {
       });
       setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
       
+      // Show better error messages
+      if (error.code === 'INSUFFICIENT_CREDITS') {
+        toast({
+          title: "Insufficient Credits",
+          description: `Need ${error.required} credits, but only have ${error.available}. Please upgrade your plan.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Image generation failed",
+          description: error.message || "Failed to generate story image. Retrying...",
+          variant: "destructive",
+        });
+      }
+      
       setTimeout(() => {
         generateSegmentImage(segment);
       }, 2000 * (currentRetries + 1));
