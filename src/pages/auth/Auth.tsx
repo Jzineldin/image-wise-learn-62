@@ -89,7 +89,10 @@ const Auth = () => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      console.log('Starting Google OAuth flow...');
+      console.log('Current origin:', window.location.origin);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/dashboard`,
@@ -100,17 +103,35 @@ const Auth = () => {
         }
       });
 
+      console.log('Google OAuth response:', { data, error });
+
       if (error) {
+        console.error('Google OAuth error:', error);
+        
+        // Provide more specific error messages
+        let errorMessage = error.message;
+        if (error.message?.includes('OAuth')) {
+          errorMessage = "Google authentication is not properly configured. Please contact support.";
+        } else if (error.message?.includes('redirect_uri')) {
+          errorMessage = "Authentication redirect URL mismatch. Please contact support.";
+        } else if (error.message?.includes('unauthorized')) {
+          errorMessage = "Google authentication is not enabled. Please contact support.";
+        }
+        
         toast({
           title: "Google sign-in failed",
-          description: error.message,
+          description: errorMessage,
           variant: "destructive",
         });
+      } else {
+        // OAuth redirect will happen automatically if successful
+        console.log('Google OAuth initiated successfully');
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Google sign-in error:', error);
       toast({
-        title: "Error",
-        description: "Failed to initiate Google sign-in. Please try again.",
+        title: "Authentication Error",
+        description: error?.message || "Failed to initiate Google sign-in. Please try again.",
         variant: "destructive",
       });
     } finally {
