@@ -36,12 +36,20 @@ export interface ImageResponse {
 
 // Available image providers
 export const IMAGE_PROVIDERS: Record<string, ImageProvider> = {
+  ovh: {
+    name: 'OVH',
+    baseUrl: 'https://stable-diffusion-xl.endpoints.kepler.ai.cloud.ovh.net/api/text2image',
+    defaultModel: 'stable-diffusion-xl-base-v10',
+    supportedStyles: ['children_book', 'realistic', 'cartoon', 'watercolor'],
+    priority: 1,
+    costPerImage: 0 // Free on OVH
+  },
   replicate: {
     name: 'Replicate',
     baseUrl: 'https://api.replicate.com/v1/predictions',
     defaultModel: 'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc',
     supportedStyles: ['children_book', 'realistic', 'cartoon', 'watercolor'],
-    priority: 1,
+    priority: 2,
     costPerImage: 1
   },
   huggingface: {
@@ -49,7 +57,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProvider> = {
     baseUrl: 'https://api-inference.huggingface.co/models',
     defaultModel: 'stabilityai/stable-diffusion-xl-base-1.0',
     supportedStyles: ['children_book', 'realistic', 'artistic'],
-    priority: 2,
+    priority: 3,
     costPerImage: 1
   }
 };
@@ -117,6 +125,8 @@ export class ImageService {
     }
 
     switch (provider.name) {
+      case 'OVH':
+        return this.callOVH(provider, request, apiKey);
       case 'Replicate':
         return this.callReplicate(provider, request, apiKey);
       case 'HuggingFace':
@@ -124,6 +134,53 @@ export class ImageService {
       default:
         throw new Error(`Unknown provider: ${provider.name}`);
     }
+  }
+
+  /**
+   * Call OVH AI Endpoints SDXL generation
+   */
+  private async callOVH(
+    provider: ImageProvider,
+    request: ImageRequest,
+    apiKey: string
+  ): Promise<{ imageUrl: string; seed?: number }> {
+    // Enhance prompt for children's book style
+    const enhancedPrompt = this.enhancePromptForStyle(request.prompt, request.style || 'children_book');
+    
+    const body = {
+      prompt: enhancedPrompt,
+      width: request.width || 1024,
+      height: request.height || 1024,
+      num_inference_steps: request.steps || 25,
+      guidance_scale: request.guidance || 7.5,
+      seed: request.seed
+    };
+
+    const response = await fetch(provider.baseUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OVH API error: ${response.status} - ${errorText}`);
+    }
+
+    // Response should contain the image data
+    const result = await response.json();
+    
+    if (!result.generated_image) {
+      throw new Error('No image generated from OVH API');
+    }
+
+    return {
+      imageUrl: result.generated_image,
+      seed: request.seed
+    };
   }
 
   /**
@@ -279,6 +336,7 @@ export class ImageService {
    */
   private getApiKeyForProvider(providerName: string): string | null {
     const keyMap: Record<string, string> = {
+      'OVH': this.apiKeys.OVH_AI_ENDPOINTS_ACCESS_TOKEN,
       'Replicate': this.apiKeys.REPLICATE_API_KEY,
       'HuggingFace': this.apiKeys.HUGGINGFACE_API_KEY
     };
@@ -300,6 +358,7 @@ export class ImageService {
  */
 export function createImageService(): ImageService {
   const apiKeys = {
+    OVH_AI_ENDPOINTS_ACCESS_TOKEN: Deno.env.get('OVH_AI_ENDPOINTS_ACCESS_TOKEN') || '',
     REPLICATE_API_KEY: Deno.env.get('REPLICATE_API_KEY') || '',
     HUGGINGFACE_API_KEY: Deno.env.get('HUGGINGFACE_API_KEY') || ''
   };
