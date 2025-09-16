@@ -1,10 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { createAIService } from '../_shared/ai-service.ts';
+import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 interface TitleRequest {
   prompt: string;
@@ -14,89 +11,89 @@ interface TitleRequest {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return ResponseHandler.corsOptions();
   }
 
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      return ResponseHandler.error('No authorization header', 401);
     }
 
-    // Parse request body
-    const { prompt, genre, ageGroup, language = 'en' }: TitleRequest = await req.json();
-
-    if (!prompt) {
-      throw new Error('Prompt is required for title generation');
+    // Parse and validate request body
+    let requestBody: TitleRequest;
+    try {
+      requestBody = await req.json();
+    } catch {
+      return ResponseHandler.error('Invalid JSON in request body', 400);
     }
 
-    // Generate title using AI service (OpenRouter Sonoma Dusk Alpha) - free operation
-    const aiService = createAIService();
-    
-    const systemPrompt = `You are a creative children's book title generator. Create engaging, age-appropriate titles that capture the essence of the story.`;
-    
-    const userPrompt = `Generate 3 creative titles for a children's story with these details:
+    const { prompt, genre, ageGroup, language = 'en' } = requestBody;
+
+    if (!prompt?.trim()) {
+      return ResponseHandler.error('Prompt is required for title generation', 400);
+    }
+
+    // Generate titles using AI service with timing
+    const { result: aiResponse, duration } = await withTiming(async () => {
+      const aiService = createAIService();
+      
+      const systemPrompt = `You are a creative children's book title generator. Generate structured title suggestions as JSON.`;
+      
+      const userPrompt = `Generate exactly 3 creative titles for a children's story:
+
 Genre: ${genre}
-Age Group: ${ageGroup}
+Age Group: ${ageGroup} year olds
 Story Concept: ${prompt}
 Language: ${language}
 
 Requirements:
-- Age-appropriate for ${ageGroup} year olds
-- Catchy and memorable
+- Age-appropriate and catchy
+- 2-6 words each
 - Reflects the ${genre} genre
-- Each title should be 2-6 words
-- Return only the titles, one per line, no numbering`;
 
-    const aiResponse = await aiService.generate('story-titles', {
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      responseFormat: 'text',
-      temperature: 0.9
+Return as JSON: {"titles": ["Title 1", "Title 2", "Title 3"], "recommended": "Title 1"}`;
+
+      return await aiService.generate('story-titles', {
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        responseFormat: 'json',
+        temperature: 0.9
+      });
     });
 
-    const titleContent = aiResponse.content;
-    console.log(`Titles generated using ${aiResponse.provider} - ${aiResponse.model}`);
+    console.log(`Titles generated using ${aiResponse.provider} - ${aiResponse.model} in ${duration}ms`);
 
-    // Parse titles from response
-    const titles = titleContent
-      .split('\n')
-      .map(title => title.trim())
-      .filter(title => title.length > 0)
-      .slice(0, 3); // Ensure only 3 titles
+    // Validate and normalize AI response
+    const validatedResponse = ResponseHandler.validateAndNormalize(
+      aiResponse.content,
+      Validators.storyTitles,
+      () => ({
+        titles: [`${genre} Adventure`, `The ${ageGroup} Quest`, `Magical Journey`],
+        recommended: `${genre} Adventure`
+      })
+    );
 
-    console.log(`Generated ${titles.length} titles for prompt: ${prompt}`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        titles,
+    return ResponseHandler.success(
+      {
+        ...validatedResponse,
         prompt,
         genre,
-        age_group: ageGroup,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+        age_group: ageGroup
+      },
+      aiResponse.model,
+      { processingTime: duration, tokensUsed: aiResponse.tokensUsed }
     );
 
   } catch (error) {
     console.error('Title generation error:', error);
-    
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Failed to generate titles',
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
+    return ResponseHandler.error(
+      error.message || 'Failed to generate titles',
+      500,
+      { operation: 'story-titles', timestamp: Date.now() }
     );
   }
 });

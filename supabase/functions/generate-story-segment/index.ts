@@ -1,11 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { CreditService, CREDIT_COSTS, validateAndDeductCredits } from '../_shared/credit-system.ts';
 import { createAIService } from '../_shared/ai-service.ts';
+import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 interface SegmentRequest {
   story_id: string;
@@ -14,15 +11,14 @@ interface SegmentRequest {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return ResponseHandler.corsOptions();
   }
 
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      return ResponseHandler.error('No authorization header', 401);
     }
 
     // Initialize services
@@ -130,19 +126,19 @@ Requirements:
 
     console.log(`Story segment created successfully: ${segment.id}`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        segment_id: segment.id,
-        content: segmentContent,
-        choices,
-        credits_used: creditResult.creditsUsed,
-        credits_remaining: creditResult.newBalance,
-      }),
+    return ResponseHandler.success(
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+        segment: {
+          id: segment.id,
+          content: segmentContent,
+          choices,
+          is_ending: choices.length === 0
+        },
+        credits_used: creditResult.creditsUsed,
+        credits_remaining: creditResult.newBalance
+      },
+      aiResponse.model,
+      { tokensUsed: aiResponse.tokensUsed, processingTime: Date.now() }
     );
 
   } catch (error) {
@@ -150,28 +146,17 @@ Requirements:
     
     // Handle insufficient credits error
     if (error.message?.includes('Insufficient credits')) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error_code: 'INSUFFICIENT_CREDITS',
-          error: error.message,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
+      return ResponseHandler.error(
+        error.message,
+        400,
+        { error_code: 'INSUFFICIENT_CREDITS', operation: 'story-segment' }
       );
     }
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Failed to generate story segment',
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
+    return ResponseHandler.error(
+      error.message || 'Failed to generate story segment',
+      500,
+      { operation: 'story-segment', timestamp: Date.now() }
     );
   }
 });

@@ -1,10 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { createAIService } from '../_shared/ai-service.ts';
+import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 interface SeedsRequest {
   genre?: string;
@@ -14,92 +11,92 @@ interface SeedsRequest {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return ResponseHandler.corsOptions();
   }
 
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      return ResponseHandler.error('No authorization header', 401);
     }
 
-    // Parse request body
+    // Parse and validate request body
+    let requestBody: SeedsRequest;
+    try {
+      requestBody = await req.json();
+    } catch {
+      return ResponseHandler.error('Invalid JSON in request body', 400);
+    }
+
     const { 
       genre = 'fantasy', 
       ageGroup = '7-9', 
       language = 'en',
-      count = 5 
-    }: SeedsRequest = await req.json();
+      count = 3 
+    } = requestBody;
 
-    // Generate story seeds using AI service (OpenRouter Sonoma Dusk Alpha) - free operation
-    const aiService = createAIService();
-    
-    const systemPrompt = `You are a creative children's story idea generator. Create engaging, age-appropriate story concepts that spark imagination.`;
-    
-    const userPrompt = `Generate ${count} creative story ideas for children's books with these parameters:
+    // Generate story seeds using AI service with timing
+    const { result: aiResponse, duration } = await withTiming(async () => {
+      const aiService = createAIService();
+      
+      const systemPrompt = `You are a creative children's story idea generator. Generate structured story concepts as JSON.`;
+      
+      const userPrompt = `Generate exactly ${count} creative story ideas for children's books with these parameters:
 Genre: ${genre}
-Age Group: ${ageGroup}
+Age Group: ${ageGroup} year olds  
 Language: ${language}
 
 Requirements:
-- Age-appropriate for ${ageGroup} year olds
-- Engaging and imaginative concepts
-- Suitable for the ${genre} genre
-- Each idea should be 1-2 sentences
-- Include diverse characters and settings
-- Focus on themes of friendship, adventure, learning, and growth
-- Return only the story ideas, one per line, no numbering`;
+- Age-appropriate and engaging
+- Diverse characters and settings
+- Themes of friendship, adventure, learning
 
-    const aiResponse = await aiService.generate('story-seeds', {
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      responseFormat: 'text',
-      temperature: 0.9
+Return as JSON: {"seeds": [{"id": "1", "title": "Story Title", "description": "1-2 sentence description"}]}`;
+
+      return await aiService.generate('story-seeds', {
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        responseFormat: 'json',
+        temperature: 0.9
+      });
     });
 
-    const seedsContent = aiResponse.content;
-    console.log(`Story seeds generated using ${aiResponse.provider} - ${aiResponse.model}`);
+    console.log(`Story seeds generated using ${aiResponse.provider} - ${aiResponse.model} in ${duration}ms`);
 
-    // Parse seeds from response
-    const seeds = seedsContent
-      .split('\n')
-      .map(seed => seed.trim())
-      .filter(seed => seed.length > 0)
-      .slice(0, count); // Ensure only requested count
+    // Validate and normalize AI response
+    const validatedResponse = ResponseHandler.validateAndNormalize(
+      aiResponse.content,
+      Validators.storySeeds,
+      () => ({
+        seeds: Array.from({ length: count }, (_, i) => ({
+          id: `${i + 1}`,
+          title: `${genre} Adventure ${i + 1}`,
+          description: `An exciting ${genre} adventure perfect for ${ageGroup} year olds.`
+        }))
+      })
+    );
 
-    console.log(`Generated ${seeds.length} story seeds for ${genre}/${ageGroup}`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        seeds,
+    return ResponseHandler.success(
+      {
+        ...validatedResponse,
         genre,
         age_group: ageGroup,
         language,
-        count: seeds.length,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+        count: validatedResponse.seeds.length
+      },
+      aiResponse.model,
+      { processingTime: duration, tokensUsed: aiResponse.tokensUsed }
     );
 
   } catch (error) {
     console.error('Story seeds generation error:', error);
-    
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Failed to generate story seeds',
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
+    return ResponseHandler.error(
+      error.message || 'Failed to generate story seeds',
+      500,
+      { operation: 'story-seeds', timestamp: Date.now() }
     );
   }
 });

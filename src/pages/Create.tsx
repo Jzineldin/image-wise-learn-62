@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 import { logger, generateRequestId } from '@/lib/debug';
+import { AIClient, InsufficientCreditsError } from '@/lib/ai-client';
 import CreditDisplay from '@/components/CreditDisplay';
 import CreditCostDisplay from '@/components/CreditCostDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
@@ -154,64 +155,26 @@ export default function CreateStoryFlow() {
           .eq('id', character.id);
       }
 
-          // Get current session for authentication
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session?.access_token) {
-            toast.error('Please sign in to create stories');
-            return;
-          }
-
-          // Generate the first story segment
-          const { data: generationResult, error: generationError } = await supabase.functions.invoke('generate-story', {
-            body: {
-              prompt: storyPrompt,
-              genre: flow.genres[0],
-              ageGroup: flow.ageGroup,
-              storyId: story.id,
-              languageCode: selectedLanguage,
-              isInitialGeneration: true,
-              characters: flow.selectedCharacters.map(c => ({
-                name: c.name,
-                description: c.description,
-                personality: c.personality_traits.join(', ')
-              }))
-            },
-            headers: {
-              Authorization: `Bearer ${session.access_token}`
-            }
+          // Generate the first story segment using unified AI client
+          const generationResult = await AIClient.generateStory({
+            prompt: storyPrompt,
+            genre: flow.genres[0],
+            ageGroup: flow.ageGroup,
+            storyId: story.id,
+            languageCode: selectedLanguage,
+            isInitialGeneration: true,
+            characters: flow.selectedCharacters.map(c => ({
+              name: c.name,
+              description: c.description,
+              personality: c.personality_traits.join(', ')
+            }))
           });
 
-          logger.edgeFunctionResponse('generate-story', requestId, generationResult, generationError);
-
-          // Handle structured and error responses
-          if (generationError) {
-            const status = (generationError as any).status;
-            if (status === 401) {
-              toast.error('Please sign in to create stories');
-              navigate('/auth');
-              return;
-            }
-            // Bubble up other errors to be handled by catch
-            throw generationError;
-          }
-          
-          if (generationResult && !generationResult.ok) {
-            if (generationResult.error?.code === 'insufficient_credits') {
-              setCreditError({
-                required: generationResult.error.required || 2,
-                available: generationResult.error.available || 0
-              });
-              setShowInsufficientCredits(true);
-              return;
-            }
-            // Show any specific backend error messages
-            toast.error(generationResult.error?.message || 'Story generation failed');
-            return;
-          }
+          logger.edgeFunctionResponse('generate-story', requestId, generationResult);
 
       // Save generated segments to database
-      if (generationResult?.segments && generationResult.segments.length > 0) {
-        const segmentsToInsert = generationResult.segments.map((segment: any, index: number) => ({
+      if (generationResult?.data?.segments && generationResult.data.segments.length > 0) {
+        const segmentsToInsert = generationResult.data.segments.map((segment: any, index: number) => ({
           story_id: story.id,
           segment_number: index + 1,
           content: segment.content || segment.text || '',
@@ -235,8 +198,8 @@ export default function CreateStoryFlow() {
         status: 'draft'
       };
       
-      if (generationResult?.title) {
-        storyUpdates.title = generationResult.title;
+      if (generationResult?.data?.title) {
+        storyUpdates.title = generationResult.data.title;
       }
 
       await supabase
@@ -250,25 +213,21 @@ export default function CreateStoryFlow() {
     } catch (error) {
       logger.error('Error generating story', error);
       
-      // Handle unauthorized
-      const status = (error as any)?.status;
-      if (status === 401) {
-        toast.error('Please sign in to create stories');
-        navigate('/auth');
+      // Handle specific AI client errors
+      if (error instanceof InsufficientCreditsError) {
+        setCreditError({
+          required: error.required,
+          available: error.available
+        });
+        setShowInsufficientCredits(true);
         return;
       }
       
-      // Check if it's a credit error (fallback for old format)
-      if ((error as any).message?.includes('Insufficient credits')) {
-        const match = (error as any).message.match(/Required: (\d+), Available: (\d+)/);
-        if (match) {
-          setCreditError({
-            required: parseInt(match[1]),
-            available: parseInt(match[2])
-          });
-          setShowInsufficientCredits(true);
-          return;
-        }
+      // Handle auth errors
+      if ((error as any).code === 'AUTH_REQUIRED') {
+        toast.error('Please sign in to create stories');
+        navigate('/auth');
+        return;
       }
       
       // Mark story as failed if it was created

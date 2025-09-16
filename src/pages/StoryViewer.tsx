@@ -11,6 +11,7 @@ import { ReadingModeControls } from '@/components/ReadingModeControls';
 import { StoryModeToggle, StoryModeIndicator } from '@/components/story-viewer/StoryModeToggle';
 import { AudioControls, FloatingAudioControls } from '@/components/story-viewer/AudioControls';
 import { logger, generateRequestId } from '@/lib/debug';
+import { AIClient, InsufficientCreditsError } from '@/lib/ai-client';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
 import CreditCostDisplay from '@/components/CreditCostDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
@@ -266,72 +267,45 @@ const StoryViewer = () => {
 
       logger.edgeFunction('generate-story-segment', requestId, requestBody);
 
-      // Generate next segment based on choice
-      const { data, error } = await supabase.functions.invoke('generate-story-segment', {
-        body: requestBody
+      // Generate next segment based on choice using unified AI client
+      const generationResult = await AIClient.generateStorySegment({
+        storyId: story.id,
+        choiceId,
+        choiceText,
+        previousSegmentContent: currentSegment.content,
+        storyContext: {
+          title: story.title,
+          description: story.description,
+          ageGroup: story.age_group,
+          genre: story.genre,
+          languageCode: selectedLanguage,
+          characters: story.metadata?.characters || []
+        },
+        segmentNumber: segments.length + 1,
+        requestId
       });
 
-      logger.debug('Raw edge function response', {
+      logger.debug('AI Client response', {
         requestId,
-        data,
-        error,
-        dataType: typeof data
+        success: generationResult.success,
+        hasData: !!generationResult.data,
+        dataType: typeof generationResult.data
       });
-
-      if (error) {
-        logger.edgeFunctionResponse('generate-story-segment', requestId, data, error);
-        // Parse FunctionsHttpError for better error handling
-        const errorMessage = parseFunctionError(error);
-        if (errorMessage.includes('Insufficient credits')) {
-          const match = errorMessage.match(/Required: (\d+), Available: (\d+)/);
-          if (match) {
-            setCreditError({
-              required: parseInt(match[1]),
-              available: parseInt(match[2])
-            });
-            setShowInsufficientCredits(true);
-            return;
-          }
-        }
-        throw new Error(errorMessage);
-      }
-
-      logger.edgeFunctionResponse('generate-story-segment', requestId, data);
-
-      // Check if the edge function call was successful
-      if (!data || !data.success) {
-        // Handle structured error responses from edge functions
-        if (data?.error_code === 'INSUFFICIENT_CREDITS') {
-          setCreditError({
-            required: data.required || 1,
-            available: data.available || 0
-          });
-          setShowInsufficientCredits(true);
-          return;
-        }
-        
-        const errorMsg = data?.error || 'Failed to generate segment';
-        logger.error('Edge function returned failure', new Error(errorMsg), {
-          requestId,
-          response: data
-        });
-        throw new Error(`${errorMsg} (Request ID: ${requestId})`);
-      }
 
       // Extract the segment data from the response
-      if (!data.data || !data.data.segment) {
+      if (!generationResult.data?.segment) {
         const errorMsg = 'No segment data returned from generation';
         logger.error('Invalid response structure', new Error(errorMsg), {
           requestId,
-          dataStructure: data
+          dataStructure: generationResult.data
         });
         throw new Error(`${errorMsg} (Request ID: ${requestId})`);
       }
 
       logger.info('✅ Segment generated successfully', {
         requestId,
-        segmentId: data.data.segment.id,
-        contentLength: data.data.segment.content?.length
+        segmentId: generationResult.data.segment.id,
+        contentLength: generationResult.data.segment.content?.length
       });
 
       // Reload segments from database to ensure state consistency
@@ -365,6 +339,16 @@ const StoryViewer = () => {
         choiceId,
         segmentNumber: segments.length + 1
       });
+      
+      // Handle specific AI client errors
+      if (error instanceof InsufficientCreditsError) {
+        setCreditError({
+          required: error.required,
+          available: error.available
+        });
+        setShowInsufficientCredits(true);
+        return;
+      }
       
       toast({
         title: "Generation failed",
@@ -428,59 +412,24 @@ const StoryViewer = () => {
 
       logger.edgeFunction('generate-story-image', requestId, requestBody);
 
-      const { data, error } = await supabase.functions.invoke('generate-story-image', {
-        body: requestBody
+      const imageResult = await AIClient.generateStoryImage({
+        storyContent: segment.content,
+        storyTitle: story.title,
+        ageGroup: story.age_group,
+        genre: story.genre,
+        segmentNumber: segment.segment_number,
+        storyId: story.id,
+        segmentId: segment.id,
+        characters: story.metadata?.characters || [],
+        requestId
       });
 
-      if (error) {
-        logger.edgeFunctionResponse('generate-story-image', requestId, data, error);
-        // Parse FunctionsHttpError for better error handling
-        const errorMessage = parseFunctionError(error);
-        if (errorMessage.includes('Insufficient credits')) {
-          const match = errorMessage.match(/Required: (\d+), Available: (\d+)/);
-          if (match) {
-            setCreditError({
-              required: parseInt(match[1]),
-              available: parseInt(match[2])
-            });
-            setShowInsufficientCredits(true);
-            return;
-          }
-        }
-        setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
-        
-        setTimeout(() => {
-          generateSegmentImage(segment);
-        }, 2000 * (currentRetries + 1)); // Exponential backoff
-        return;
-      }
-
-      // Handle structured responses from edge functions
-      if (data && !data.success) {
-        if (data.error_code === 'INSUFFICIENT_CREDITS') {
-          setCreditError({
-            required: data.required || 2,
-            available: data.available || 0
-          });
-          setShowInsufficientCredits(true);
-          return;
-        }
-        
-        // Handle other structured errors
-        const errorMsg = data.error || 'Image generation failed';
-        setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
-        setTimeout(() => {
-          generateSegmentImage(segment);
-        }, 2000 * (currentRetries + 1));
-        return;
-      }
-
-      logger.edgeFunctionResponse('generate-story-image', requestId, data);
+      logger.edgeFunctionResponse('generate-story-image', requestId, imageResult);
       
       // Update segment with image URL when ready
       setSegments(prev => prev.map(s => 
         s.id === segment.id 
-          ? { ...s, image_url: data.imageUrl || data.data?.imageUrl }
+          ? { ...s, image_url: imageResult.data?.imageUrl }
           : s
       ));
 
