@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,20 +26,23 @@ interface StoryCardProps {
   currentUserId?: string | null;
 }
 
-const StoryCard = ({ 
-  story, 
-  variant = 'default', 
-  showActions = false, 
+const StoryCard = ({
+  story,
+  variant = 'default',
+  showActions = false,
   showStatus = true,
   onSettingsClick,
-  currentUserId 
+  currentUserId
 }: StoryCardProps) => {
   const imageUrl = story.cover_image || story.cover_image_url;
-  
+
+  const navigate = useNavigate();
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
         return 'bg-success/20 text-success';
+
       case 'in_progress':
         return 'bg-warning/20 text-warning';
       case 'draft':
@@ -64,18 +67,47 @@ const StoryCard = ({
 
   if (variant === 'background' && imageUrl) {
     return (
-      <Link to={`/story/${story.id}`} className="block">
-        <div 
+        <div
+          role="button"
+          tabIndex={0}
           className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] group cursor-pointer"
           style={{
             backgroundImage: `url(${imageUrl})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
+          onClick={() => navigate(`/story/${story.id}?mode=experience`)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/story/${story.id}?mode=experience`); } }}
         >
-          {/* Background overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20 group-hover:from-black/90 group-hover:via-black/50 transition-all duration-300" />
-          
+          {/* Background overlay - ignore pointer events so buttons remain clickable */}
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/80 via-black/40 to-black/20 group-hover:from-black/90 group-hover:via-black/50 transition-all duration-300" />
+
+          {/* Quick settings (preserve card click by stopping propagation) */}
+          {showActions && onSettingsClick && (
+            <div className="absolute top-3 right-3 z-20 pointer-events-auto">
+              <Button
+                variant="outline"
+                size="icon"
+                className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSettingsClick(); }}
+                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onSettingsClick(); } }}
+                aria-label="Story settings"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+
+          {/* Visibility chip */}
+          {story.visibility && (
+            <div className="absolute bottom-3 left-3 z-10">
+              <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                {story.visibility}
+              </Badge>
+            </div>
+          )}
+
           {/* Content */}
           <div className="relative z-10 p-6 h-full flex flex-col justify-end text-white">
             <div className="space-y-2">
@@ -92,17 +124,17 @@ const StoryCard = ({
                   {story.age_group}
                 </Badge>
               </div>
-              
+
               <h3 className="text-lg font-semibold line-clamp-2 drop-shadow-lg">
                 {story.title}
               </h3>
-              
+
               {story.description && (
                 <p className="text-white/90 text-sm line-clamp-2 drop-shadow-md">
                   {story.description}
                 </p>
               )}
-              
+
               {(story.author_name || story.author_id) && (
                 <p className="text-white/80 text-xs">
                   by {story.author_name || (currentUserId && story.author_id === currentUserId ? 'You' : 'Anonymous')}
@@ -111,19 +143,19 @@ const StoryCard = ({
             </div>
           </div>
         </div>
-      </Link>
+
     );
   }
 
   if (variant === 'discover') {
     return (
-      <Link to={`/story/${story.id}?mode=read`}>
+      <Link to={`/story/${story.id}?mode=experience`}>
         <div className="glass-card-interactive group cursor-pointer">
           {/* Cover Image */}
           <div className="relative overflow-hidden rounded-t-lg">
             {imageUrl ? (
-              <img 
-                src={imageUrl} 
+              <img
+                src={imageUrl}
                 alt={story.title}
                 className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
               />
@@ -169,8 +201,8 @@ const StoryCard = ({
     <Card className="glass-card-interactive group overflow-hidden">
       {imageUrl && (
         <div className="aspect-video bg-muted relative overflow-hidden">
-          <img 
-            src={imageUrl} 
+          <img
+            src={imageUrl}
             alt={story.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
@@ -183,7 +215,7 @@ const StoryCard = ({
           )}
         </div>
       )}
-      
+
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="flex-1">
@@ -204,14 +236,14 @@ const StoryCard = ({
           </div>
         )}
       </CardHeader>
-      
+
       <CardContent>
         {story.description && (
           <p className="text-text-secondary text-sm mb-4 line-clamp-3">
             {story.description}
           </p>
         )}
-        
+
         <div className="flex justify-between items-center text-xs text-text-secondary mb-4">
           <div className="flex items-center gap-1">
             <Calendar className="w-3 h-3" />
@@ -233,7 +265,7 @@ const StoryCard = ({
 
         {showActions && (
           <div className="flex gap-2">
-            <Link to={`/story/${story.id}`} className="flex-1">
+            <Link to={`/story/${story.id}?mode=experience`} className="flex-1">
               <Button className="w-full btn-secondary">
                 <Eye className="w-4 h-4 mr-2" />
                 View

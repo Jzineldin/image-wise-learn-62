@@ -62,8 +62,8 @@ const FeaturedStoriesCarousel = () => {
   const loadFeaturedStories = useCallback(async () => {
     try {
       setLoading(true);
-      logger.info('Loading featured stories', { limit: 10 });
-      const { data, error } = await supabase.rpc('get_featured_stories', { limit_count: 10 });
+      logger.info('Loading featured stories', { limit: 30 });
+      const { data, error } = await supabase.rpc('get_featured_stories', { limit_count: 30 });
       
       if (error) {
         logger.error('Failed to load featured stories', error);
@@ -201,7 +201,7 @@ const FeaturedStoriesCarousel = () => {
         </div>
 
         {/* Read Story Button */}
-        <Link to={`/story/${currentStory.story_id}`}>
+        <Link to={`/story/${currentStory.story_id}?mode=experience`}>
           <Button className="btn-accent w-full text-lg py-3 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300">
             Read This Story
           </Button>

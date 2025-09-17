@@ -60,7 +60,7 @@ const App = () => {
                <Route path="/my-stories" element={<ProtectedRoute><MyStories /></ProtectedRoute>} />
                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-               <Route path="/discover" element={<Discover />} />
+               <Route path="/discover" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
                  <Route path="/story/:id/end" element={<StoryEnd />} />
                  <Route path="/story/:id" element={
                    <ProtectedRoute requiresAuth={false} checkStoryAccess={true}>

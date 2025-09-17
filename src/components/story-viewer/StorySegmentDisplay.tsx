@@ -87,7 +87,7 @@ export const StorySegmentDisplay = ({
             <div className="text-center space-y-3">
               {generatingImage === segment.id ? (
                 <div className="flex flex-col items-center space-y-2">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <div className="loading-spinner h-8 w-8"></div>
                   <p className="text-sm text-muted-foreground">Generating image...</p>
                 </div>
               ) : (
@@ -171,7 +171,7 @@ export const StorySegmentDisplay = ({
 
           {generatingSegment && (
             <div className="flex items-center justify-center space-x-3 p-6 bg-muted/50 rounded-xl">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+              <div className="loading-spinner h-5 w-5"></div>
               <span className="text-base font-medium">Continuing your story...</span>
             </div>
           )}

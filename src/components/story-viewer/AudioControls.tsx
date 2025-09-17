@@ -123,7 +123,7 @@ export const AudioControls = ({
             title={disabled ? "Please wait, another operation is in progress" : "Generate audio for this segment"}
           >
             {isGenerating ? (
-              <Loader2 className={`${currentSize.icon} animate-spin`} />
+              <div className={`loading-spinner ${currentSize.icon}`} />
             ) : (
               <Volume2 className={currentSize.icon} />
             )}
@@ -184,7 +184,7 @@ export const AudioControls = ({
               title={disabled ? "Please wait, another operation is in progress" : "Generate audio for this segment"}
             >
               {isGenerating ? (
-                <Loader2 className={`${currentSize.icon} animate-spin`} />
+                <div className={`loading-spinner ${currentSize.icon}`} />
               ) : (
                 <Volume2 className={currentSize.icon} />
               )}

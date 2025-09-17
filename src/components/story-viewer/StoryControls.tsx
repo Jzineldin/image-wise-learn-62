@@ -99,7 +99,7 @@ export const StoryControls = ({
               >
                 {generatingEnding ? (
                   <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    <div className="loading-spinner h-4 w-4" />
                     Ending...
                   </>
                 ) : (

@@ -122,7 +122,7 @@ const Dashboard = () => {
         )}
 
         {/* Enhanced Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
           <div className="glass-card-primary p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -223,7 +223,7 @@ const Dashboard = () => {
                         <span>{new Date(story.created_at).toLocaleDateString()}</span>
                       </div>
                     </div>
-                    <Link to={`/story/${story.id}`}>
+                    <Link to={`/story/${story.id}?mode=experience`}>
                       <Button variant="outline" size="sm" className="btn-ghost">
                         View
                       </Button>
@@ -236,7 +236,7 @@ const Dashboard = () => {
         </div>
 
         {/* Usage Analytics */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
           <UsageAnalytics />
           <div className="space-y-6">
             {/* Quick Actions */}

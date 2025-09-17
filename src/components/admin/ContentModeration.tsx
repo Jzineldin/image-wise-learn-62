@@ -39,6 +39,9 @@ const ContentModeration = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [visibilityFilter, setVisibilityFilter] = useState('all');
+  const [featuredIds, setFeaturedIds] = useState<Set<string>>(new Set());
+  const [featurePriority, setFeaturePriority] = useState<Record<string, number>>({});
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -61,8 +64,23 @@ const ContentModeration = () => {
 
       if (storiesError) throw storiesError;
 
+      // Get currently featured stories (active)
+      const { data: featuredRows, error: featuredError } = await supabase
+        .from('featured_stories')
+        .select('story_id, is_active, priority')
+        .eq('is_active', true);
+
+      if (featuredError) throw featuredError;
+
+      const featuredSet = new Set((featuredRows || []).map((r: any) => r.story_id));
+      const priorityMap: Record<string, number> = {};
+      (featuredRows || []).forEach((r: any) => {
+        priorityMap[r.story_id] = r.priority ?? 1;
+      });
+      setFeaturedIds(featuredSet);
+      setFeaturePriority(priorityMap);
       setStories(storiesData || []);
-      logger.info('Loaded moderation data', { stories: storiesData?.length });
+      logger.info('Loaded moderation data', { stories: storiesData?.length, featured: featuredRows?.length || 0 });
     } catch (error) {
       logger.error('Error loading moderation data', error);
       toast({
@@ -124,12 +142,12 @@ const ContentModeration = () => {
     }
   };
 
-  const toggleStoryFeature = async (storyId: string, shouldFeature: boolean) => {
+  const toggleStoryFeature = async (storyId: string, shouldFeature: boolean, priority: number = 1) => {
     try {
       if (shouldFeature) {
         const { error } = await supabase.rpc('admin_feature_story', {
           p_story_id: storyId,
-          p_priority: 1
+          p_priority: priority
         });
         if (error) throw error;
       } else {
@@ -300,6 +318,9 @@ const ContentModeration = () => {
                     <Badge variant={getVisibilityBadgeVariant(story.visibility)}>
                       {story.visibility}
                     </Badge>
+                    {featuredIds.has(story.id) && (
+                      <Badge variant="default">Preview</Badge>
+                    )}
                     <Badge variant="outline">{story.genre}</Badge>
                   </div>
                   <div className="flex items-center gap-4 mt-1 text-xs text-text-secondary">
@@ -328,6 +349,34 @@ const ContentModeration = () => {
                       <Eye className="w-4 h-4" />
                     )}
                   </Button>
+                  <Button
+                    size="sm"
+                    variant={featuredIds.has(story.id) ? "secondary" : "outline"}
+                    onClick={() => toggleStoryFeature(story.id, !featuredIds.has(story.id), featurePriority[story.id] ?? 1)}
+                    title={featuredIds.has(story.id) ? 'Remove from Preview' : 'Add to Preview (Landing Carousel)'}
+                    aria-label={featuredIds.has(story.id) ? 'Remove from Preview' : 'Add to Preview'}
+                  >
+                    {featuredIds.has(story.id) ? (
+                      <StarOff className="w-4 h-4" />
+                    ) : (
+                      <Star className="w-4 h-4" />
+                    )}
+                  </Button>
+                  <Select
+                    value={String(featurePriority[story.id] ?? 1)}
+                    onValueChange={(v) => setFeaturePriority(prev => ({ ...prev, [story.id]: Number(v) }))}
+                  >
+                    <SelectTrigger className="w-24" aria-label="Feature priority">
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Priority 1</SelectItem>
+                      <SelectItem value="2">Priority 2</SelectItem>
+                      <SelectItem value="3">Priority 3</SelectItem>
+                      <SelectItem value="4">Priority 4</SelectItem>
+                      <SelectItem value="5">Priority 5</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button
                     size="sm"
                     variant="destructive"

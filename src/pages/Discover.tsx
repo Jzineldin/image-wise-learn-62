@@ -86,7 +86,7 @@ const Discover = () => {
       <Navigation />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <div className="content-overlay max-w-4xl mx-auto">
             <h1 className="text-4xl md:text-5xl font-heading font-bold text-gradient mb-4">
               Discover Amazing Stories
@@ -98,7 +98,7 @@ const Discover = () => {
         </div>
 
         {/* Search and Filters */}
-        <div className="glass-card-elevated p-6 mb-12">
+        <div className="glass-card-elevated p-6 mb-8">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-tertiary w-5 h-5" />
@@ -132,7 +132,7 @@ const Discover = () => {
 
         {/* Public Stories */}
         <section className="mb-16">
-          <h2 className="text-3xl font-heading font-semibold mb-8">
+          <h2 className="text-3xl font-heading font-semibold mb-6">
             Community Stories
           </h2>
           
@@ -149,7 +149,7 @@ const Discover = () => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {publicStories.map((story) => (
                 <StoryCard
                   key={story.id}
@@ -164,7 +164,7 @@ const Discover = () => {
 
         {/* Browse Categories */}
         <section>
-          <h2 className="text-3xl font-heading font-semibold mb-8">Browse by Genre</h2>
+          <h2 className="text-3xl font-heading font-semibold mb-6">Browse by Genre</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {genres.slice(1).map((genre) => (
               <button
