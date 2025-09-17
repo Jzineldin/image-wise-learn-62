@@ -58,7 +58,7 @@ export interface StorySegment {
   id: string;
   story_id: string;
   segment_number: number;
-  content: string;
+  content: string | null;
   image_url?: string;
   audio_url?: string;
   choices: Choice[];

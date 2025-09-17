@@ -112,7 +112,7 @@ export const StorySegmentDisplay = ({
             </div>
           </div>
         )}
-        
+
         {/* Regenerate image button for owners */}
         {segment.image_url && viewMode === 'creation' && isOwner && (
           <div className="absolute top-2 right-2">
@@ -133,7 +133,7 @@ export const StorySegmentDisplay = ({
       <Card className="border-border/50 shadow-sm">
         <CardContent className="p-8">
           <div className={`prose prose-lg max-w-none ${viewMode === 'experience' ? 'text-center' : ''}`}>
-            <div 
+            <div
               className="leading-relaxed text-foreground"
               style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}
             >
@@ -143,26 +143,8 @@ export const StorySegmentDisplay = ({
         </CardContent>
       </Card>
 
-      {/* Audio Controls for Creation Mode */}
-      {viewMode === 'creation' && onGenerateAudio && onToggleAudio && (
-        <div className="flex justify-center">
-          <AudioControls
-            audioUrl={segment.audio_url}
-            isPlaying={isPlaying}
-            isGenerating={generatingAudio}
-            onToggleAudio={onToggleAudio}
-            onGenerateAudio={onGenerateAudio}
-            variant="compact"
-            size="md"
-            className="bg-card border border-border/50 rounded-xl p-4 shadow-sm"
-            selectedVoice={selectedVoice}
-            onVoiceChange={onVoiceChange}
-            showVoiceSelector={true}
-          />
-        </div>
-      )}
 
-      {/* Choices */}
+      {/* Interactive Choices */}
       {segment.choices && segment.choices.length > 0 && viewMode === 'creation' && (
         <div className="space-y-4">
           <h3 className="font-semibold text-xl text-center">What happens next?</h3>
@@ -186,7 +168,7 @@ export const StorySegmentDisplay = ({
               </Button>
             ))}
           </div>
-          
+
           {generatingSegment && (
             <div className="flex items-center justify-center space-x-3 p-6 bg-muted/50 rounded-xl">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>

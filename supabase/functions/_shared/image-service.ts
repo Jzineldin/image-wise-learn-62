@@ -1,6 +1,6 @@
 /**
  * Image Generation Service
- * 
+ *
  * Provides unified interface for AI image generation using SDXL and other models.
  * Supports multiple providers with fallback strategies.
  */
@@ -24,6 +24,7 @@ export interface ImageRequest {
   steps?: number;
   guidance?: number;
   seed?: number;
+  negativePrompt?: string;
 }
 
 export interface ImageResponse {
@@ -92,9 +93,9 @@ export class ImageService {
 
       try {
         console.log(`🎨 Attempting image generation with ${provider.name}...`);
-        
+
         const result = await this.callProvider(provider, request);
-        
+
         console.log(`✅ ${provider.name} succeeded for image generation`);
         return {
           imageUrl: result.imageUrl,
@@ -148,13 +149,15 @@ export class ImageService {
   ): Promise<{ imageUrl: string; seed?: number }> {
     // Enhance prompt for children's book style
     const enhancedPrompt = this.enhancePromptForStyle(request.prompt, request.style || 'children_book');
-    
+    const negative = request.negativePrompt || this.getDefaultNegativePrompt(request.style);
+
     const body = {
       prompt: enhancedPrompt,
+      negative_prompt: negative,
       width: request.width || 1024,
       height: request.height || 1024,
-      num_inference_steps: request.steps || 25,
-      guidance_scale: request.guidance || 7.5,
+      num_inference_steps: request.steps || 40,
+      guidance_scale: request.guidance ?? 6.5,
       seed: request.seed
     };
 
@@ -174,14 +177,14 @@ export class ImageService {
 
     // Check content type to handle both JSON and binary responses
     const contentType = response.headers.get('content-type') || '';
-    
+
     if (contentType.includes('image/') || contentType.includes('application/octet-stream')) {
       // Binary image response - convert to base64 data URL safely
       const imageBlob = await response.blob();
       const arrayBuffer = await imageBlob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       const base64 = encodeBase64(uint8Array);
-      
+
       return {
         imageUrl: `data:image/png;base64,${base64}`,
         seed: request.seed
@@ -190,13 +193,13 @@ export class ImageService {
       // JSON response with image URL or base64
       try {
         const result = await response.json();
-        
+
         if (!result.generated_image && !result.image && !result.data) {
           throw new Error('No image generated from OVH API');
         }
 
         const imageUrl = result.generated_image || result.image || result.data;
-        
+
         return {
           imageUrl,
           seed: result.seed || request.seed
@@ -217,15 +220,17 @@ export class ImageService {
   ): Promise<{ imageUrl: string; seed?: number }> {
     // Enhance prompt for children's book style
     const enhancedPrompt = this.enhancePromptForStyle(request.prompt, request.style || 'children_book');
-    
+    const negative = request.negativePrompt || this.getDefaultNegativePrompt(request.style);
+
     const body = {
       version: provider.defaultModel.split(':')[1],
       input: {
         prompt: enhancedPrompt,
+        negative_prompt: negative,
         width: request.width || 1024,
         height: request.height || 1024,
-        num_inference_steps: request.steps || 25,
-        guidance_scale: request.guidance || 7.5,
+        num_inference_steps: request.steps || 40,
+        guidance_scale: request.guidance ?? 6.5,
         scheduler: "DPMSolverMultistep",
         num_outputs: 1,
         seed: request.seed
@@ -247,10 +252,10 @@ export class ImageService {
     }
 
     const prediction = await response.json();
-    
+
     // Poll for completion
     const result = await this.pollReplicatePrediction(prediction.id, apiKey);
-    
+
     if (!result.output || !result.output[0]) {
       throw new Error('No image generated');
     }
@@ -305,7 +310,8 @@ export class ImageService {
     apiKey: string
   ): Promise<{ imageUrl: string; seed?: number }> {
     const enhancedPrompt = this.enhancePromptForStyle(request.prompt, request.style || 'children_book');
-    
+    const negative = request.negativePrompt || this.getDefaultNegativePrompt(request.style);
+
     const response = await fetch(`${provider.baseUrl}/${provider.defaultModel}`, {
       method: 'POST',
       headers: {
@@ -317,9 +323,10 @@ export class ImageService {
         parameters: {
           width: request.width || 1024,
           height: request.height || 1024,
-          num_inference_steps: request.steps || 25,
-          guidance_scale: request.guidance || 7.5,
-          seed: request.seed
+          num_inference_steps: request.steps || 40,
+          guidance_scale: request.guidance ?? 6.5,
+          seed: request.seed,
+          negative_prompt: negative
         }
       })
     });
@@ -333,7 +340,7 @@ export class ImageService {
     const imageBlob = await response.blob();
     const arrayBuffer = await imageBlob.arrayBuffer();
     const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-    
+
     return {
       imageUrl: `data:image/png;base64,${base64}`,
       seed: request.seed
@@ -345,15 +352,34 @@ export class ImageService {
    */
   private enhancePromptForStyle(prompt: string, style: string): string {
     const stylePrompts: Record<string, string> = {
-      children_book: "children's book illustration, colorful, friendly, safe for children, digital art, high quality",
-      realistic: "photorealistic, detailed, high resolution, professional photography",
-      cartoon: "cartoon style, animated, vibrant colors, stylized",
-      watercolor: "watercolor painting, soft colors, artistic, traditional media"
+      children_book: "storybook illustration, soft lighting, crisp linework, vibrant but harmonious colors, whimsical, age-appropriate, friendly characters, clean background, high quality digital art, detailed, award-winning children's book style",
+      realistic: "photorealistic, cinematic lighting, high detail, ultra-detailed textures, shallow depth of field, 50mm lens, professional photography",
+      cartoon: "clean vector cartoon style, bold outlines, vibrant colors, expressive characters, cel-shaded, flat background, modern animation style",
+      watercolor: "watercolor painting, soft gradients, textured paper, gentle color bleeding, hand-painted aesthetic, traditional media"
     };
 
     const styleAddition = stylePrompts[style] || stylePrompts.children_book;
     return `${prompt}, ${styleAddition}`;
   }
+  /**
+   * Default negative prompt tuned for SDXL and child-friendly outputs
+   */
+  private getDefaultNegativePrompt(style?: string): string {
+    const base = [
+      'low quality', 'worst quality', 'blurry', 'pixelated', 'jpeg artifacts', 'noise',
+      'deformed', 'distorted', 'extra limbs', 'mutated hands', 'bad anatomy', 'crooked eyes',
+      'text', 'caption', 'logo', 'watermark', 'signature', 'nsfw', 'gore', 'scary', 'horror',
+      'violent', 'blood', 'weapons', 'nudity', 'disfigured', 'grainy', 'overexposed', 'underexposed'
+    ];
+
+    // Style-specific exclusions
+    if (style === 'children_book' || !style) {
+      base.push('dark horror', 'realistic gore', 'hyperreal violence');
+    }
+
+    return base.join(', ');
+  }
+
 
   /**
    * Get API key for provider

@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
+import { VOICE_LANGUAGE_MAP } from '@/constants/translations';
 import { VoiceSelector } from '@/components/VoiceSelector';
 import { ReadingModeControls } from '@/components/ReadingModeControls';
 import { StoryModeToggle, StoryModeIndicator } from '@/components/story-viewer/StoryModeToggle';
@@ -13,10 +14,13 @@ import { StorySegmentDisplay } from '@/components/story-viewer/StorySegmentDispl
 import { StoryNavigation } from '@/components/story-viewer/StoryNavigation';
 import { StoryMetadata } from '@/components/story-viewer/StoryMetadata';
 import { StoryControls } from '@/components/story-viewer/StoryControls';
+import { StoryProgressTracker } from '@/components/story-viewer/StoryProgressTracker';
+import { StorySidebar } from '@/components/story-viewer/StorySidebar';
 import { logger, generateRequestId } from '@/lib/utils/debug';
 import { AIClient, InsufficientCreditsError, AIClientError } from '@/lib/api/ai-client';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import { calculateTTSCredits } from '@/lib/api/credit-api';
+import { generateAudio as generateAudioAPI } from '@/lib/api/story-api';
 
 type ViewMode = 'creation' | 'experience';
 
@@ -26,12 +30,12 @@ const parseFunctionError = (error: any): string => {
   if (error?.context?.message) {
     return error.context.message;
   }
-  
+
   // Handle direct error messages
   if (error?.message) {
     return error.message;
   }
-  
+
   // Fallback
   return 'Unknown error occurred';
 };
@@ -73,13 +77,13 @@ const StoryViewer = () => {
   const { user } = useAuth();
   const { selectedLanguage } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   // Credit system states
   const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
   const [creditError, setCreditError] = useState<{ required: number; available: number } | null>(null);
   // Add credit lock reference
   const creditLock = useRef(false);
-  
+
   const [story, setStory] = useState<Story | null>(null);
   const [segments, setSegments] = useState<StorySegment[]>([]);
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
@@ -95,11 +99,54 @@ const StoryViewer = () => {
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [retryAttempts, setRetryAttempts] = useState<{[key: string]: number}>({});
   const [selectedVoice, setSelectedVoice] = useState('9BWtsMINqrJLrRacOk9x'); // Default Aria
+
+  // Ensure we stop audio playback when this page unmounts or when the audio element changes
+  useEffect(() => {
+    return () => {
+      try {
+        if (audioElement) {
+          audioElement.pause();
+          // Clearing src helps some browsers stop buffering
+          audioElement.src = '';
+        }
+      } catch (e) {
+        // no-op
+      }
+    };
+  }, [audioElement]);
+
+  // Also stop audio on page visibility change (e.g., quick navs)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden && audioElement && !audioElement.paused) {
+        audioElement.pause();
+        setIsPlaying(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [audioElement]);
+
   const [isReadingMode, setIsReadingMode] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fontSize, setFontSize] = useState(18);
   const [autoPlaySpeed, setAutoPlaySpeed] = useState(5);
+
+  // Ensure voice selection matches current language
+  useEffect(() => {
+    const voices = VOICE_LANGUAGE_MAP[selectedLanguage as keyof typeof VOICE_LANGUAGE_MAP];
+    const allVoices = [
+      ...(voices?.female || []),
+      ...(voices?.male || []),
+      ...(voices?.neutral || [])
+    ];
+    if (!allVoices.includes(selectedVoice)) {
+      const defaultVoice = voices?.female?.[0] || voices?.male?.[0] || voices?.neutral?.[0] || '9BWtsMINqrJLrRacOk9x';
+      setSelectedVoice(defaultVoice);
+    }
+  }, [selectedLanguage]);
+
   const [autoPlayTimeout, setAutoPlayTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -126,7 +173,7 @@ const StoryViewer = () => {
       const defaultMode = story && user && (story.author_id === user.id || story.user_id === user.id) ? 'creation' : 'experience';
       setViewMode(defaultMode);
     }
-    
+
     // Set ownership status
     if (story && user) {
       const isUserStory = story.author_id === user.id || story.user_id === user.id;
@@ -145,7 +192,7 @@ const StoryViewer = () => {
   const loadStory = async () => {
     try {
       setLoading(true);
-      
+
       // Load story details
       const { data: storyData, error: storyError } = await supabase
         .from('stories')
@@ -183,7 +230,7 @@ const StoryViewer = () => {
         .order('segment_number', { ascending: true });
 
       if (segmentsError) throw segmentsError;
-      
+
       // Transform Supabase data to match our interface
       const transformedSegments: StorySegment[] = (segmentsData || []).map(segment => ({
         id: segment.id,
@@ -216,7 +263,7 @@ const StoryViewer = () => {
         })(),
         is_ending: !!segment.is_ending
       }));
-      
+
       setSegments(transformedSegments);
 
       // Only auto-generate image for the latest segment if not credit locked
@@ -243,7 +290,7 @@ const StoryViewer = () => {
 
   const handleChoice = async (choiceId: number, choiceText: string) => {
     if (!story || !user) return;
-    
+
     // Block choices if story is completed
     if (story.status === 'completed' || story.is_completed || story.is_complete) {
       toast({
@@ -253,7 +300,7 @@ const StoryViewer = () => {
       });
       return;
     }
-    
+
     // Block if credit operation is in progress
     if (creditLock.current) {
       toast({
@@ -263,12 +310,12 @@ const StoryViewer = () => {
       });
       return;
     }
-    
+
     const currentSegment = segments[currentSegmentIndex];
     if (!currentSegment) return;
 
     const requestId = generateRequestId();
-    
+
     logger.group('Story Segment Generation', { requestId, storyId: story.id });
     logger.storySegmentGeneration(story.id, segments.length + 1, requestId);
 
@@ -338,29 +385,39 @@ const StoryViewer = () => {
       // Reload segments from database to ensure state consistency
       logger.debug('Reloading segments from database', { requestId });
       const updatedSegments = await reloadSegments();
-      
+
       // Navigate to the latest segment (last one in the array)
       if (updatedSegments.length > 0) {
         setCurrentSegmentIndex(updatedSegments.length - 1);
-        
-        // Schedule image generation for the new segment after creditLock is released
+
+        // Automatically generate image for the new segment
         const newSegment = updatedSegments[updatedSegments.length - 1];
         if (newSegment && !newSegment.image_url) {
-          logger.debug('Scheduling image generation for new segment', {
+          logger.debug('Auto-generating image for new segment', {
             requestId,
             segmentId: newSegment.id
           });
-          console.log('🖼️ Scheduling auto-image generation for new segment:', newSegment.id);
-          
-          // Schedule image generation after a short delay to ensure creditLock is released
-          setTimeout(() => {
-            if (!creditLock.current) {
-              console.log('🖼️ Executing auto-image generation for segment:', newSegment.id);
-              generateSegmentImage(newSegment);
-            } else {
-              console.log('📷 Credit lock still active, skipping auto-image generation');
-            }
-          }, 1000);
+          console.log('🖼️ Auto-generating image for new segment:', newSegment.id);
+
+          // Wait for credit lock to be released then generate image
+          const autoGenerateImage = async () => {
+            // Wait a bit for credit system to update
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Ensure credit lock is released
+            creditLock.current = false;
+
+            // Now generate the image
+            await generateSegmentImage(newSegment);
+          };
+
+          // Execute in background
+          autoGenerateImage().catch(error => {
+            logger.error('Auto-image generation failed', error, {
+              requestId,
+              segmentId: newSegment.id
+            });
+          });
         }
       }
 
@@ -376,7 +433,7 @@ const StoryViewer = () => {
         choiceId,
         segmentNumber: segments.length + 1
       });
-      
+
       // Handle specific AI client errors
       if (error instanceof InsufficientCreditsError) {
         setCreditError({
@@ -386,7 +443,7 @@ const StoryViewer = () => {
         setShowInsufficientCredits(true);
         return;
       }
-      
+
       toast({
         title: "Generation failed",
         description: `${error.message || "Failed to continue the story. Please try again."} (ID: ${requestId})`,
@@ -400,8 +457,9 @@ const StoryViewer = () => {
   };
 
   const generateSegmentImage = async (segment: StorySegment) => {
+    console.log('generateSegmentImage function called for segment:', segment.id);
     if (!story) return;
-    
+
     // Check if credit operation is in progress
     if (creditLock.current) {
       toast({
@@ -415,7 +473,7 @@ const StoryViewer = () => {
     const requestId = generateRequestId();
     const retryKey = `image-${segment.id}`;
     const currentRetries = retryAttempts[retryKey] || 0;
-    
+
     if (currentRetries >= 3) {
       logger.warn('Max image generation retries reached', {
         requestId,
@@ -462,10 +520,10 @@ const StoryViewer = () => {
       });
 
       logger.edgeFunctionResponse('generate-story-image', requestId, imageResult);
-      
+
       // Update segment with image URL when ready
-      setSegments(prev => prev.map(s => 
-        s.id === segment.id 
+      setSegments(prev => prev.map(s =>
+        s.id === segment.id
           ? { ...s, image_url: imageResult.data?.imageUrl }
           : s
       ));
@@ -489,7 +547,7 @@ const StoryViewer = () => {
         attempt: currentRetries + 1
       });
       setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
-      
+
       // Show better error messages
       if (error.code === 'INSUFFICIENT_CREDITS') {
         toast({
@@ -504,7 +562,7 @@ const StoryViewer = () => {
           variant: "destructive",
         });
       }
-      
+
       setTimeout(() => {
         generateSegmentImage(segment);
       }, 2000 * (currentRetries + 1));
@@ -515,6 +573,7 @@ const StoryViewer = () => {
   };
 
   const generateAudio = async (segmentId: string, content: string) => {
+    console.log('generateAudio function called with segmentId:', segmentId);
     // Calculate credit cost for TTS
     const { credits: ttsCost, priceBreakdown } = calculateTTSCredits(content);
 
@@ -528,9 +587,9 @@ const StoryViewer = () => {
       return;
     }
 
-    // Reload segments to check if audio already exists
-    const updatedSegments = await reloadSegments();
-    const targetSegment = updatedSegments.find(s => s.id === segmentId);
+    // Check if audio already exists without reloading all segments
+    // This avoids triggering the auto-image generation side effect
+    const targetSegment = segments.find(s => s.id === segmentId);
     if (targetSegment?.audio_url) {
       toast({
         title: "Audio already exists",
@@ -540,113 +599,67 @@ const StoryViewer = () => {
     }
 
     const requestId = generateRequestId();
-    const retryKey = `audio-${segmentId}`;
-    const currentRetries = retryAttempts[retryKey] || 0;
 
-    if (currentRetries >= 1) { // Limit to 1 retry instead of 3
-      logger.warn('Max audio generation retries reached', {
-        requestId,
-        segmentId,
-        attempts: currentRetries
-      });
-      toast({
-        title: "Audio generation failed",
-        description: `Max retry attempts reached. Please try again later. (ID: ${requestId})`,
-        variant: "destructive",
-      });
-      return;
+    // Determine voice ID to use (prefer current selection; otherwise pick a language-appropriate default)
+    let voiceIdToUse = selectedVoice;
+    const languageVoices = VOICE_LANGUAGE_MAP[selectedLanguage as keyof typeof VOICE_LANGUAGE_MAP];
+
+    if (!voiceIdToUse) {
+      const female = languageVoices?.female?.[0];
+      const male = languageVoices?.male?.[0];
+      const neutral = languageVoices?.neutral?.[0];
+      voiceIdToUse = female || male || neutral || '9BWtsMINqrJLrRacOk9x';
     }
 
-    logger.audioGeneration(segmentId, requestId, selectedVoice, currentRetries + 1);
+    logger.audioGeneration(segmentId, requestId, voiceIdToUse, 1);
     setGeneratingAudio(true);
     creditLock.current = true; // Lock credits during audio generation
-    
+
+      // Diagnostic: estimate required credits and log current balance before calling Edge Function
+      try {
+        const wordCount = content.trim().split(/\s+/).length;
+        const estimatedRequired = Math.ceil(wordCount / 100);
+        if (user?.id) {
+          const { data: userCredits, error: userCreditsError } = await supabase
+            .from('user_credits')
+            .select('current_balance')
+            .eq('user_id', user.id)
+            .single();
+          logger.info('Pre-audio credit check', {
+            wordCount,
+            estimatedRequired,
+            currentBalance: userCredits?.current_balance,
+            userCreditsError: userCreditsError?.message
+          });
+        } else {
+          logger.info('Pre-audio credit check skipped: no user');
+        }
+      } catch (e) {
+        logger.error('Pre-audio credit check failed', e);
+      }
+
     try {
-      const requestBody = {
+      // Use the generateAudio function from story-api which has the proper interface
+      const audioResult = await generateAudioAPI({
         text: content,
-        voiceId: selectedVoice,
+        voice: voiceIdToUse,
         languageCode: selectedLanguage,
         storyId: story?.id,
-        segmentId,
-        modelId: 'eleven_multilingual_v2',
-        requestId
-      };
-
-      logger.edgeFunction('generate-story-audio', requestId, requestBody);
-
-      const { data, error } = await supabase.functions.invoke('generate-story-audio', {
-        body: requestBody
+        segmentId: segmentId,
+        modelId: selectedLanguage === 'sv' ? 'eleven_multilingual_v2' : 'eleven_monolingual_v1'
       });
 
-      if (error) {
-        logger.edgeFunctionResponse('generate-story-audio', requestId, data, error);
-        setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
+      logger.info('Audio generation successful', { segmentId, requestId, audioUrl: audioResult.audioUrl });
 
-        // Retry with exponential backoff
-        setTimeout(() => {
-          generateAudio(segmentId, content);
-        }, 2000 * (currentRetries + 1));
-        return;
+      // Update segment with audio URL
+      const audioUrl = audioResult.audioUrl;
+      if (audioUrl) {
+        setSegments(prev => prev.map(s =>
+          s.id === segmentId
+            ? { ...s, audio_url: audioUrl }
+            : s
+        ));
       }
-
-      // Check if the function returned an error response
-      if (data?.error) {
-        logger.edgeFunctionResponse('generate-story-audio', requestId, data, new Error(data.error));
-
-        // Handle credit errors specifically
-        if (data.error.includes('Insufficient credits')) {
-          const match = data.error.match(/Required: (\d+), Available: (\d+)/);
-          if (match) {
-            setCreditError({
-              required: parseInt(match[1]),
-              available: parseInt(match[2])
-            });
-            setShowInsufficientCredits(true);
-            return;
-          }
-        }
-
-        // Only retry for network/server errors, not for 4xx errors
-        if (!data.error_code || data.error_code === 'INSUFFICIENT_CREDITS') {
-          toast({
-            title: "Audio generation failed",
-            description: `${data.error} (ID: ${requestId})`,
-            variant: "destructive",
-          });
-          return;
-        }
-
-        setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
-
-        // Retry with exponential backoff only for retryable errors
-        setTimeout(() => {
-          generateAudio(segmentId, content);
-        }, 2000 * (currentRetries + 1));
-
-        toast({
-          title: "Audio generation failed",
-          description: `${data.error} (Retrying... Attempt ${currentRetries + 1}/1) (ID: ${requestId})`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      logger.edgeFunctionResponse('generate-story-audio', requestId, data);
-
-      // Update segment with audio URL - handle both response formats
-      const audioUrl = data.audioUrl || data.audio_url;
-      setSegments(prev => prev.map(s =>
-        s.id === segmentId
-          ? { ...s, audio_url: audioUrl }
-          : s
-      ));
-
-      // Clear retry counter on success
-      setRetryAttempts(prev => {
-        const newAttempts = { ...prev };
-        delete newAttempts[retryKey];
-        return newAttempts;
-      });
 
       toast({
         title: "Audio generated!",
@@ -657,44 +670,24 @@ const StoryViewer = () => {
       logger.error('Audio generation failed', error, {
         requestId,
         segmentId,
-        attempt: currentRetries + 1,
-        voiceId: selectedVoice
+        voiceId: voiceIdToUse
       });
-      setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
-      
+
       // Check if it's a credit error
-      if (error.message?.includes('Insufficient credits')) {
-        const match = error.message.match(/Required: (\d+), Available: (\d+)/);
-        if (match) {
-          setCreditError({
-            required: parseInt(match[1]),
-            available: parseInt(match[2])
-          });
-          setShowInsufficientCredits(true);
-          return;
-        }
-      }
-      
-      // Only retry for network errors, not for 4xx client errors
-      if (currentRetries === 0 && !error.status || (error.status && error.status >= 500)) {
-        setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
-        
-        setTimeout(() => {
-          generateAudio(segmentId, content);
-        }, 2000 * (currentRetries + 1));
-        
-        toast({
-          title: "Audio generation failed",
-          description: `Retrying... (Attempt ${currentRetries + 1}/1) (ID: ${requestId})`,
-          variant: "destructive",
+      if (error instanceof InsufficientCreditsError) {
+        setCreditError({
+          required: error.required,
+          available: error.available
         });
-      } else {
-        toast({
-          title: "Audio generation failed",
-          description: `${error.message} (ID: ${requestId})`,
-          variant: "destructive",
-        });
+        setShowInsufficientCredits(true);
+        return;
       }
+
+      toast({
+        title: "Audio generation failed",
+        description: `${error.message} (ID: ${requestId})`,
+        variant: "destructive",
+      });
     } finally {
       setGeneratingAudio(false);
       creditLock.current = false; // Release credit lock
@@ -712,7 +705,7 @@ const StoryViewer = () => {
       if (audioElement) {
         audioElement.pause();
       }
-      
+
       const audio = new Audio(currentSegment.audio_url);
       audio.onended = () => {
         setIsPlaying(false);
@@ -723,7 +716,7 @@ const StoryViewer = () => {
       };
       audio.onplay = () => setIsPlaying(true);
       audio.onpause = () => setIsPlaying(false);
-      
+
       setAudioElement(audio);
       audio.play();
     }
@@ -735,7 +728,7 @@ const StoryViewer = () => {
     } else if (direction === 'next' && currentSegmentIndex < segments.length - 1) {
       setCurrentSegmentIndex(currentSegmentIndex + 1);
     }
-    
+
     // Stop current audio
     if (audioElement) {
       audioElement.pause();
@@ -751,7 +744,7 @@ const StoryViewer = () => {
   const jumpToSegment = (segmentIndex: number) => {
     if (segmentIndex >= 0 && segmentIndex < segments.length) {
       setCurrentSegmentIndex(segmentIndex);
-      
+
       // Stop current audio
       if (audioElement) {
         audioElement.pause();
@@ -793,7 +786,7 @@ const StoryViewer = () => {
 
   const handleShare = async () => {
     if (!story) return;
-    
+
     if (story.visibility === 'private') {
       toast({
         title: "Story is private",
@@ -877,7 +870,7 @@ const StoryViewer = () => {
 
     try {
       setGeneratingEnding(true);
-      
+
       toast({
         title: "Generating story ending...",
         description: "Our AI is crafting the perfect conclusion to your adventure.",
@@ -973,42 +966,106 @@ const StoryViewer = () => {
         onEndStory={handleEndStory}
       />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto space-y-8">
-          {/* Story Metadata */}
-          <StoryMetadata story={story} viewMode={viewMode} />
-
-          {/* Current Segment Display */}
-          {currentSegment && (
-            <StorySegmentDisplay
-              segment={currentSegment}
-              story={story}
-              viewMode={viewMode}
-              isOwner={isOwner}
-              generatingSegment={generatingSegment}
-              generatingImage={generatingImage}
-              onChoice={handleChoice}
-              onGenerateImage={generateSegmentImage}
-              fontSize={fontSize}
-              isPlaying={isPlaying}
-              generatingAudio={generatingAudio}
-              onToggleAudio={toggleAudio}
-              onGenerateAudio={() => generateAudio(currentSegment.id, currentSegment.content)}
-              selectedVoice={selectedVoice}
-              onVoiceChange={setSelectedVoice}
+      <div className="container mx-auto px-4 py-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Story Progress Tracker */}
+          {viewMode === 'creation' && segments.length > 0 && (
+            <StoryProgressTracker
+              currentSegmentIndex={currentSegmentIndex}
+              totalSegments={segments.length}
+              isCompleted={isCompletedStory}
             />
           )}
 
-          {/* Story Navigation */}
-          <StoryNavigation
-            currentSegmentIndex={currentSegmentIndex}
-            totalSegments={segments.length}
-            onNavigate={navigateSegment}
-            onJumpToSegment={jumpToSegment}
-            onEndStory={handleEndStory}
-            showEndStory={isOwner && !isCompletedStory}
-            viewMode={viewMode}
-          />
+          {/* Main Content Area */}
+          <div className={viewMode === 'creation' ? 'grid grid-cols-1 lg:grid-cols-[1fr,380px] gap-6' : 'max-w-4xl mx-auto'}>
+            {/* Story Main Content */}
+            <div className="space-y-6">
+              {/* Story Metadata */}
+              {viewMode === 'experience' && (
+                <StoryMetadata story={story} viewMode={viewMode} />
+              )}
+
+              {/* Current Segment Display */}
+              {currentSegment && (
+                <StorySegmentDisplay
+                  segment={currentSegment}
+                  story={story}
+                  viewMode={viewMode}
+                  isOwner={isOwner}
+                  generatingSegment={generatingSegment}
+                  generatingImage={generatingImage}
+                  onChoice={handleChoice}
+                  onGenerateImage={generateSegmentImage}
+                  fontSize={fontSize}
+                  isPlaying={isPlaying}
+                  generatingAudio={generatingAudio}
+                  onToggleAudio={toggleAudio}
+                  onGenerateAudio={() => {
+                    if (!currentSegment.content) {
+                      toast({
+                        title: "Cannot generate audio",
+                        description: "This segment has no content to convert to audio.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    generateAudio(currentSegment.id, currentSegment.content);
+                  }}
+                  selectedVoice={selectedVoice}
+                  onVoiceChange={setSelectedVoice}
+                />
+              )}
+
+              {/* Story Navigation for Experience Mode */}
+              {viewMode === 'experience' && (
+                <StoryNavigation
+                  currentSegmentIndex={currentSegmentIndex}
+                  totalSegments={segments.length}
+                  onNavigate={navigateSegment}
+                  onJumpToSegment={jumpToSegment}
+                  onEndStory={handleEndStory}
+                  showEndStory={isOwner && !isCompletedStory}
+                  viewMode={viewMode}
+                />
+              )}
+            </div>
+
+            {/* Sidebar for Creation Mode */}
+            {viewMode === 'creation' && currentSegment && (
+              <StorySidebar
+                story={story}
+                currentSegment={currentSegment}
+                segmentNumber={currentSegmentIndex + 1}
+                totalSegments={segments.length}
+                creditsUsed={8} // TODO: Calculate from actual usage
+                totalCredits={23} // TODO: Get from user credits
+                isPlaying={isPlaying}
+                generatingAudio={generatingAudio}
+                generatingImage={generatingImage === currentSegment.id}
+                generatingEnding={generatingEnding}
+                selectedVoice={selectedVoice}
+                onVoiceChange={setSelectedVoice}
+                onGenerateAudio={() => {
+                  if (!currentSegment.content) {
+                    toast({
+                      title: "Cannot generate audio",
+                      description: "This segment has no content to convert to audio.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  generateAudio(currentSegment.id, currentSegment.content);
+                }}
+                onToggleAudio={toggleAudio}
+                onGenerateImage={() => generateSegmentImage(currentSegment)}
+                onEndStory={handleEndStory}
+                isOwner={isOwner}
+                isCompleted={isCompletedStory}
+                creditLocked={creditLock.current}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -1046,7 +1103,17 @@ const StoryViewer = () => {
           isPlaying={isPlaying}
           isGenerating={generatingAudio}
           onToggleAudio={toggleAudio}
-          onGenerateAudio={() => currentSegment && generateAudio(currentSegment.id, currentSegment.content)}
+          onGenerateAudio={() => {
+            if (!currentSegment || !currentSegment.content) {
+              toast({
+                title: "Cannot generate audio",
+                description: "This segment has no content to convert to audio.",
+                variant: "destructive",
+              });
+              return;
+            }
+            generateAudio(currentSegment.id, currentSegment.content);
+          }}
           onSkipForward={() => navigateSegment('next')}
           onSkipBack={() => navigateSegment('prev')}
           canSkipForward={currentSegmentIndex < segments.length - 1}

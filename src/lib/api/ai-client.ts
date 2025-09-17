@@ -332,10 +332,14 @@ export class AIClient {
     // Build comprehensive prompt from story details
     const characterNames = params.characters?.map(c => c.name).filter(Boolean).join(', ') || '';
     const characterDesc = characterNames ? ` featuring characters ${characterNames}` : '';
-    
+
     const prompt = `A children's book illustration for "${params.storyTitle}" (${params.ageGroup} age group, ${params.genre} genre). Scene: ${params.storyContent.slice(0, 200)}...${characterDesc}. Style: colorful, friendly, safe for children, high quality digital art.`;
-    
-    return this.invoke('generate-story-image', { ...params, prompt }, { timeout: 60000, retries: 2 });
+
+    // Map camelCase IDs to snake_case expected by the Edge Function
+    const { storyId, segmentId, ...rest } = params as any;
+    const body = { ...rest, story_id: storyId, segment_id: segmentId, prompt };
+
+    return this.invoke('generate-story-image', body, { timeout: 60000, retries: 2 });
   }
 
   /**

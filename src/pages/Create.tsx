@@ -42,7 +42,7 @@ export default function CreateStoryFlow() {
     }
 
     setGenerating(true);
-    
+
     let createdStoryId: string | null = null;
     try {
       const requestId = generateRequestId();
@@ -117,6 +117,7 @@ export default function CreateStoryFlow() {
       logger.edgeFunctionResponse('generate-story', requestId, generationResult);
 
       // Save generated segments to database
+      let insertedSegments: any[] = [];
       if (generationResult?.data?.segments && generationResult.data.segments.length > 0) {
         const segmentsToInsert = generationResult.data.segments.map((segment: any, index: number) => ({
           story_id: story.id,
@@ -127,21 +128,23 @@ export default function CreateStoryFlow() {
           image_prompt: segment.imagePrompt
         }));
 
-        const { error: segmentsError } = await supabase
+        const { data: inserted, error: segmentsError } = await supabase
           .from('story_segments')
-          .insert(segmentsToInsert);
+          .insert(segmentsToInsert)
+          .select('id, segment_number, content');
 
         if (segmentsError) {
           logger.error('Error saving segments', segmentsError);
           throw new Error('Failed to save story segments');
         }
+        insertedSegments = inserted || [];
       }
 
       // Update story with generated title and status
       const storyUpdates: any = {
         status: 'draft'
       };
-      
+
       if (generationResult?.data?.title) {
         storyUpdates.title = generationResult.data.title;
       }
@@ -151,12 +154,43 @@ export default function CreateStoryFlow() {
         .update(storyUpdates)
         .eq('id', story.id);
 
+
+      // Auto-generate an image for the first segment (non-blocking UX)
+      try {
+        const firstInserted = (insertedSegments || []).sort((a: any, b: any) => a.segment_number - b.segment_number)[0];
+        if (firstInserted) {
+          // Build characters payload similar to story generation
+          const charactersPayload = flow.selectedCharacters.map(c => ({
+            name: c.name,
+            description: c.description,
+            personality: (c.personality_traits || []).join(', ')
+          }));
+
+          // Fire-and-forget; we don't block navigation
+          AIClient.generateStoryImage({
+            storyContent: firstInserted.content || storyPrompt || '',
+            storyTitle: generationResult?.data?.title || storyTitle,
+            ageGroup: flow.ageGroup,
+            genre: flow.genres[0],
+            segmentNumber: firstInserted.segment_number,
+            storyId: story.id,
+            segmentId: firstInserted.id,
+            characters: charactersPayload,
+            requestId
+          }).catch((err) => {
+            logger.error('Initial image generation failed (non-blocking)', err, { storyId: story.id, segmentId: firstInserted.id });
+          });
+        }
+      } catch (e) {
+        logger.error('Failed to schedule initial image generation', e);
+      }
+
       toast.success(selectedLanguage === 'sv' ? 'Berättelse skapad!' : 'Story created successfully!');
       navigate(`/story/${story.id}`);
 
     } catch (error) {
       logger.error('Error generating story', error);
-      
+
       // Handle specific AI client errors
       if (error instanceof InsufficientCreditsError) {
         setCreditError({
@@ -166,14 +200,14 @@ export default function CreateStoryFlow() {
         setShowInsufficientCredits(true);
         return;
       }
-      
+
       // Handle auth errors
       if ((error as any).code === 'AUTH_REQUIRED') {
         toast.error('Please sign in to create stories');
         navigate('/auth');
         return;
       }
-      
+
       // Mark story as failed if it was created
       if (createdStoryId) {
         await supabase
@@ -181,7 +215,7 @@ export default function CreateStoryFlow() {
           .update({ status: 'failed' })
           .eq('id', createdStoryId);
       }
-      
+
       toast.error(selectedLanguage === 'sv' ? 'Kunde inte skapa berättelse. Försök igen.' : 'Failed to create story. Please try again.');
     } finally {
       setGenerating(false);
@@ -195,14 +229,14 @@ export default function CreateStoryFlow() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/dashboard" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-              <img 
-                src={taleForgeLogoImage} 
-                alt="Tale Forge Logo" 
+              <img
+                src={taleForgeLogoImage}
+                alt="Tale Forge Logo"
                 className="w-10 h-10 object-contain"
               />
               <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
             </Link>
-            
+
             <div className="hidden md:flex items-center space-x-8">
               <Link to="/dashboard" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow flex items-center gap-2">
                 <Home className="h-4 w-4" />

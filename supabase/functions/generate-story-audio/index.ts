@@ -33,6 +33,11 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Define these outside try block so they're accessible in catch
+  let supabaseUrl: string | undefined;
+  let supabaseKey: string | undefined;
+  let segment_id: string | undefined;
+
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -40,8 +45,8 @@ Deno.serve(async (req) => {
     }
 
     // Initialize services
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
 
     // Get user ID
@@ -49,7 +54,9 @@ Deno.serve(async (req) => {
     console.log(`Processing audio generation for user: ${userId}`);
 
     // Parse request body
-const { text, voice_id = '21m00Tcm4TlvDq8ikWAM', story_id, segment_id, voiceId, languageCode, modelId }: AudioRequest = await req.json();
+    const requestBody: AudioRequest = await req.json();
+    const { text, voice_id = '21m00Tcm4TlvDq8ikWAM', story_id, voiceId, languageCode, modelId } = requestBody;
+    segment_id = requestBody.segment_id;
 
     if (!text) {
       throw new Error('Text is required for audio generation');
@@ -100,8 +107,8 @@ const { text, voice_id = '21m00Tcm4TlvDq8ikWAM', story_id, segment_id, voiceId, 
 
     // Validate credits before processing (don't deduct yet)
     const creditsRequired = calculateAudioCredits(text);
-    const { success: hasCredits, currentCredits } = await creditService.checkUserCredits(userId, creditsRequired);
-    
+    const { hasCredits, currentCredits } = await creditService.checkUserCredits(userId, creditsRequired);
+
     if (!hasCredits) {
       throw new Error(`Insufficient credits. Required: ${creditsRequired}, Available: ${currentCredits}`);
     }
@@ -222,14 +229,18 @@ const { text, voice_id = '21m00Tcm4TlvDq8ikWAM', story_id, segment_id, voiceId, 
 
   } catch (error) {
     console.error('Audio generation error:', error);
-    
-    // Mark segment as failed if segment_id provided
-    if (segment_id) {
-      const supabase = createClient(supabaseUrl, supabaseKey);
-      await supabase
-        .from('story_segments')
-        .update({ audio_generation_status: 'failed' })
-        .eq('id', segment_id);
+
+    // Mark segment as failed if segment_id provided and we have credentials
+    if (segment_id && supabaseUrl && supabaseKey) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        await supabase
+          .from('story_segments')
+          .update({ audio_generation_status: 'failed' })
+          .eq('id', segment_id);
+      } catch (updateError) {
+        console.error('Failed to update segment status:', updateError);
+      }
     }
     
     // Handle insufficient credits error

@@ -96,7 +96,7 @@
 
   body {
     @apply text-foreground antialiased;
-    background-image: 
+    background-image:
       linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.4)),
       url('./assets/main-astronaut.png');
     background-size: cover;

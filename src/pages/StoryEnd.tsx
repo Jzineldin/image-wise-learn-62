@@ -9,6 +9,7 @@ import { Sparkles, BookOpen, Share2, Volume2, Play, CheckCircle, Clock, Users, Z
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
 import { logger, generateRequestId } from '@/lib/debug';
 
 interface Story {
@@ -33,6 +34,7 @@ const StoryEnd = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { selectedLanguage } = useLanguage();
   
   const [story, setStory] = useState<Story | null>(null);
   const [segments, setSegments] = useState<StorySegment[]>([]);
@@ -199,10 +201,16 @@ const StoryEnd = () => {
           continue;
         }
 
+        // Select voice based on language
+        const voiceId = selectedLanguage === 'sv'
+          ? 'aSLKtNoVBZlxQEMsnGL2' // Sanna - Swedish female voice
+          : '9BWtsMINqrJLrRacOk9x'; // Aria - English female voice
+
         const { data, error } = await supabase.functions.invoke('generate-story-audio', {
           body: {
             text: segment.content,
-            voiceId: '9BWtsMINqrJLrRacOk9x', // Default Aria voice
+            voiceId: voiceId,
+            languageCode: selectedLanguage,
             storyId: story?.id,
             segmentId: segment.id,
             modelId: 'eleven_multilingual_v2'
@@ -375,7 +383,7 @@ const StoryEnd = () => {
   const totalWords = segments.reduce((acc, s) => acc + s.content.split(' ').length, 0);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-8">
           
@@ -513,9 +521,9 @@ const StoryEnd = () => {
 
           {/* Audio Completion */}
           {segmentsWithoutAudio > 0 && (
-            <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+            <Card className="border-warning/20 bg-warning/5">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                <CardTitle className="flex items-center gap-2 text-warning">
                   <Volume2 className="h-5 w-5" />
                   Complete Audio Experience
                 </CardTitle>

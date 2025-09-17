@@ -39,6 +39,7 @@ export interface AudioGenerationOptions {
   languageCode?: string;
   storyId?: string;
   segmentId?: string;
+  modelId?: string;
 }
 
 export interface AudioGenerationResult {
@@ -108,13 +109,24 @@ export const generateStory = async (options: StoryGenerationOptions): Promise<St
  * Generate audio for text using AI text-to-speech
  */
 export const generateAudio = async (options: AudioGenerationOptions): Promise<AudioGenerationResult> => {
+  // Map parameters to match edge function expectations
+  const requestBody = {
+    text: options.text,
+    voiceId: options.voice, // Edge function supports voiceId
+    languageCode: options.languageCode,
+    story_id: options.storyId,
+    segment_id: options.segmentId,
+    modelId: options.modelId
+  };
+
   const { data, error } = await supabase.functions.invoke('generate-story-audio', {
-    body: options
+    body: requestBody
   });
 
   if (error) {
-    logger.error('Audio generation failed', error, { options });
-    throw new Error(error.message || 'Failed to generate audio');
+    const contextMessage = (error as any)?.context?.message || (error as any)?.context?.error || error.message;
+    logger.error('Audio generation failed', error, { options, contextMessage });
+    throw new Error(contextMessage || 'Failed to generate audio');
   }
 
   if (data.error) {

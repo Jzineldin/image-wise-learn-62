@@ -9,7 +9,10 @@
       "Bash(find:*)",
       "Bash(npm install:*)",
       "Bash(npm run type-check:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Read(//c/Users/Jzine/**)",
+      "Bash(supabase functions logs:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

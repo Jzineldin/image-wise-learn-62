@@ -1,0 +1,79 @@
+/* Story Viewer Specific Styles - Purple Theme */
+/* These styles only apply within .story-viewer-container */
+
+.story-viewer-container {
+  /* Purple theme variables for story viewer only */
+  --sv-primary: 262 83% 58%; /* Purple */
+  --sv-primary-foreground: 210 20% 98%;
+  --sv-primary-hover: 264 100% 70%;
+  --sv-primary-glow: 264 100% 70%;
+
+  --sv-background: 0 0% 100%;
+  --sv-foreground: 222.2 84% 4.9%;
+
+  --sv-muted: 210 40% 96%;
+  --sv-muted-foreground: 215.4 16.3% 46.9%;
+
+  --sv-border: 214.3 31.8% 91.4%;
+
+  --sv-success: 142 76% 36%;
+  --sv-warning: 38 92% 50%;
+  --sv-destructive: 0 84.2% 60.2%;
+
+  background: linear-gradient(180deg, hsl(var(--sv-background)) 0%, hsl(210 40% 98%) 100%);
+  color: hsl(var(--sv-foreground));
+  min-height: 100vh;
+}
+
+/* Override component colors within story viewer */
+.story-viewer-container .sv-card {
+  background: hsl(var(--sv-background));
+  border-color: hsl(var(--sv-border));
+  color: hsl(var(--sv-foreground));
+}
+
+.story-viewer-container .sv-primary-btn {
+  background: hsl(var(--sv-primary));
+  color: hsl(var(--sv-primary-foreground));
+}
+
+.story-viewer-container .sv-primary-btn:hover {
+  background: hsl(var(--sv-primary-hover));
+}
+
+.story-viewer-container .sv-muted {
+  background: hsl(var(--sv-muted));
+  color: hsl(var(--sv-muted-foreground));
+}
+
+.story-viewer-container .sv-progress-active {
+  background: hsl(var(--sv-primary));
+  color: white;
+  box-shadow: 0 0 20px hsl(var(--sv-primary) / 0.3);
+}
+
+.story-viewer-container .sv-progress-completed {
+  background: hsl(var(--sv-success));
+  color: white;
+}
+
+.story-viewer-container .sv-choice-btn {
+  background: white;
+  border: 2px solid hsl(var(--sv-border));
+  color: hsl(var(--sv-foreground));
+}
+
+.story-viewer-container .sv-choice-btn:hover {
+  border-color: hsl(var(--sv-primary));
+  box-shadow: 0 10px 25px -5px hsl(0 0% 0% / 0.1);
+  transform: translateY(-2px);
+}
+
+.story-viewer-container .sv-choice-number {
+  background: hsl(var(--sv-primary));
+  color: white;
+}
+
+.story-viewer-container .sv-image-placeholder {
+  background: linear-gradient(135deg, hsl(var(--sv-primary)), hsl(var(--sv-primary-glow)));
+}

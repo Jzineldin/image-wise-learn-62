@@ -59,12 +59,22 @@ serve(async (req) => {
       style = 'children_book'
     }: ImageRequest = await req.json();
 
-    // Build prompt if not provided
+    // Build prompt if not provided (enhanced for SDXL quality)
     let finalPrompt = prompt;
     if (!finalPrompt && storyContent) {
-      const characterNames = characters?.map((c: any) => c.name).filter(Boolean).join(', ') || '';
-      const characterDesc = characterNames ? ` featuring characters ${characterNames}` : '';
-      finalPrompt = `A children's book illustration for "${storyTitle || 'story'}" (${ageGroup || 'children'} age group, ${genre || 'adventure'} genre). Scene: ${storyContent.slice(0, 200)}...${characterDesc}. Style: colorful, friendly, safe for children, high quality digital art.`;
+      const charSnippets = (characters || [])
+        .slice(0, 3)
+        .map((c: any) => {
+          const name = c?.name ? String(c.name) : '';
+          const desc = c?.description ? String(c.description) : '';
+          const brief = (desc || '').slice(0, 60).trim();
+          return brief ? `${name} (${brief})` : name;
+        })
+        .filter(Boolean)
+        .join(', ');
+      const charText = charSnippets ? ` featuring ${charSnippets}` : '';
+      const scene = storyContent.slice(0, 280).replace(/\s+/g, ' ').trim();
+      finalPrompt = `A storybook scene for "${storyTitle || 'story'}" in the ${genre || 'adventure'} genre, suitable for ${ageGroup || 'children'} readers. Depict: ${scene}${charText}.`;
     }
 
     if (!finalPrompt) {
@@ -73,6 +83,26 @@ serve(async (req) => {
         'Either prompt or story content must be provided for image generation'
       );
     }
+
+    // Derive a stable seed from story/segment for consistency
+    const hashToSeed = (input: string) => {
+      let h = 2166136261;
+      for (let i = 0; i < input.length; i++) {
+        h ^= input.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      // Force positive 32-bit and clamp to SDXL range
+      return Math.abs(h >>> 0) % 2147483647;
+    };
+    const seed = hashToSeed(`${story_id || ''}|${segment_id || ''}|${style || 'children_book'}`);
+
+    const negativePrompt = [
+      'low quality', 'worst quality', 'blurry', 'pixelated', 'jpeg artifacts', 'noise',
+      'deformed', 'distorted', 'extra limbs', 'mutated hands', 'bad anatomy', 'crooked eyes',
+      'text', 'caption', 'logo', 'watermark', 'signature', 'nsfw', 'gore', 'scary', 'violent',
+      'blood', 'weapons', 'nudity', 'disfigured', 'overexposed', 'underexposed'
+    ].join(', ');
+
 
     // Validate credits (don't deduct yet)
     const validation = await validateCredits(creditService, userId, 'imageGeneration');
@@ -86,8 +116,10 @@ serve(async (req) => {
       style,
       width: 1024,
       height: 1024,
-      steps: 25,
-      guidance: 7.5
+      steps: 40,            // SDXL: better detail at 35-50 steps
+      guidance: 6.5,        // SDXL sweet spot to avoid oversaturation
+      seed,
+      negativePrompt
     });
 
     console.log(`Image generated successfully with ${imageResult.provider}`);

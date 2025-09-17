@@ -18,7 +18,16 @@
  * - Platform maintains profitability
  * - Simple, transparent pricing
  */
-export const calculateTTSCredits = (text: string): { words: number; credits: number; priceBreakdown: string } => {
+export const calculateTTSCredits = (text: string | null | undefined): { words: number; credits: number; priceBreakdown: string } => {
+  // Handle null/undefined content gracefully
+  if (!text || typeof text !== 'string') {
+    return {
+      words: 0,
+      credits: 0,
+      priceBreakdown: 'No content to process'
+    };
+  }
+
   // Remove extra whitespace and split by spaces
   const words = text.trim().split(/\s+/).filter(word => word.length > 0);
   const wordCount = words.length;
