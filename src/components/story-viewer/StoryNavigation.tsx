@@ -9,6 +9,8 @@ interface StoryNavigationProps {
   onEndStory?: () => void;
   showEndStory?: boolean;
   viewMode?: 'creation' | 'experience';
+  hasEnding?: boolean;
+  endActionLabel?: string;
 }
 
 export const StoryNavigation = ({
@@ -18,7 +20,9 @@ export const StoryNavigation = ({
   onJumpToSegment,
   onEndStory,
   showEndStory = false,
-  viewMode = 'creation'
+  viewMode = 'creation',
+  hasEnding = false,
+  endActionLabel
 }: StoryNavigationProps) => {
   const canGoPrevious = currentSegmentIndex > 0;
   const canGoNext = currentSegmentIndex < totalSegments - 1;
@@ -98,7 +102,7 @@ export const StoryNavigation = ({
             className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 border-amber-200 hover:border-amber-300"
           >
             <Sparkles className="h-4 w-4 mr-2" />
-            End Story
+            {endActionLabel || (hasEnding ? 'Finalize Story' : 'End Story')}
           </Button>
         </div>
       )}

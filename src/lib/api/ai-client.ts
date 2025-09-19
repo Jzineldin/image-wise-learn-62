@@ -8,6 +8,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { generateRequestId } from '@/lib/utils/debug';
+import { FunctionsHttpError, FunctionsRelayError, FunctionsFetchError } from '@supabase/supabase-js';
 
 export interface AIClientResponse<T = any> {
   success: boolean;
@@ -116,30 +117,71 @@ export class AIClient {
 
           clearTimeout(timeoutId);
 
-          // Handle supabase-js errors (network, auth, etc.)
+          // Handle supabase-js errors using Context7 patterns
           if (error) {
             console.error(`❌ ${functionName} supabase error:`, error);
-            
-            // Check for specific error patterns
-            const errorMessage = this.parseSupabaseError(error);
-            const errorCode = this.classifyError(error, errorMessage);
-            
-            if (errorMessage.includes('Insufficient credits')) {
-              const match = errorMessage.match(/Required: (\d+), Available: (\d+)/);
-              if (match) {
-                throw new InsufficientCreditsError(
-                  parseInt(match[1]), 
-                  parseInt(match[2])
-                );
+
+            // Context7 Pattern: Distinguish between error types
+            if (error instanceof FunctionsHttpError) {
+              // Function returned an error response
+              const errorMessage = await error.context.json().catch(() => ({
+                error: 'Function returned an error',
+                message: error.message
+              }));
+
+              console.log('Function returned an error', errorMessage);
+
+              // Check for insufficient credits in function response
+              if (errorMessage.error?.includes('Insufficient credits') ||
+                  errorMessage.message?.includes('Insufficient credits')) {
+                const match = (errorMessage.error || errorMessage.message || '').match(/Required: (\d+), Available: (\d+)/);
+                if (match) {
+                  throw new InsufficientCreditsError(
+                    parseInt(match[1]),
+                    parseInt(match[2])
+                  );
+                }
               }
+
+              throw new AIClientError(
+                errorMessage.error || errorMessage.message || 'Function execution failed',
+                'FUNCTION_ERROR',
+                error.context.status || 500,
+                error
+              );
+
+            } else if (error instanceof FunctionsRelayError) {
+              // Network/relay error - retry might help
+              console.log('Relay error:', error.message);
+              throw new AIClientError(
+                'Network error occurred. Please check your connection and try again.',
+                'NETWORK_ERROR',
+                503,
+                error
+              );
+
+            } else if (error instanceof FunctionsFetchError) {
+              // Function unreachable - likely server issue
+              console.log('Fetch error:', error.message);
+              throw new AIClientError(
+                'Service temporarily unavailable. Please try again in a moment.',
+                'SERVICE_UNAVAILABLE',
+                503,
+                error
+              );
+
+            } else {
+              // Fallback for other error types
+              const errorMessage = this.parseSupabaseError(error);
+              const errorCode = this.classifyError(error, errorMessage);
+
+              throw new AIClientError(
+                errorMessage,
+                errorCode,
+                (error as any).status || 500,
+                error
+              );
             }
-            
-            throw new AIClientError(
-              errorMessage,
-              errorCode,
-              (error as any).status || 500,
-              error
-            );
           }
 
           if (shouldLog) {
@@ -223,27 +265,37 @@ export class AIClient {
   }
 
   /**
-   * Determine if an error is retryable
+   * Determine if an error is retryable (Context7 Pattern)
    */
   private static isRetryableError(error: AIClientError): boolean {
     if (!error.code) return true; // Unknown errors are retryable
-    
+
+    // Context7 Pattern: Only retry network/relay errors
+    const retryableCodes = [
+      'NETWORK_ERROR',      // FunctionsRelayError
+      'SERVICE_UNAVAILABLE', // FunctionsFetchError
+      'TIMEOUT'             // Request timeout
+    ];
+
     const nonRetryableCodes = [
       'AUTH_REQUIRED',
-      'INSUFFICIENT_CREDITS', 
+      'INSUFFICIENT_CREDITS',
       'VALIDATION_ERROR',
       'PROVIDER_RESPONSE_ERROR',
       'API_FORMAT_ERROR',
-      'CIRCUIT_BREAKER_OPEN'
+      'CIRCUIT_BREAKER_OPEN',
+      'FUNCTION_ERROR'      // FunctionsHttpError - don't retry function logic errors
     ];
-    
+
+    // Context7 Pattern: Explicit retry logic
+    if (retryableCodes.includes(error.code)) return true;
     if (nonRetryableCodes.includes(error.code)) return false;
-    
+
     // Don't retry 4xx errors except for specific cases
     if (error.statusCode && error.statusCode >= 400 && error.statusCode < 500) {
       return error.statusCode === 408 || error.statusCode === 429; // Timeout or rate limit
     }
-    
+
     return true;
   }
 

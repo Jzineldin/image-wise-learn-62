@@ -12,12 +12,13 @@ import CreditDisplay from '@/components/CreditDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import { StoryCreationWizard } from '@/components/story-creation/StoryCreationWizard';
 import { useLanguage } from '@/hooks/useLanguage';
+import LanguageSelector from '@/components/LanguageSelector';
 import { useStoryStore } from '@/stores/storyStore';
 
 export default function CreateStoryFlow() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { translate, selectedLanguage } = useLanguage();
+  const { translate, selectedLanguage, changeLanguage } = useLanguage();
   const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
   const [creditError, setCreditError] = useState<{ required: number; available: number } | null>(null);
 
@@ -254,6 +255,11 @@ export default function CreateStoryFlow() {
             </div>
 
             <div className="flex items-center space-x-4">
+              <LanguageSelector
+                selectedLanguage={selectedLanguage}
+                onLanguageChange={changeLanguage}
+                variant="compact"
+              />
               <CreditDisplay compact />
               <Link to="/settings">
                 <Button variant="outline" className="btn-secondary flex items-center gap-2">

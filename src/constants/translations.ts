@@ -93,15 +93,31 @@ export const TRANSLATIONS = {
       personality: 'Personlighet',
       backstory: 'Bakgrund',
       select: 'Välj karaktärer för din berättelse',
-      noCharacters: 'Inga karaktärer skapade ännu'
+      noCharacters: 'Inga karaktärer skapade ännu',
+      noCharactersDesc: 'Skapa din första karaktär för att komma igång med personliga berättelser',
+      createFirst: 'Skapa din första karaktär',
+      selected: 'Vald',
+      count: '{selected}/{max}'
     },
 
     // Story Seeds
     storySeeds: {
       title: 'Berättelseidéer',
       subtitle: 'Välj en idé för att börja din berättelse',
+      description: 'Vår AI har skapat personliga berättelseidéer baserat på din åldersgrupp, genrer och karaktärer. Välj en att börja med eller skriv en egen idé.',
       generating: 'Skapar berättelseidéer...',
-      regenerate: 'Generera nya idéer'
+      regenerate: 'Generera nya idéer',
+      aiGenerated: 'AI-genererade idéer',
+      customIdea: 'Anpassad berättelseidé',
+      writeOwn: 'Skriv själv',
+      useAiIdeas: 'Använd AI-idéer',
+      yourStoryIdea: 'Din berättelseidé',
+      customPlaceholder: 'Skriv din egen berättelseidé för {ageGroup} läsare i genren {genres}... Inkludera gärna {characters} i din berättelse!',
+      customInstructions: 'Beskriv början på din berättelse och situationen som leder till val.',
+      writeYourOwn: 'Skriv din egen berättelseidé',
+      customPremise: 'Skapa en helt egen berättelsepremiss',
+      storyCharacters: 'Berättelsekaraktärer',
+      selected: 'Valda'
     },
 
     // Voice & Audio

@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import RouteErrorFallback from "@/components/RouteErrorFallback";
+import { PageLoadingSpinner } from "@/components/ui/loading-spinner";
 
 // Lazy load routes for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -50,32 +52,97 @@ const App = () => {
               <>
                 <Toaster />
                 <Sonner />
-                <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>}>
+                {/* Context7 Pattern: Enhanced Suspense boundary with proper loading state */}
+                <Suspense fallback={<PageLoadingSpinner text="Loading application..." />}>
                   <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<Index />} />
-               <Route path="/create" element={<ProtectedRoute><Create /></ProtectedRoute>} />
-               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-               <Route path="/characters" element={<ProtectedRoute><Characters /></ProtectedRoute>} />
-               <Route path="/my-stories" element={<ProtectedRoute><MyStories /></ProtectedRoute>} />
-               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-               <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-               <Route path="/discover" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
-                 <Route path="/story/:id/end" element={<StoryEnd />} />
-                 <Route path="/story/:id" element={
-                   <ProtectedRoute requiresAuth={false} checkStoryAccess={true}>
-                     <StoryViewer />
-                   </ProtectedRoute>
-                 } />
-                 <Route path="/about" element={<About />} />
-                 <Route path="/pricing" element={<Pricing />} />
-                 <Route path="/success" element={<Success />} />
-                  <Route path="/contact" element={<Contact />} />
-                  <Route path="/privacy" element={<Privacy />} />
-                  <Route path="/terms" element={<Terms />} />
-                   <Route path="/testimonials" element={<TestimonialsPage />} />
-                   <Route path="*" element={<NotFoundPage />} />
-                </Routes>
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/" element={<Index />} />
+
+                    <Route path="/create" element={
+                      <ErrorBoundary fallback={(error) => <RouteErrorFallback error={error} context="Create" />}>
+                        <ProtectedRoute>
+                          {/* Context7 Pattern: Suspense for heavy create component */}
+                          <Suspense fallback={<PageLoadingSpinner text="Loading story creator..." />}>
+                            <Create />
+                          </Suspense>
+                        </ProtectedRoute>
+                      </ErrorBoundary>
+                    } />
+
+                    <Route path="/dashboard" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Dashboard" />}>
+                        <ProtectedRoute>
+                          <Dashboard />
+                        </ProtectedRoute>
+                      </ErrorBoundary>
+                    } />
+
+                    <Route path="/characters" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Characters" />}>
+                        <ProtectedRoute>
+                          <Characters />
+                        </ProtectedRoute>
+                      </ErrorBoundary>
+                    } />
+
+                    <Route path="/my-stories" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="My Stories" />}>
+                        <ProtectedRoute>
+                          <MyStories />
+                        </ProtectedRoute>
+                      </ErrorBoundary>
+                    } />
+
+                    <Route path="/settings" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Settings" />}>
+                        <ProtectedRoute>
+                          <Settings />
+                        </ProtectedRoute>
+                      </ErrorBoundary>
+                    } />
+
+                    <Route path="/admin" element={
+                      <ErrorBoundary fallback={(error) => <RouteErrorFallback error={error} context="Admin" />}>
+                        <ProtectedRoute requiresAdmin={true}>
+                          {/* Context7 Pattern: Suspense for heavy admin component */}
+                          <Suspense fallback={<PageLoadingSpinner text="Loading admin panel..." />}>
+                            <Admin />
+                          </Suspense>
+                        </ProtectedRoute>
+                      </ErrorBoundary>
+                    } />
+
+                    <Route path="/discover" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Discover" />}>
+                        <ProtectedRoute>
+                          <Discover />
+                        </ProtectedRoute>
+                      </ErrorBoundary>
+                    } />
+
+                    <Route path="/story/:id/end" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Story End" />}>
+                        <StoryEnd />
+                      </ErrorBoundary>
+                    } />
+
+                    <Route path="/story/:id" element={
+                      <ErrorBoundary fallback={(error) => <RouteErrorFallback error={error} context="Story Viewer" />}>
+                        <ProtectedRoute requiresAuth={false} checkStoryAccess={true}>
+                          <StoryViewer />
+                        </ProtectedRoute>
+                      </ErrorBoundary>
+                    } />
+
+                    <Route path="/about" element={<About />} />
+                    <Route path="/pricing" element={<Pricing />} />
+                    <Route path="/success" element={<Success />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/terms" element={<Terms />} />
+                    <Route path="/testimonials" element={<TestimonialsPage />} />
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Routes>
               </Suspense>
               </>
             </BrowserRouter>

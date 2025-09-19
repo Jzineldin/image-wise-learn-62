@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { CreditService, calculateAudioCredits, validateAndDeductCredits } from '../_shared/credit-system.ts';
+import { ResponseHandler, ERROR_CODES } from '../_shared/response-handlers.ts';
 
 // Helper function to get current credits
 const getCurrentCredits = async (creditService: any, userId: string): Promise<number> => {
@@ -41,7 +42,7 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      return ResponseHandler.error('No authorization header', 401, { endpoint: 'generate-story-audio' });
     }
 
     // Initialize services
@@ -59,7 +60,11 @@ Deno.serve(async (req) => {
     segment_id = requestBody.segment_id;
 
     if (!text) {
-      throw new Error('Text is required for audio generation');
+      return ResponseHandler.errorWithCode(
+        ERROR_CODES.VALIDATION_ERROR,
+        'Text is required for audio generation',
+        { field: 'text' }
+      );
     }
 
     // Map request parameters for backwards compatibility
@@ -242,31 +247,17 @@ Deno.serve(async (req) => {
         console.error('Failed to update segment status:', updateError);
       }
     }
-    
+
     // Handle insufficient credits error
-    if (error.message?.includes('Insufficient credits')) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error_code: 'INSUFFICIENT_CREDITS',
-          error: error.message,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
+    if ((error as any)?.message?.includes('Insufficient credits')) {
+      return ResponseHandler.errorWithCode(
+        ERROR_CODES.INSUFFICIENT_CREDITS,
+        'Insufficient credits',
+        { original: (error as any).message }
       );
     }
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Failed to generate audio',
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
-    );
+    return ResponseHandler.handleError(error, { endpoint: 'generate-story-audio' });
+
   }
 });

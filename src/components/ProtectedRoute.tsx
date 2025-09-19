@@ -8,16 +8,21 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   requiresAuth?: boolean;
   checkStoryAccess?: boolean;
+  requiresAdmin?: boolean;
+  requiresRole?: string;
 }
 
-const ProtectedRoute = ({ 
-  children, 
-  requiresAuth = true, 
-  checkStoryAccess = false 
+const ProtectedRoute = ({
+  children,
+  requiresAuth = true,
+  checkStoryAccess = false,
+  requiresAdmin = false,
+  requiresRole
 }: ProtectedRouteProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [storyAccessible, setStoryAccessible] = useState(true);
+  const [hasRequiredRole, setHasRequiredRole] = useState(true);
   const { id: storyId } = useParams();
   const [searchParams] = useSearchParams();
   const mode = searchParams.get('mode');
@@ -26,7 +31,7 @@ const ProtectedRoute = ({
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (!checkStoryAccess) {
+      if (!checkStoryAccess && !requiresAdmin && !requiresRole) {
         setLoading(false);
       }
     });
@@ -35,20 +40,78 @@ const ProtectedRoute = ({
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setUser(session?.user ?? null);
-        if (!checkStoryAccess) {
+        if (!checkStoryAccess && !requiresAdmin && !requiresRole) {
           setLoading(false);
         }
       }
     );
 
     return () => subscription.unsubscribe();
-  }, [checkStoryAccess]);
+  }, [checkStoryAccess, requiresAdmin, requiresRole]);
 
   useEffect(() => {
     if (checkStoryAccess && storyId) {
       checkStoryAccessibility();
     }
   }, [checkStoryAccess, storyId, user]);
+
+  useEffect(() => {
+    if ((requiresAdmin || requiresRole) && user) {
+      checkRoleAccess();
+    }
+  }, [requiresAdmin, requiresRole, user]);
+
+  // Context7 Pattern: Centralized role checking with proper error handling
+  const checkRoleAccess = async () => {
+    if (!user) {
+      setHasRequiredRole(false);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const roleToCheck = requiresRole || (requiresAdmin ? 'admin' : null);
+      if (!roleToCheck) {
+        setHasRequiredRole(true);
+        setLoading(false);
+        return;
+      }
+
+      logger.info('Checking role access', {
+        userId: user.id,
+        requiredRole: roleToCheck,
+        operation: 'role-access-check'
+      });
+
+      const { data: hasRole, error } = await supabase.rpc('has_role', {
+        check_role: roleToCheck
+      });
+
+      if (error) {
+        logger.error('Error checking role', error, {
+          operation: 'role-access-check',
+          userId: user.id,
+          requiredRole: roleToCheck
+        });
+        setHasRequiredRole(false);
+      } else {
+        setHasRequiredRole(hasRole || false);
+        logger.info('Role check completed', {
+          userId: user.id,
+          requiredRole: roleToCheck,
+          hasRole: hasRole || false
+        });
+      }
+    } catch (error) {
+      logger.error('Role check failed', error, {
+        operation: 'role-access-check-general',
+        userId: user.id
+      });
+      setHasRequiredRole(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const checkStoryAccessibility = async () => {
     if (!storyId) {
@@ -120,6 +183,16 @@ const ProtectedRoute = ({
   // Handle authentication requirement
   if (requiresAuth && !user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Context7 Pattern: Role-based access control with proper redirects
+  if ((requiresAdmin || requiresRole) && !hasRequiredRole) {
+    logger.warn('Access denied - insufficient role', {
+      userId: user?.id,
+      requiredRole: requiresRole || 'admin',
+      operation: 'access-denied'
+    });
+    return <Navigate to="/dashboard" replace />;
   }
 
   // Handle story access for story-specific routes

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { ResponseHandler } from "../_shared/response-handlers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,14 +32,20 @@ serve(async (req) => {
     );
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader) {
+      return ResponseHandler.error('No authorization header', 401, { endpoint: 'create-checkout' });
+    }
     logStep("Authorization header found");
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    if (userError || !userData?.user) {
+      return ResponseHandler.error('Invalid or expired token', 403, { endpoint: 'create-checkout', reason: userError?.message });
+    }
     const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
+    if (!user?.email) {
+      return ResponseHandler.error('User is not authenticated', 403, { endpoint: 'create-checkout' });
+    }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const { price_id, type = "subscription" } = await req.json();
@@ -58,7 +65,7 @@ serve(async (req) => {
     }
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
-    
+
     // Create checkout session based on type
     const sessionConfig: any = {
       customer: customerId,
@@ -87,9 +94,9 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create(sessionConfig);
     logStep("Checkout session created", { sessionId: session.id, url: session.url });
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       url: session.url,
-      session_id: session.id 
+      session_id: session.id
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
@@ -97,9 +104,6 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in create-checkout", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    return ResponseHandler.error(errorMessage, 500, { endpoint: 'create-checkout' });
   }
 });

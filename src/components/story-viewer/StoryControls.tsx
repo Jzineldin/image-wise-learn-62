@@ -13,6 +13,8 @@ interface StoryControlsProps {
   isFullscreen: boolean;
   isCompleted?: boolean;
   generatingEnding?: boolean;
+  hasEnding?: boolean;
+  endActionLabel?: string;
   onModeChange: (mode: 'creation' | 'experience') => void;
   onShare: () => void;
   onToggleLike: () => void;
@@ -29,6 +31,8 @@ export const StoryControls = ({
   isFullscreen,
   isCompleted = false,
   generatingEnding = false,
+  hasEnding = false,
+  endActionLabel,
   onModeChange,
   onShare,
   onToggleLike,
@@ -105,7 +109,7 @@ export const StoryControls = ({
                 ) : (
                   <>
                     <Square className="h-4 w-4" />
-                    End Story
+                    {endActionLabel || (hasEnding ? 'Finalize Story' : 'End Story')}
                   </>
                 )}
               </Button>

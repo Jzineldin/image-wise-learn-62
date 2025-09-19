@@ -9,7 +9,9 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "update:preview-images": "tsx scripts/update-preview-images.ts"
+    "update:preview-images": "tsx scripts/update-preview-images.ts",
+    "mcp:ping": "node scripts/context7-mcp.js ping",
+    "mcp:call": "node scripts/context7-mcp.js call"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -71,6 +73,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.55.0",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.16.5",
     "@types/react": "^18.3.23",

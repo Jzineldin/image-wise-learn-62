@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { CreditService, validateAndDeductCredits } from '../_shared/credit-system.ts';
 import { createAIService } from '../_shared/ai-service.ts';
 import { ResponseHandler } from '../_shared/response-handlers.ts';
+import { PromptTemplateManager } from '../_shared/prompt-templates.ts';
 
 interface StoryRequest {
   storyId: string;
@@ -29,7 +30,7 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      return ResponseHandler.error('No authorization header', 401, { requestId });
     }
 
     // Initialize services
@@ -80,31 +81,53 @@ Deno.serve(async (req) => {
     // Generate story using AI service
     const aiService = createAIService();
     
-    let characterContext = '';
-    if (characters.length > 0) {
-      characterContext = `\n\nMain characters to include:
-${characters.map(c => `- ${c.name}: ${c.description} (Personality: ${c.personality})`).join('\n')}`;
-    }
-    
-    const systemPrompt = `You are a skilled children's story writer creating interactive stories. Create engaging opening segments that set up the story world and present meaningful choices for the reader to continue the adventure.`;
-    
-    const userPrompt = `Create an opening segment for an interactive ${existingStory.story_type || 'short'} story for children aged ${ageGroup} in the ${genre} genre.
+    // Process character references and build strict protagonist instructions
+    const processedCharacters = (characters || []).map(c => ({
+      ...c,
+      reference: PromptTemplateManager.getCharacterReference({ name: c.name, description: c.description })
+    }));
 
-Story prompt: ${prompt}
-Language: ${languageCode}${characterContext}
+    const protagonistsList = processedCharacters.length > 0
+      ? processedCharacters.map(c => `- ${c.reference}: ${c.description} (personality: ${c.personality || ''})`).join('\n')
+      : '';
+
+    const languageInstructions = languageCode === 'sv' ? `
+🚨 LANGUAGE REQUIREMENT: Generate ALL content in Swedish (Svenska). Use natural, fluent Swedish appropriate for ${ageGroup}.
+` : (languageCode && languageCode !== 'en') ? `
+🚨 LANGUAGE REQUIREMENT: Generate ALL content in ${languageCode}. Use natural, fluent language appropriate for ${ageGroup}.
+` : '';
+
+    const characterRules = processedCharacters.length > 0 ? `
+🚨 CRITICAL CHARACTER RULES (MANDATORY):
+- The MAIN PROTAGONISTS are:
+${protagonistsList}
+- ALWAYS feature these protagonists centrally in the opening segment.
+- Use EXACT references like "${processedCharacters[0].reference}" (never capitalize descriptive references like "Curious Cat").
+- NEVER use the original capitalized names if they are descriptive types.
+- Use natural flow: first mention → pronoun → descriptive reference → pronoun.
+` : '';
+
+    const systemPrompt = `You are a skilled children's story writer creating interactive stories for ${ageGroup} readers in the ${genre} genre. Create engaging opening segments that set up the story world and present meaningful choices for the reader to continue the adventure.
+${languageInstructions}${characterRules}`;
+
+    const userPrompt = `Create an opening segment for an interactive ${existingStory.story_type || 'short'} story.
+
+Story prompt/context: ${prompt}
+${processedCharacters.length > 0 ? `Use these MAIN PROTAGONISTS (MANDATORY): ${processedCharacters.map(c => c.reference).join(', ')}` : ''}
 
 Requirements:
-- Age-appropriate content for ${ageGroup} year olds
-- Create an engaging opening that introduces the setting, main character(s), and initial situation
+- Age-appropriate content for ${ageGroup}
+- Introduce the setting and make the listed protagonists the clear focus
 - End with a cliffhanger or decision point that leads to 2-3 meaningful choices
 - Length: 2-3 paragraphs for the opening segment
 - The story should continue based on reader choices, not end immediately
+- Output language: ${languageCode}
 
 Format your response as:
 CONTENT: [story opening content]
-CHOICES: 
+CHOICES:
 1. [choice 1 - brief description]
-2. [choice 2 - brief description]  
+2. [choice 2 - brief description]
 3. [choice 3 - brief description]`;
 
     console.log(`[${requestId}] Generating story with AI service...`);

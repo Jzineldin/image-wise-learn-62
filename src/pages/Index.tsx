@@ -6,6 +6,7 @@ import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import FeaturedStoriesCarousel from '@/components/FeaturedStoriesCarousel';
 import { addSampleFeaturedStories } from '@/lib/helpers/sample-data';
+import { OptimizedImage, HeroImage, CardImage } from '@/components/ui/optimized-image';
 import heroBookImage from '@/assets/hero-book.jpg';
 import childrenStoriesImage from '@/assets/children-stories.jpg';
 import aiStorytellingImage from '@/assets/ai-storytelling.jpg';

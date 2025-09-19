@@ -11,6 +11,7 @@ import CreditDisplay from '@/components/CreditDisplay';
 import SubscriptionStatus from '@/components/SubscriptionStatus';
 import UsageAnalytics from '@/components/UsageAnalytics';
 import OnboardingTour, { useOnboarding } from '@/components/OnboardingTour';
+import StoryCard from '@/components/StoryCard';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -46,24 +47,54 @@ const Dashboard = () => {
         .limit(5);
 
       if (storiesError) throw storiesError;
-      
+
+      // Enrich with segment/audio counts for UI indicators
+      const ids = (stories || []).map((s: any) => s.id);
+      let segCounts: Record<string, number> = {};
+      let audCounts: Record<string, number> = {};
+      let textCounts: Record<string, number> = {};
+      if (ids.length > 0) {
+        const { data: segs, error: segErr } = await supabase
+          .from('story_segments')
+          .select('story_id,audio_url,content')
+          .in('story_id', ids);
+        if (!segErr) {
+          (segs || []).forEach((row: any) => {
+            segCounts[row.story_id] = (segCounts[row.story_id] || 0) + 1;
+            if (row.audio_url) {
+              audCounts[row.story_id] = (audCounts[row.story_id] || 0) + 1;
+            }
+            const hasText = typeof row.content === 'string' && row.content.trim().length > 0;
+            if (hasText) {
+              textCounts[row.story_id] = (textCounts[row.story_id] || 0) + 1;
+            }
+          });
+        }
+      }
+
       // Get current month usage statistics
       const { data: usageStats, error: usageError } = await supabase.rpc('get_current_month_usage');
-      
+
       // Calculate stats
       const totalStories = stories?.length || 0;
       const monthlyStats = usageStats?.[0] || { credits_used: 0, voice_minutes_used: 0 };
-      
+
       setStats({
         storiesCreated: totalStories,
         totalViews: 0, // Would need analytics table
-        totalLikes: 0, // Would need likes table  
+        totalLikes: 0, // Would need likes table
         followers: 0,  // Would need followers table
         creditsUsed: monthlyStats.credits_used || 0,
         voiceMinutes: monthlyStats.voice_minutes_used || 0
       });
 
-      setRecentStories(stories || []);
+      const enriched = (stories || []).map((s: any) => ({
+        ...s,
+        segment_count: segCounts[s.id] ?? 0,
+        audio_segments: audCounts[s.id] ?? 0,
+        content_segments: textCounts[s.id] ?? 0,
+      }));
+      setRecentStories(enriched);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -199,37 +230,13 @@ const Dashboard = () => {
               </Link>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {recentStories.map((story) => (
-                <div key={story.id} className="glass-card-interactive p-6 group">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-text-primary group-hover:text-primary transition-colors mb-2">
-                        {story.title}
-                      </h3>
-                      <div className="flex items-center space-x-4 text-sm text-text-secondary">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          story.status === 'completed' 
-                            ? 'bg-success/20 text-success' 
-                            : story.status === 'in_progress'
-                            ? 'bg-warning/20 text-warning'
-                            : 'bg-muted/20 text-muted-foreground'
-                        }`}>
-                          {story.status === 'completed' ? 'Complete' : 
-                           story.status === 'in_progress' ? 'In Progress' : 'Draft'}
-                        </span>
-                        <span>{story.genre}</span>
-                        <span>{story.visibility}</span>
-                        <span>{new Date(story.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                    <Link to={`/story/${story.id}?mode=experience`}>
-                      <Button variant="outline" size="sm" className="btn-ghost">
-                        View
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
+                <StoryCard
+                  key={story.id}
+                  story={story}
+                  showActions
+                />
               ))}
             </div>
           )}

@@ -1,10 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { createAIService } from '../_shared/ai-service.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { CreditService } from '../_shared/credit-system.ts';
+import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 
 interface TranslationRequest {
   content: string;
@@ -16,41 +13,47 @@ interface TranslationRequest {
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return ResponseHandler.corsOptions();
   }
 
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      return ResponseHandler.error('No authorization header', 401);
     }
 
-    // Parse request body
-    const { 
-      content, 
-      from_language, 
-      to_language, 
-      content_type = 'story' 
-    }: TranslationRequest = await req.json();
+    // Validate JWT using CreditService
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
+    await creditService.getUserId();
+
+    // Parse and validate request body
+    let requestBody: TranslationRequest;
+    try {
+      requestBody = await req.json();
+    } catch {
+      return ResponseHandler.error('Invalid JSON in request body', 400);
+    }
+
+    const {
+      content,
+      from_language,
+      to_language,
+      content_type = 'story'
+    } = requestBody;
 
     if (!content || !from_language || !to_language) {
-      throw new Error('Content, from_language, and to_language are required');
+      return ResponseHandler.error('Content, from_language, and to_language are required', 400);
     }
 
     if (from_language === to_language) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          translated_content: content,
-          from_language,
-          to_language,
-          content_type,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      );
+      return ResponseHandler.success({
+        translated_content: content,
+        from_language,
+        to_language,
+        content_type,
+      });
     }
 
     // Translate content using AI service (OpenRouter Sonoma Dusk Alpha)
@@ -103,33 +106,16 @@ Requirements:
 
     console.log(`Content translated from ${fromLang} to ${toLang} (${content_type})`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        translated_content: translatedContent,
-        from_language,
-        to_language,
-        content_type,
-        original_content: content,
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
+    return ResponseHandler.success({
+      translated_content: translatedContent,
+      from_language,
+      to_language,
+      content_type,
+      original_content: content,
+    }, aiResponse.model);
 
   } catch (error) {
     console.error('Translation error:', error);
-    
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Failed to translate content',
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
-    );
+    return ResponseHandler.handleError(error, { endpoint: 'translate-content' });
   }
 });

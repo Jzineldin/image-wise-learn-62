@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { createAIService } from '../_shared/ai-service.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
+import { CreditService } from '../_shared/credit-system.ts';
+
 
 
 interface TitleRequest {
@@ -21,6 +23,12 @@ Deno.serve(async (req) => {
       return ResponseHandler.error('No authorization header', 401);
     }
 
+    // Validate JWT using CreditService
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
+    await creditService.getUserId();
+
     // Parse and validate request body
     let requestBody: TitleRequest;
     try {
@@ -38,9 +46,9 @@ Deno.serve(async (req) => {
     // Generate titles using AI service with timing
     const { result: aiResponse, duration } = await withTiming(async () => {
       const aiService = createAIService();
-      
+
       const systemPrompt = `You are a creative children's book title generator. Generate structured title suggestions as JSON.`;
-      
+
       const userPrompt = `Generate exactly 3 creative titles for a children's story:
 
 Genre: ${genre}
@@ -90,10 +98,6 @@ Return as JSON: {"titles": ["Title 1", "Title 2", "Title 3"], "recommended": "Ti
 
   } catch (error) {
     console.error('Title generation error:', error);
-    return ResponseHandler.error(
-      error.message || 'Failed to generate titles',
-      500,
-      { operation: 'story-titles', timestamp: Date.now() }
-    );
+    return ResponseHandler.handleError(error, { endpoint: 'generate-story-title' });
   }
 });

@@ -8,7 +8,7 @@ interface ErrorBoundaryState {
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
-  fallback?: React.ReactNode;
+  fallback?: React.ReactNode | ((error: Error) => React.ReactNode);
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -30,8 +30,13 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
   render() {
     if (this.state.hasError) {
+      // Context7 Pattern: Support function fallbacks that receive error
+      const fallback = typeof this.props.fallback === 'function'
+        ? this.props.fallback(this.state.error!)
+        : this.props.fallback;
+
       return (
-        this.props.fallback || (
+        fallback || (
           <div className="min-h-screen bg-background flex items-center justify-center px-4">
             <div className="glass-card-elevated p-8 text-center max-w-md">
               <h1 className="text-2xl font-heading font-bold text-gradient mb-4">

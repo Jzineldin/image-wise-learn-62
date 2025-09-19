@@ -96,9 +96,11 @@
 
   body {
     @apply text-foreground antialiased;
+    /* Context7 Pattern: Optimized background with WebP support */
     background-image:
       linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.4)),
-      url('./assets/main-astronaut.png');
+      url('./assets/main-astronaut.webp'),
+      url('./assets/main-astronaut.png'); /* Fallback for older browsers */
     background-size: cover;
     background-position: center;
     background-attachment: fixed;

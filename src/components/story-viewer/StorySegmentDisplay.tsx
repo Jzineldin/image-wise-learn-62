@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles, RotateCcw } from 'lucide-react';
 import { AudioControls } from './AudioControls';
+import { OptimizedImage } from '@/components/ui/optimized-image';
 
 interface StorySegment {
   id: string;
@@ -77,10 +78,11 @@ export const StorySegmentDisplay = ({
       {/* Story Image */}
       <div className="relative aspect-video rounded-xl overflow-hidden bg-gradient-to-br from-primary/5 to-secondary/5 shadow-lg">
         {segment.image_url ? (
-          <img
+          <OptimizedImage
             src={segment.image_url}
             alt={`Story segment ${segment.segment_number}`}
             className="w-full h-full object-cover"
+            priority={segment.segment_number <= 2} // Prioritize first 2 segments
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

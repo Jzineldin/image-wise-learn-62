@@ -266,12 +266,12 @@ const StoryViewer = () => {
 
       setSegments(transformedSegments);
 
-      // Only auto-generate image for the latest segment if not credit locked
+      // Only auto-generate image for the latest segment (prefer ending) if not credit locked
       if (transformedSegments.length > 0 && !creditLock.current) {
-        const latestSegment = transformedSegments[transformedSegments.length - 1];
-        if (!latestSegment.image_url && latestSegment.content) {
-          console.log('🖼️ Auto-generating image for latest segment on load:', latestSegment.id);
-          generateSegmentImage(latestSegment);
+        const endingCandidate = [...transformedSegments].reverse().find(s => s.is_ending) || transformedSegments[transformedSegments.length - 1];
+        if (endingCandidate && !endingCandidate.image_url && endingCandidate.content) {
+          console.log('🖼️ Auto-generating image for latest/ending segment on load:', endingCandidate.id);
+          generateSegmentImage(endingCandidate);
         }
       }
 
@@ -858,12 +858,43 @@ const StoryViewer = () => {
     }
   }, [currentSegmentIndex, isAutoPlaying, isReadingMode, autoPlaySpeed]);
 
+  const makePictureAndVoice = async (segment: any) => {
+    if (!segment?.content) {
+      toast({ title: 'Cannot create', description: 'This part has no text yet.', variant: 'destructive' });
+      return;
+    }
+    try {
+      if (!segment.image_url) {
+        await generateSegmentImage(segment);
+      }
+      if (!segment.audio_url) {
+        await generateAudio(segment.id, segment.content);
+      }
+    } catch (err) {
+      logger.error('makePictureAndVoice failed', err);
+      toast({ title: 'Something went wrong', description: 'Please try again.', variant: 'destructive' });
+    }
+  };
+
   const handleEndStory = async () => {
     if (!story || !user) return;
 
-    // Show confirmation dialog before generating ending
+    // If an ending already exists, either make it ready (Simple Mode) or go finalize
+    const endingSegment = segments.find(s => s.is_ending);
+    if (endingSegment) {
+      const ready = !!(endingSegment.content && endingSegment.image_url && endingSegment.audio_url);
+      const isSimple = (() => { try { return JSON.parse(localStorage.getItem('simpleMode') ?? 'true'); } catch { return true; } })();
+      if (!ready && isSimple) {
+        await makePictureAndVoice(endingSegment);
+        return;
+      }
+      navigate(`/story/${id}/end`);
+      return;
+    }
+
+    // Confirm before generating the ending segment
     const confirmed = window.confirm(
-      "This will generate an AI ending for your story and mark it as complete. This action cannot be undone. Continue?"
+      "This will generate a final segment to conclude your story. You'll be able to generate image and audio for it before finalizing. Continue?"
     );
 
     if (!confirmed) return;
@@ -872,8 +903,8 @@ const StoryViewer = () => {
       setGeneratingEnding(true);
 
       toast({
-        title: "Generating story ending...",
-        description: "Our AI is crafting the perfect conclusion to your adventure.",
+        title: "Generating final segment...",
+        description: "Our AI is crafting the conclusion to your adventure.",
       });
 
       // Call the generate ending function
@@ -894,23 +925,36 @@ const StoryViewer = () => {
         throw error;
       }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to generate ending');
+      if (!data?.success) {
+        throw new Error((data as any)?.error || 'Failed to generate ending');
       }
 
+      // Reload segments so the new final segment is available
+      const updated = await reloadSegments();
+      if (updated.length > 0) {
+        // Jump to the new last segment (the ending)
+        setCurrentSegmentIndex(updated.length - 1);
+      }
+
+      // Inform user to generate image/audio now, and finalize afterwards
       toast({
-        title: "Story ending generated!",
-        description: "Your adventure now has a perfect conclusion.",
+        title: "Ending generated",
+        description: "Review the final segment. You can generate image and audio now. Click End Story again to finalize.",
       });
 
-      // Navigate to the story end page
-      navigate(`/story/${id}/end`);
+      // Proactively trigger auto-image for the ending if possible (guarded by creditLock in generator)
+      const endingSeg = updated.find(s => s.is_ending) || updated[updated.length - 1];
+      if (endingSeg && !endingSeg.image_url && endingSeg.content && !creditLock.current) {
+        generateSegmentImage(endingSeg);
+      }
 
-    } catch (error) {
+      // Do NOT navigate yet — allow normal image/TTS flow on the final segment
+
+    } catch (error: any) {
       logger.error('Story ending generation failed', error, { storyId: id });
       toast({
         title: "Failed to generate ending",
-        description: error.message || "Please try again later.",
+        description: error?.message || "Please try again later.",
         variant: "destructive",
       });
     } finally {
@@ -941,6 +985,12 @@ const StoryViewer = () => {
 
   const currentSegment = segments[currentSegmentIndex];
   const isCompletedStory = story?.status === 'completed' || story?.is_completed;
+  const hasEnding = segments.some(s => s.is_ending);
+
+  const simpleMode: boolean = (() => { try { return JSON.parse(localStorage.getItem('simpleMode') ?? 'true'); } catch { return true; } })();
+  const endingSeg = segments.find(s => s.is_ending);
+  const endingReady = !!(endingSeg && endingSeg.content && endingSeg.image_url && endingSeg.audio_url);
+  const endActionLabel = endingSeg ? (endingReady ? 'Finish Story' : 'Make ending ready') : 'Create Ending';
 
   return (
     <div className={`min-h-screen ${isFullscreen ? 'fixed inset-0 z-40 overflow-auto' : ''}`}>
@@ -964,6 +1014,8 @@ const StoryViewer = () => {
         onToggleReadingMode={toggleReadingMode}
         onToggleFullscreen={toggleFullscreen}
         onEndStory={handleEndStory}
+        hasEnding={hasEnding}
+        endActionLabel={endActionLabel}
       />
 
       <div className="container mx-auto px-4 py-6">
@@ -1017,6 +1069,43 @@ const StoryViewer = () => {
                 />
               )}
 
+              {/* Ending helper hint: guide user to generate missing content */}
+              {viewMode === 'creation' && currentSegment?.is_ending && isOwner && !isCompletedStory && !!currentSegment.content && ((!currentSegment.image_url) || (!currentSegment.audio_url)) && (
+                <div className="glass-card-info p-4 rounded-lg border border-primary/20">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="font-semibold">Finalize your ending</h4>
+                      <p className="text-sm text-text-secondary">
+                        {(!currentSegment.image_url && !currentSegment.audio_url) && 'Generate image and audio for the ending segment.'}
+                        {(currentSegment.image_url && !currentSegment.audio_url) && 'Generate audio for the ending segment.'}
+                        {(!currentSegment.image_url && currentSegment.audio_url) && 'Generate an image for the ending segment.'}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {!currentSegment.image_url && (
+                        <Button
+                          variant="outline"
+                          onClick={() => generateSegmentImage(currentSegment)}
+                          disabled={creditLock.current || generatingImage === currentSegment.id}
+                        >
+                          {generatingImage === currentSegment.id ? 'Generating image…' : 'Generate Image'}
+                        </Button>
+                      )}
+                      {!currentSegment.audio_url && (
+                        <Button
+                          className="btn-primary"
+                          onClick={() => currentSegment.content && generateAudio(currentSegment.id, currentSegment.content)}
+                          disabled={creditLock.current || generatingAudio}
+                        >
+                          {generatingAudio ? 'Generating audio…' : 'Generate Audio'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+
               {/* Story Navigation for Experience Mode */}
               {viewMode === 'experience' && (
                 <StoryNavigation
@@ -1027,6 +1116,8 @@ const StoryViewer = () => {
                   onEndStory={handleEndStory}
                   showEndStory={isOwner && !isCompletedStory}
                   viewMode={viewMode}
+                  hasEnding={hasEnding}
+                  endActionLabel={endActionLabel}
                 />
               )}
             </div>
@@ -1052,6 +1143,8 @@ const StoryViewer = () => {
                       title: "Cannot generate audio",
                       description: "This segment has no content to convert to audio.",
                       variant: "destructive",
+
+
                     });
                     return;
                   }
@@ -1063,6 +1156,10 @@ const StoryViewer = () => {
                 isOwner={isOwner}
                 isCompleted={isCompletedStory}
                 creditLocked={creditLock.current}
+                hasEnding={hasEnding}
+                simpleMode={simpleMode}
+                onMakePictureAndVoice={() => makePictureAndVoice(currentSegment)}
+                endActionLabel={endActionLabel}
               />
             )}
           </div>

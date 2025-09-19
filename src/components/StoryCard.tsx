@@ -1,8 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { memo, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Book, Eye, Settings, Calendar, Globe, Lock } from 'lucide-react';
+import { Book, Eye, Settings, Calendar, Globe, Lock, BookOpen, Volume2, CheckCircle2 } from 'lucide-react';
+
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { CardImage } from '@/components/ui/optimized-image';
 
 interface StoryCardProps {
   story: {
@@ -18,6 +23,10 @@ interface StoryCardProps {
     cover_image_url?: string;
     author_id?: string;
     author_name?: string;
+    // optional metadata used for UI badges/indicators
+    segment_count?: number;
+    audio_segments?: number;
+    content_segments?: number;
   };
   variant?: 'default' | 'background' | 'discover';
   showActions?: boolean;
@@ -26,7 +35,8 @@ interface StoryCardProps {
   currentUserId?: string | null;
 }
 
-const StoryCard = ({
+// Context7 Pattern: Memoized component to prevent unnecessary re-renders
+const StoryCard = memo(({
   story,
   variant = 'default',
   showActions = false,
@@ -34,15 +44,45 @@ const StoryCard = ({
   onSettingsClick,
   currentUserId
 }: StoryCardProps) => {
-  const imageUrl = story.cover_image || story.cover_image_url;
-
   const navigate = useNavigate();
 
-  const getStatusColor = (status: string) => {
+  // Context7 Pattern: Memoize expensive calculations
+  const simpleMode = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('simpleMode') ?? 'true');
+    } catch {
+      return true;
+    }
+  }, []);
+
+  // Context7 Pattern: useMemo for expensive completion percentage calculation
+  const completionPercent = useMemo(() => {
+    if (!story.segment_count || story.segment_count <= 0) return null;
+
+    const ratios: number[] = [];
+    if (typeof story.content_segments === 'number') {
+      ratios.push(story.content_segments / story.segment_count);
+    }
+    if (typeof story.audio_segments === 'number') {
+      ratios.push(story.audio_segments / story.segment_count);
+    }
+    if (ratios.length === 0) return null;
+
+    const avg = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+    return Math.min(100, Math.max(0, Math.round(avg * 100)));
+  }, [story.segment_count, story.content_segments, story.audio_segments]);
+
+  // Context7 Pattern: Memoize derived values
+  const imageUrl = useMemo(() =>
+    story.cover_image || story.cover_image_url,
+    [story.cover_image, story.cover_image_url]
+  );
+
+  // Context7 Pattern: useCallback for functions to prevent child re-renders
+  const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case 'completed':
         return 'bg-success/20 text-success';
-
       case 'in_progress':
         return 'bg-warning/20 text-warning';
       case 'draft':
@@ -50,9 +90,9 @@ const StoryCard = ({
       default:
         return 'bg-muted/20 text-muted-foreground';
     }
-  };
+  }, []);
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = useCallback((status: string) => {
     switch (status) {
       case 'completed':
         return 'Complete';
@@ -63,7 +103,14 @@ const StoryCard = ({
       default:
         return status;
     }
-  };
+  }, []);
+
+  // Context7 Pattern: Memoize event handlers to prevent unnecessary re-renders
+  const handleSettingsClick = useCallback(() => {
+    if (onSettingsClick) {
+      onSettingsClick();
+    }
+  }, [onSettingsClick]);
 
   if (variant === 'background' && imageUrl) {
     return (
@@ -154,7 +201,7 @@ const StoryCard = ({
           {/* Cover Image */}
           <div className="relative overflow-hidden rounded-t-lg">
             {imageUrl ? (
-              <img
+              <CardImage
                 src={imageUrl}
                 alt={story.title}
                 className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
@@ -201,7 +248,7 @@ const StoryCard = ({
     <Card className="glass-card-interactive group overflow-hidden">
       {imageUrl && (
         <div className="aspect-video bg-muted relative overflow-hidden">
-          <img
+          <CardImage
             src={imageUrl}
             alt={story.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -241,6 +288,7 @@ const StoryCard = ({
         {story.description && (
           <p className="text-text-secondary text-sm mb-4 line-clamp-3">
             {story.description}
+
           </p>
         )}
 
@@ -263,19 +311,74 @@ const StoryCard = ({
           )}
         </div>
 
+        {!simpleMode && (
+          <>
+            {/* Metadata row: chapters, audio, completion */}
+            <div className="flex items-center justify-between text-xs text-text-secondary mb-3">
+              <div className="flex items-center gap-4">
+                {story.segment_count != null && (
+                  <span className="flex items-center gap-1">
+                    <BookOpen className="w-3 h-3" />
+                    {story.segment_count} chapters
+                  </span>
+                )}
+                {story.audio_segments != null && story.segment_count != null && (
+                  <span className="flex items-center gap-1">
+                    <Volume2 className="w-3 h-3" />
+                    {story.audio_segments}/{story.segment_count} audio
+                  </span>
+                )}
+              </div>
+              {story.status === 'completed' && (
+                <span className="flex items-center gap-1 text-success">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Completed
+                </span>
+              )}
+            </div>
+            {typeof completionPercent === 'number' && (
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex-1">
+                  <Progress value={completionPercent} className="h-2" />
+                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="outline" className="text-xs cursor-help">{completionPercent}%</Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="text-xs">
+                        Combined completion based on text and audio.
+                        <div className="mt-1 opacity-80">
+                          {typeof story.content_segments === 'number' && typeof story.segment_count === 'number' && (
+                            <div>Text: {story.content_segments}/{story.segment_count}</div>
+                          )}
+                          {typeof story.audio_segments === 'number' && typeof story.segment_count === 'number' && (
+                            <div>Audio: {story.audio_segments}/{story.segment_count}</div>
+                          )}
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            )}
+          </>
+        )}
+
         {showActions && (
           <div className="flex gap-2">
             <Link to={`/story/${story.id}?mode=experience`} className="flex-1">
               <Button className="w-full btn-secondary">
                 <Eye className="w-4 h-4 mr-2" />
-                View
+                {simpleMode ? 'Read' : 'View'}
               </Button>
             </Link>
             {onSettingsClick && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={onSettingsClick}
+                onClick={handleSettingsClick}
                 className="px-3"
               >
                 <Settings className="w-4 h-4" />
@@ -286,6 +389,9 @@ const StoryCard = ({
       </CardContent>
     </Card>
   );
-};
+});
+
+// Context7 Pattern: Named export for better debugging
+StoryCard.displayName = 'StoryCard';
 
 export default StoryCard;

@@ -3,7 +3,7 @@ project_id = "hlrvpuqwurtdbjkramcp"
 [functions.generate-story]
 verify_jwt = true
 
-[functions.generate-story-audio] 
+[functions.generate-story-audio]
 verify_jwt = true
 
 [functions.generate-story-ending]
@@ -22,4 +22,16 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.translate-content]
+verify_jwt = true
+
+[functions.context7-mcp]
+verify_jwt = true
+
+[functions.check-subscription]
+verify_jwt = true
+
+[functions.create-checkout]
+verify_jwt = true
+
+[functions.customer-portal]
 verify_jwt = true

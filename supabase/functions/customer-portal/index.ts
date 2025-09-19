@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { ResponseHandler } from "../_shared/response-handlers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,42 +32,48 @@ serve(async (req) => {
     );
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader) {
+      return ResponseHandler.error('No authorization header', 401, { endpoint: 'customer-portal' });
+    }
     logStep("Authorization header found");
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    if (userError || !userData?.user) {
+      return ResponseHandler.error('Invalid or expired token', 403, { endpoint: 'customer-portal', reason: userError?.message });
+    }
     const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
+    if (!user?.email) {
+      return ResponseHandler.error('User is not authenticated', 403, { endpoint: 'customer-portal' });
+    }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    
+
     // Find customer by email
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     if (customers.data.length === 0) {
       throw new Error("No Stripe customer found for this user. Please subscribe first.");
     }
-    
+
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
-    
+
     // Create customer portal session
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${origin}/dashboard`,
     });
-    
-    logStep("Customer portal session created", { 
-      sessionId: portalSession.id, 
-      url: portalSession.url 
+
+    logStep("Customer portal session created", {
+      sessionId: portalSession.id,
+      url: portalSession.url
     });
 
-    return new Response(JSON.stringify({ 
-      url: portalSession.url 
+    return new Response(JSON.stringify({
+      url: portalSession.url
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
@@ -74,9 +81,6 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in customer-portal", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    return ResponseHandler.error(errorMessage, 500, { endpoint: 'customer-portal' });
   }
 });

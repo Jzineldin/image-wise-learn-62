@@ -6,6 +6,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getOperationEstimate, isOperationSupported } from '@/lib/constants/ai-constants';
 import { logger, generateRequestId } from '@/lib/debug';
+import { AIClient, AIClientError, InsufficientCreditsError } from './ai-client';
 
 // ============= TYPES & INTERFACES =============
 
@@ -71,12 +72,16 @@ export interface TranslationResult {
 // ============= STORY GENERATION =============
 
 /**
- * Generate a story using the centralized AI architecture
+ * Generate a story using the centralized AI architecture with Context7 error handling
  */
 export const generateStory = async (options: StoryGenerationOptions): Promise<StoryGenerationResult> => {
   // Validate operation support
   if (!isOperationSupported('story-generation', options.ageGroup, options.genre)) {
-    throw new Error(`Story generation not supported for age group: ${options.ageGroup}, genre: ${options.genre}`);
+    throw new AIClientError(
+      `Story generation not supported for age group: ${options.ageGroup}, genre: ${options.genre}`,
+      'VALIDATION_ERROR',
+      400
+    );
   }
 
   const requestId = generateRequestId();
@@ -89,24 +94,41 @@ export const generateStory = async (options: StoryGenerationOptions): Promise<St
     operation: 'story-generation'
   });
 
-  const { data, error } = await supabase.functions.invoke('generate-story', {
-    body: options
-  });
+  try {
+    // Context7 Pattern: Use AIClient for consistent error handling
+    const response = await AIClient.invoke('generate-story', options, {
+      timeout: 60000,
+      retries: 2
+    });
 
-  if (error) {
-    logger.error('Story generation failed', error, { requestId });
-    throw new Error(error.message || 'Failed to generate story');
+    if (!response.success || !response.data) {
+      throw new AIClientError(
+        response.error || 'Story generation failed',
+        response.error_code || 'GENERATION_ERROR',
+        400
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    logger.error('Story generation failed', error, { requestId, operation: 'story-generation' });
+
+    // Re-throw AIClient errors as-is (they have proper Context7 error handling)
+    if (error instanceof AIClientError || error instanceof InsufficientCreditsError) {
+      throw error;
+    }
+
+    // Wrap other errors
+    throw new AIClientError(
+      error instanceof Error ? error.message : 'Failed to generate story',
+      'GENERATION_ERROR',
+      500
+    );
   }
-
-  if (!data.success) {
-    throw new Error(data.error || 'Story generation failed');
-  }
-
-  return data.data;
 };
 
 /**
- * Generate audio for text using AI text-to-speech
+ * Generate audio for text using AI text-to-speech with Context7 error handling
  */
 export const generateAudio = async (options: AudioGenerationOptions): Promise<AudioGenerationResult> => {
   // Map parameters to match edge function expectations
@@ -119,45 +141,78 @@ export const generateAudio = async (options: AudioGenerationOptions): Promise<Au
     modelId: options.modelId
   };
 
-  const { data, error } = await supabase.functions.invoke('generate-story-audio', {
-    body: requestBody
-  });
+  try {
+    // Context7 Pattern: Use AIClient for consistent error handling
+    const response = await AIClient.invoke('generate-story-audio', requestBody, {
+      timeout: 90000,
+      retries: 2
+    });
 
-  if (error) {
-    const contextMessage = (error as any)?.context?.message || (error as any)?.context?.error || error.message;
-    logger.error('Audio generation failed', error, { options, contextMessage });
-    throw new Error(contextMessage || 'Failed to generate audio');
+    if (!response.success || !response.data) {
+      throw new AIClientError(
+        response.error || 'Audio generation failed',
+        response.error_code || 'AUDIO_GENERATION_ERROR',
+        400
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    logger.error('Audio generation failed', error, { operation: 'audio-generation', options });
+
+    // Re-throw AIClient errors as-is (they have proper Context7 error handling)
+    if (error instanceof AIClientError || error instanceof InsufficientCreditsError) {
+      throw error;
+    }
+
+    // Wrap other errors
+    throw new AIClientError(
+      error instanceof Error ? error.message : 'Failed to generate audio',
+      'AUDIO_GENERATION_ERROR',
+      500
+    );
   }
-
-  if (data.error) {
-    throw new Error(data.error);
-  }
-
-  return data;
 };
 
 /**
- * Translate content from one language to another
+ * Translate content from one language to another with Context7 error handling
  */
 export const translateContent = async (options: TranslationOptions): Promise<TranslationResult> => {
-  const { data, error } = await supabase.functions.invoke('translate-content', {
-    body: options
-  });
+  try {
+    // Context7 Pattern: Use AIClient for consistent error handling
+    const response = await AIClient.invoke('translate-content', options, {
+      timeout: 30000,
+      retries: 2
+    });
 
-  if (error) {
-    logger.error('Translation failed', error, { options });
-    throw new Error(error.message || 'Failed to translate content');
+    if (!response.success || !response.data) {
+      throw new AIClientError(
+        response.error || 'Translation failed',
+        response.error_code || 'TRANSLATION_ERROR',
+        400
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    logger.error('Translation failed', error, { operation: 'translation', options });
+
+    // Re-throw AIClient errors as-is (they have proper Context7 error handling)
+    if (error instanceof AIClientError || error instanceof InsufficientCreditsError) {
+      throw error;
+    }
+
+    // Wrap other errors
+    throw new AIClientError(
+      error instanceof Error ? error.message : 'Failed to translate content',
+      'TRANSLATION_ERROR',
+      500
+    );
   }
-
-  if (data.error) {
-    throw new Error(data.error);
-  }
-
-  return data;
 };
 
 /**
- * Generate a story ending using AI
+ * Generate a story ending using AI with Context7 error handling
  */
 export const generateStoryEnding = async (options: {
   storyId: string;
@@ -169,19 +224,37 @@ export const generateStoryEnding = async (options: {
   ageGroup: string;
   characters?: Array<{ name: string; description: string }>;
 }) => {
-  const { data, error } = await supabase.functions.invoke('generate-story-ending', {
-    body: options
-  });
+  try {
+    // Context7 Pattern: Use AIClient for consistent error handling
+    const response = await AIClient.invoke('generate-story-ending', options, {
+      timeout: 45000,
+      retries: 2
+    });
 
-  if (error) {
-    throw new Error(error.message || 'Failed to generate story ending');
+    if (!response.success || !response.data) {
+      throw new AIClientError(
+        response.error || 'Story ending generation failed',
+        response.error_code || 'ENDING_GENERATION_ERROR',
+        400
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    logger.error('Story ending generation failed', error, { operation: 'ending-generation', storyId: options.storyId });
+
+    // Re-throw AIClient errors as-is (they have proper Context7 error handling)
+    if (error instanceof AIClientError || error instanceof InsufficientCreditsError) {
+      throw error;
+    }
+
+    // Wrap other errors
+    throw new AIClientError(
+      error instanceof Error ? error.message : 'Failed to generate story ending',
+      'ENDING_GENERATION_ERROR',
+      500
+    );
   }
-
-  if (data.error) {
-    throw new Error(data.error);
-  }
-
-  return data;
 };
 
 /**

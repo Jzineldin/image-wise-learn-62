@@ -64,6 +64,13 @@ export const StoryCreationWizard = ({
 
   const progress = (flow.step / STEPS.length) * 100;
 
+  const handleStepClick = (targetStep: number) => {
+    // Allow backward navigation to any previous step; forward remains via Next
+    if (targetStep < flow.step) {
+      updateFlow({ step: targetStep });
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Progress Bar */}
@@ -73,21 +80,32 @@ export const StoryCreationWizard = ({
           <span className="text-sm text-muted-foreground">{Math.round(progress)}% Complete</span>
         </div>
         <Progress value={progress} className="h-2" />
-        
-        {/* Step Indicators */}
+
+        {/* Step Indicators (click to go back) */}
         <div className="flex justify-between mt-4">
           {STEPS.map((step) => {
             const Icon = step.icon;
             const isActive = flow.step === step.id;
             const isCompleted = flow.step > step.id;
-            
+            const canClick = isCompleted; // Only allow clicking to earlier steps
+
             return (
-              <div key={step.id} className="flex flex-col items-center">
+              <button
+                key={step.id}
+                type="button"
+                data-testid={`wizard-step-indicator-${step.id}`}
+                onClick={() => handleStepClick(step.id)}
+                disabled={!canClick}
+                className={`flex flex-col items-center focus:outline-none ${canClick ? 'cursor-pointer' : 'cursor-default'}`}
+                aria-current={isActive ? 'step' : undefined}
+                aria-disabled={!canClick}
+                title={canClick ? `Go to ${step.title}` : step.title}
+              >
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
-                  isActive 
-                    ? 'bg-primary border-primary text-primary-foreground' 
-                    : isCompleted 
-                      ? 'bg-primary/10 border-primary text-primary' 
+                  isActive
+                    ? 'bg-primary border-primary text-primary-foreground'
+                    : isCompleted
+                      ? 'bg-primary/10 border-primary text-primary'
                       : 'bg-background border-muted text-muted-foreground'
                 }`}>
                   <Icon className="h-4 w-4" />
@@ -95,7 +113,7 @@ export const StoryCreationWizard = ({
                 <span className={`text-xs mt-1 ${isActive ? 'font-medium' : 'text-muted-foreground'}`}>
                   {step.title}
                 </span>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -105,43 +123,51 @@ export const StoryCreationWizard = ({
       <Card>
         <CardContent className="p-8">
           {flow.step === 1 && (
-            <AgeGenreStep
-              selectedAgeGroup={flow.ageGroup}
-              selectedGenres={flow.genres}
-              onAgeGroupSelect={handleAgeGroupSelect}
-              onGenreToggle={handleGenreToggle}
-            />
+            <div data-testid="wizard-step-age-genre">
+              <AgeGenreStep
+                selectedAgeGroup={flow.ageGroup}
+                selectedGenres={flow.genres}
+                onAgeGroupSelect={handleAgeGroupSelect}
+                onGenreToggle={handleGenreToggle}
+              />
+            </div>
           )}
 
           {flow.step === 2 && (
-            <CharacterSelectionStep
-              selectedCharacters={flow.selectedCharacters}
-              onCharactersChange={(characters) => updateFlow({ selectedCharacters: characters })}
-            />
+            <div data-testid="wizard-step-characters">
+              <CharacterSelectionStep
+                selectedCharacters={flow.selectedCharacters}
+                onCharactersChange={(characters) => updateFlow({ selectedCharacters: characters })}
+              />
+            </div>
           )}
 
           {flow.step === 3 && flow.ageGroup && (
-            <StoryIdeaStep
-              ageGroup={flow.ageGroup}
-              genres={flow.genres}
-              characters={flow.selectedCharacters}
-              selectedSeed={flow.selectedSeed}
-              customSeed={flow.customSeed}
-              onSeedSelect={(seed) => updateFlow({ selectedSeed: seed })}
-              onCustomSeedChange={(seed) => updateFlow({ customSeed: seed })}
-            />
+            <div data-testid="wizard-step-ideas">
+              <StoryIdeaStep
+                ageGroup={flow.ageGroup}
+                genres={flow.genres}
+                characters={flow.selectedCharacters}
+                selectedSeed={flow.selectedSeed}
+                customSeed={flow.customSeed}
+                onSeedSelect={(seed) => updateFlow({ selectedSeed: seed })}
+                onCustomSeedChange={(seed) => updateFlow({ customSeed: seed })}
+              />
+            </div>
           )}
 
           {flow.step === 4 && (
-            <ReviewStep
-              ageGroup={flow.ageGroup}
-              genres={flow.genres}
-              selectedCharacters={flow.selectedCharacters}
-              selectedSeed={flow.selectedSeed}
-              customSeed={flow.customSeed}
-              generating={generating}
-              onCreateStory={onCreateStory}
-            />
+            <div data-testid="wizard-step-review">
+              <ReviewStep
+                ageGroup={flow.ageGroup}
+                genres={flow.genres}
+                selectedCharacters={flow.selectedCharacters}
+                selectedSeed={flow.selectedSeed}
+                customSeed={flow.customSeed}
+                generating={generating}
+                onCreateStory={onCreateStory}
+              />
+            </div>
           )}
         </CardContent>
       </Card>

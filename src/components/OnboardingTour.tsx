@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { useUIStore } from '@/stores/uiStore';
 
 interface TourStep {
   id: string;
@@ -96,6 +97,7 @@ const OnboardingTour = ({ isOpen, onClose }: OnboardingTourProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { setOnboardingCompleted } = useUIStore();
 
   const currentStepData = TOUR_STEPS[currentStep];
   const progress = ((currentStep + 1) / TOUR_STEPS.length) * 100;
@@ -115,12 +117,12 @@ const OnboardingTour = ({ isOpen, onClose }: OnboardingTourProps) => {
   };
 
   const handleSkip = () => {
-    setCurrentStep(TOUR_STEPS.length - 1);
+    handleFinish();
   };
 
   const handleFinish = () => {
-    // Mark tour as completed in localStorage
-    localStorage.setItem('onboardingCompleted', 'true');
+    try { localStorage.setItem('onboardingCompleted', 'true'); } catch {}
+    setOnboardingCompleted(true);
     onClose();
   };
 
@@ -131,8 +133,14 @@ const OnboardingTour = ({ isOpen, onClose }: OnboardingTourProps) => {
     }
   };
 
+  const handleClose = () => {
+    try { localStorage.setItem('onboardingCompleted', 'true'); } catch {}
+    setOnboardingCompleted(true);
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md" hideCloseButton>
         <DialogHeader>
           <div className="flex items-center justify-between">
@@ -142,7 +150,7 @@ const OnboardingTour = ({ isOpen, onClose }: OnboardingTourProps) => {
                 {currentStep + 1} of {TOUR_STEPS.length}
               </Badge>
             </div>
-            <Button variant="ghost" size="sm" onClick={onClose}>
+            <Button variant="ghost" size="sm" onClick={handleClose}>
               <X className="w-4 h-4" />
             </Button>
           </div>
@@ -211,28 +219,28 @@ const OnboardingTour = ({ isOpen, onClose }: OnboardingTourProps) => {
 export const useOnboarding = () => {
   const [showTour, setShowTour] = useState(false);
   const { user } = useAuth();
+  const { onboardingCompleted, setOnboardingCompleted } = useUIStore();
 
   useEffect(() => {
-    if (user) {
-      const hasCompleted = localStorage.getItem('onboardingCompleted');
-      if (!hasCompleted) {
-        // Show tour after a short delay
-        const timer = setTimeout(() => {
-          setShowTour(true);
-        }, 1000);
-        return () => clearTimeout(timer);
-      }
+    if (!user) return;
+
+    // Merge persisted sources
+    const local = (() => { try { return localStorage.getItem('onboardingCompleted') === 'true'; } catch { return false; } })();
+    if (local && !onboardingCompleted) {
+      setOnboardingCompleted(true);
     }
-  }, [user]);
+
+    const hasCompleted = onboardingCompleted || local;
+    if (!hasCompleted) {
+      const timer = setTimeout(() => setShowTour(true), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [user, onboardingCompleted, setOnboardingCompleted]);
 
   const startTour = () => setShowTour(true);
   const closeTour = () => setShowTour(false);
 
-  return {
-    showTour,
-    startTour,
-    closeTour
-  };
+  return { showTour, startTour, closeTour };
 };
 
 export default OnboardingTour;

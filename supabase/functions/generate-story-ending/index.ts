@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { CreditService, CREDIT_COSTS, validateAndDeductCredits } from '../_shared/credit-system.ts';
 import { createAIService } from '../_shared/ai-service.ts';
+import { ResponseHandler, ERROR_CODES } from '../_shared/response-handlers.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,13 +18,13 @@ interface EndingRequest {
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return ResponseHandler.corsOptions();
   }
 
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('No authorization header');
+      return ResponseHandler.error('No authorization header', 401, { endpoint: 'generate-story-ending' });
     }
 
     // Initialize services
@@ -41,7 +42,11 @@ Deno.serve(async (req) => {
     const ending_type = body.ending_type || body.endingType || 'happy';
 
     if (!story_id) {
-      throw new Error('Story ID is required');
+      return ResponseHandler.errorWithCode(
+        ERROR_CODES.VALIDATION_ERROR,
+        'Story ID is required',
+        { field: 'story_id' }
+      );
     }
 
     // Validate and deduct credits
@@ -69,12 +74,12 @@ Deno.serve(async (req) => {
       .order('segment_number');
 
     const storyContent = segments?.map(s => s.content).join('\n\n') || '';
-    
+
     // Generate ending using AI service (OpenRouter Sonoma Dusk Alpha)
     const aiService = createAIService();
-    
+
     const systemPrompt = `You are creating a satisfying ending for a children's story. The ending should feel natural and complete while teaching a positive lesson.`;
-    
+
     const userPrompt = `Write a ${ending_type} ending for this children's story (age ${story.age_group}, ${story.genre} genre):
 
 Story so far:
@@ -126,10 +131,10 @@ Requirements:
     // Update story status to completed
     await supabase
       .from('stories')
-      .update({ 
+      .update({
         status: 'completed',
         is_complete: true,
-        is_completed: true 
+        is_completed: true
       })
       .eq('id', story_id);
 
@@ -155,31 +160,16 @@ Requirements:
 
   } catch (error) {
     console.error('Story ending generation error:', error);
-    
+
     // Handle insufficient credits error
-    if (error.message?.includes('Insufficient credits')) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error_code: 'INSUFFICIENT_CREDITS',
-          error: error.message,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
+    if ((error as any)?.message?.includes('Insufficient credits')) {
+      return ResponseHandler.errorWithCode(
+        ERROR_CODES.INSUFFICIENT_CREDITS,
+        'Insufficient credits',
+        { original: (error as any).message }
       );
     }
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Failed to generate story ending',
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
-    );
+    return ResponseHandler.handleError(error, { endpoint: 'generate-story-ending' });
   }
 });

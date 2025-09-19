@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useCallback } from 'react';
+import { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -99,6 +99,31 @@ const FeaturedStoriesCarousel = () => {
     }, 150);
   }, [featuredStories.length]);
 
+  // Context7 Pattern: Memoize event handlers to prevent re-renders
+  const handleMouseEnter = useCallback(() => {
+    setIsAutoPlaying(false);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsAutoPlaying(true);
+  }, []);
+
+  // Context7 Pattern: Memoize current story to prevent unnecessary recalculations
+  const currentStory = useMemo(() =>
+    featuredStories[currentIndex],
+    [featuredStories, currentIndex]
+  );
+
+  // Context7 Pattern: Memoize background style to prevent recalculation
+  const backgroundStyle = useMemo(() =>
+    currentStory?.preview_image_url ? {
+      backgroundImage: `url(${currentStory.preview_image_url})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    } : {},
+    [currentStory?.preview_image_url]
+  );
+
   if (loading) {
     return (
       <div className="relative max-w-md w-full rounded-2xl overflow-hidden min-h-[400px] glass-card-dark">
@@ -145,18 +170,12 @@ const FeaturedStoriesCarousel = () => {
     );
   }
 
-  const currentStory = featuredStories[currentIndex];
-
   return (
-    <div 
+    <div
       className="relative max-w-md w-full rounded-2xl overflow-hidden min-h-[400px] shadow-2xl hover:shadow-[0_20px_50px_rgba(255,255,255,0.1)] transition-all duration-500 hover:scale-[1.02] group"
-      style={currentStory.preview_image_url ? {
-        backgroundImage: `url(${currentStory.preview_image_url})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      } : {}}
-      onMouseEnter={() => setIsAutoPlaying(false)}
-      onMouseLeave={() => setIsAutoPlaying(true)}
+      style={backgroundStyle}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Background overlay for text readability */}
       <div className={`absolute inset-0 transition-all duration-500 ${currentStory.preview_image_url 

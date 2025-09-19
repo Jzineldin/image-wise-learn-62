@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Settings as SettingsIcon, User, Bell, Globe, Shield, CreditCard, Palette } from 'lucide-react';
+import { Settings as SettingsIcon, User, Bell, Globe, Shield, CreditCard, Palette, ArrowUp } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
@@ -47,6 +47,32 @@ const Settings = () => {
   const { availableLanguages, translate } = useLanguage();
   const { pageClassName } = usePageThemeClasses('settings');
 
+  const [activeSection, setActiveSection] = useState<string>('profile');
+  const [simpleMode, setSimpleMode] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem('simpleMode') ?? 'true'); } catch { return true; }
+  });
+
+
+  useEffect(() => {
+    const ids = ['profile','theme','experience','notifications','privacy','account'];
+    const observers: IntersectionObserver[] = [];
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+            setActiveSection(id);
+            try { history.replaceState(null, '', `#${id}`); } catch {}
+          }
+        });
+      }, { threshold: [0.5] });
+      obs.observe(el);
+      observers.push(obs);
+    });
+    return () => observers.forEach(o => o.disconnect());
+  }, []);
+
   useEffect(() => {
     fetchProfile();
   }, [user]);
@@ -71,7 +97,7 @@ const Settings = () => {
           acc[item.setting_key] = item.setting_value;
           return acc;
         }, {});
-        
+
         setVisibilitySettings({
           public_profile: settings.public_profile?.enabled || false,
           discoverable_stories: settings.discoverable_stories?.enabled !== false,
@@ -130,7 +156,7 @@ const Settings = () => {
       });
 
       setVisibilitySettings(prev => ({ ...prev, [key]: value }));
-      
+
       toast({
         title: "Setting updated",
         description: `${key.replace('_', ' ')} setting has been updated.`,
@@ -189,40 +215,45 @@ const Settings = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Sidebar */}
-          <div className="space-y-4">
+          <div className="space-y-4 lg:sticky lg:top-24 self-start">
             <Card className="glass-card">
               <CardContent className="p-4">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-3 p-2 rounded-lg bg-primary/10 text-primary">
+                  <a href="#profile" onClick={() => setActiveSection('profile')} className={`flex items-center gap-3 p-2 rounded-lg ${activeSection==='profile' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
                     <User className="w-4 h-4" />
                     <span className="font-medium">Profile</span>
-                  </div>
-                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
+                  </a>
+                  <a href="#notifications" onClick={() => setActiveSection('notifications')} className={`flex items-center gap-3 p-2 rounded-lg ${activeSection==='notifications' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
                     <Bell className="w-4 h-4" />
                     <span>Notifications</span>
-                  </div>
-                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
-                    <Globe className="w-4 h-4" />
-                    <span>Language</span>
-                  </div>
-                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
+                  </a>
+                  <a href="#theme" onClick={() => setActiveSection('theme')} className={`flex items-center gap-3 p-2 rounded-lg ${activeSection==='theme' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
                     <Palette className="w-4 h-4" />
                     <span>Theme</span>
-                  </div>
-                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
+                  </a>
+                  <a href="#privacy" onClick={() => setActiveSection('privacy')} className={`flex items-center gap-3 p-2 rounded-lg ${activeSection==='privacy' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
                     <Shield className="w-4 h-4" />
                     <span>Privacy</span>
-                  </div>
-                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer">
+                  </a>
+                  <a href="#account" onClick={() => setActiveSection('account')} className={`flex items-center gap-3 p-2 rounded-lg ${activeSection==='account' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
                     <CreditCard className="w-4 h-4" />
-                    <span>Subscription</span>
-                  </div>
+                    <span>Account</span>
+                  </a>
+                  <Separator className="my-2" />
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); setActiveSection('profile'); }}
+                    className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50"
+                  >
+                    <ArrowUp className="w-4 h-4" />
+                    <span>Back to top</span>
+                  </button>
                 </div>
               </CardContent>
             </Card>
 
             {/* Account Summary */}
-            <Card className="glass-card">
+            <Card id="account" className="glass-card">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Account Summary</CardTitle>
               </CardHeader>
@@ -246,12 +277,13 @@ const Settings = () => {
           {/* Main Settings */}
           <div className="lg:col-span-2 space-y-8">
             {/* Profile Settings */}
-            <Card className="glass-card-elevated">
+            <Card id="profile" className="glass-card-elevated">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="w-5 h-5" />
                   Profile Information
                 </CardTitle>
+                <p className="text-sm text-text-secondary mt-1">Update your personal details and language.</p>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -324,6 +356,7 @@ const Settings = () => {
                   </p>
                 </div>
 
+                <Separator />
                 <Button onClick={saveProfile} disabled={saving} className="btn-primary">
                   {saving ? (
                     <>
@@ -338,12 +371,13 @@ const Settings = () => {
             </Card>
 
             {/* Theme Settings */}
-            <Card className="glass-card-elevated">
+            <Card id="theme" className="glass-card-elevated">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Palette className="w-5 h-5" />
                   Theme & Appearance
                 </CardTitle>
+                <p className="text-sm text-text-secondary mt-1">Choose your preferred theme and see current state.</p>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
@@ -358,18 +392,47 @@ const Settings = () => {
                   <div>
                     <h4 className="font-medium mb-3">Current Theme Status</h4>
                     <ThemeStatus />
+
+            {/* Experience Mode */}
+            <Card id="experience" className="glass-card-elevated">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <SettingsIcon className="w-5 h-5" />
+                  Experience Mode
+                </CardTitle>
+                <p className="text-sm text-text-secondary mt-1">Simplify the app for kids and parents. One-tap create for pictures and voice.</p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Simple Mode</Label>
+                    <p className="text-sm text-text-secondary">Show fewer controls with a single “Make picture & voice” button.</p>
+                  </div>
+                  <Switch
+                    checked={!!simpleMode}
+                    onCheckedChange={(checked) => {
+                      try { localStorage.setItem('simpleMode', JSON.stringify(checked)); } catch {}
+                      setSimpleMode(checked);
+                      toast({ title: checked ? 'Simple Mode enabled' : 'Simple Mode disabled' });
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Notification Settings */}
-            <Card className="glass-card-elevated">
+            <Card id="notifications" className="glass-card-elevated">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Bell className="w-5 h-5" />
                   Notification Preferences
                 </CardTitle>
+                <p className="text-sm text-text-secondary mt-1">Control how we notify you about updates.</p>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
@@ -384,6 +447,7 @@ const Settings = () => {
                     }
                   />
                 </div>
+                <Separator />
 
                 <div className="flex items-center justify-between">
                   <div>
@@ -397,6 +461,7 @@ const Settings = () => {
                     }
                   />
                 </div>
+                <Separator />
 
                 <div className="flex items-center justify-between">
                   <div>
@@ -414,12 +479,13 @@ const Settings = () => {
             </Card>
 
             {/* Privacy Settings */}
-            <Card className="glass-card-elevated">
+            <Card id="privacy" className="glass-card-elevated">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="w-5 h-5" />
                   Privacy & Security
                 </CardTitle>
+                <p className="text-sm text-text-secondary mt-1">Manage your profile visibility and data.</p>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
@@ -427,18 +493,19 @@ const Settings = () => {
                     <Label>Public Profile</Label>
                     <p className="text-sm text-text-secondary">Allow others to see your profile</p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={visibilitySettings.public_profile}
                     onCheckedChange={(checked) => updateVisibilitySetting('public_profile', checked)}
                   />
                 </div>
+                <Separator />
 
                 <div className="flex items-center justify-between">
                   <div>
                     <Label>Show Stories in Discover</Label>
                     <p className="text-sm text-text-secondary">Make your public stories discoverable</p>
                   </div>
-                  <Switch 
+                  <Switch
                     checked={visibilitySettings.discoverable_stories}
                     onCheckedChange={(checked) => updateVisibilitySetting('discoverable_stories', checked)}
                   />

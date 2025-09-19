@@ -18,6 +18,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/debug';
+import StoryCard from '@/components/StoryCard';
 
 interface Story {
   id: string;
@@ -39,8 +40,12 @@ const ContentModeration = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [visibilityFilter, setVisibilityFilter] = useState('all');
+  const [completionFilter, setCompletionFilter] = useState<'all' | '25' | '50' | '75' | '100'>('all');
   const [featuredIds, setFeaturedIds] = useState<Set<string>>(new Set());
   const [featurePriority, setFeaturePriority] = useState<Record<string, number>>({});
+  const [segmentCounts, setSegmentCounts] = useState<Record<string, number>>({});
+  const [audioCounts, setAudioCounts] = useState<Record<string, number>>({});
+  const [contentCounts, setContentCounts] = useState<Record<string, number>>({});
 
   const { toast } = useToast();
 
@@ -50,7 +55,7 @@ const ContentModeration = () => {
 
   useEffect(() => {
     filterStories();
-  }, [stories, searchTerm, statusFilter, visibilityFilter]);
+  }, [stories, searchTerm, statusFilter, visibilityFilter, completionFilter]);
 
   const loadData = async () => {
     try {
@@ -72,6 +77,28 @@ const ContentModeration = () => {
 
       if (featuredError) throw featuredError;
 
+      // Aggregate segments/audio for richer UI indicators
+      const ids = (storiesData || []).map((s: any) => s.id);
+      let segCounts: Record<string, number> = {};
+      let audCounts: Record<string, number> = {};
+      if (ids.length > 0) {
+        const { data: segs, error: segErr } = await supabase
+          .from('story_segments')
+          .select('story_id,audio_url,content')
+          .in('story_id', ids);
+        if (segErr) throw segErr;
+        (segs || []).forEach((row: any) => {
+          segCounts[row.story_id] = (segCounts[row.story_id] || 0) + 1;
+          if (row.audio_url) {
+            audCounts[row.story_id] = (audCounts[row.story_id] || 0) + 1;
+          }
+          const hasText = typeof row.content === 'string' && row.content.trim().length > 0;
+          if (hasText) {
+            contentCounts[row.story_id] = (contentCounts[row.story_id] || 0) + 1;
+          }
+        });
+      }
+
       const featuredSet = new Set((featuredRows || []).map((r: any) => r.story_id));
       const priorityMap: Record<string, number> = {};
       (featuredRows || []).forEach((r: any) => {
@@ -79,7 +106,10 @@ const ContentModeration = () => {
       });
       setFeaturedIds(featuredSet);
       setFeaturePriority(priorityMap);
+      setSegmentCounts(segCounts);
+      setAudioCounts(audCounts);
       setStories(storiesData || []);
+      setContentCounts(contentCounts);
       logger.info('Loaded moderation data', { stories: storiesData?.length, featured: featuredRows?.length || 0 });
     } catch (error) {
       logger.error('Error loading moderation data', error);
@@ -112,6 +142,22 @@ const ContentModeration = () => {
     // Visibility filter
     if (visibilityFilter !== 'all') {
       filtered = filtered.filter(story => story.visibility === visibilityFilter);
+    }
+
+    // Completion filter
+    if (completionFilter !== 'all') {
+      const threshold = Number(completionFilter);
+      filtered = filtered.filter(story => {
+        const sc = segmentCounts[story.id] || 0;
+        if (sc <= 0) return false;
+        const ratios: number[] = [];
+        if (typeof contentCounts[story.id] === 'number') ratios.push((contentCounts[story.id] as number) / sc);
+        if (typeof audioCounts[story.id] === 'number') ratios.push((audioCounts[story.id] as number) / sc);
+        if (ratios.length === 0) return false;
+        const avg = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+        const percent = Math.round(avg * 100);
+        return percent >= threshold;
+      });
     }
 
     setFilteredStories(filtered);
@@ -227,15 +273,15 @@ const ContentModeration = () => {
   return (
     <div className="space-y-6">
       {/* Header with Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="glass-card">
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="text-2xl font-bold text-primary">{stories.length}</div>
             <div className="text-sm text-text-secondary">Total Stories</div>
           </CardContent>
         </Card>
         <Card className="glass-card">
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="text-2xl font-bold text-primary">
               {stories.filter(s => s.status === 'completed').length}
             </div>
@@ -243,7 +289,7 @@ const ContentModeration = () => {
           </CardContent>
         </Card>
         <Card className="glass-card">
-          <CardContent className="p-4">
+          <CardContent className="p-6">
             <div className="text-2xl font-bold text-primary">
               {stories.filter(s => s.visibility === 'public').length}
             </div>
@@ -254,7 +300,7 @@ const ContentModeration = () => {
 
       {/* Filters */}
       <Card className="glass-card">
-        <CardContent className="p-4">
+        <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -289,6 +335,18 @@ const ContentModeration = () => {
                 <SelectItem value="unlisted">Unlisted</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={completionFilter} onValueChange={(v) => setCompletionFilter(v as any)}>
+              <SelectTrigger className="w-44" aria-label="Completion">
+                <SelectValue placeholder="Completion" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Completion</SelectItem>
+                <SelectItem value="25">≥ 25%</SelectItem>
+                <SelectItem value="50">≥ 50%</SelectItem>
+                <SelectItem value="75">≥ 75%</SelectItem>
+                <SelectItem value="100">100%</SelectItem>
+              </SelectContent>
+            </Select>
             <Button onClick={loadData} variant="outline" size="sm">
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
@@ -303,15 +361,20 @@ const ContentModeration = () => {
           <CardTitle>Stories ({filteredStories.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredStories.map((story) => (
-              <div key={story.id} className="glass-card p-4 flex items-center justify-between">
-                <div className="flex-1">
-                  <h3 className="font-semibold">{story.title}</h3>
-                  <p className="text-sm text-text-secondary line-clamp-2">
-                    {story.description}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2">
+              <div key={story.id} className="space-y-3">
+                <StoryCard
+                  story={{
+                    ...story,
+                    segment_count: segmentCounts[story.id] ?? undefined,
+                    audio_segments: audioCounts[story.id] ?? undefined,
+                    content_segments: contentCounts[story.id] ?? undefined,
+                  }}
+                  showActions
+                />
+                <div className="glass-card p-3 flex flex-wrap items-center gap-2 justify-between">
+                  <div className="flex items-center gap-2">
                     <Badge variant={getStatusBadgeVariant(story.status)}>
                       {story.status}
                     </Badge>
@@ -323,67 +386,58 @@ const ContentModeration = () => {
                     )}
                     <Badge variant="outline">{story.genre}</Badge>
                   </div>
-                  <div className="flex items-center gap-4 mt-1 text-xs text-text-secondary">
-                    <span className="flex items-center gap-1">
-                      <User className="w-3 h-3" />
-                      {story.author_id}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <BookOpen className="w-3 h-3" />
-                      {new Date(story.created_at).toLocaleDateString()}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => updateStoryVisibility(
+                        story.id,
+                        story.visibility === 'public' ? 'private' : 'public'
+                      )}
+                      title={story.visibility === 'public' ? 'Make Private' : 'Make Public'}
+                    >
+                      {story.visibility === 'public' ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={featuredIds.has(story.id) ? "secondary" : "outline"}
+                      onClick={() => toggleStoryFeature(story.id, !featuredIds.has(story.id), featurePriority[story.id] ?? 1)}
+                      title={featuredIds.has(story.id) ? 'Remove from Preview' : 'Add to Preview (Landing Carousel)'}
+                      aria-label={featuredIds.has(story.id) ? 'Remove from Preview' : 'Add to Preview'}
+                    >
+                      {featuredIds.has(story.id) ? (
+                        <StarOff className="w-4 h-4" />
+                      ) : (
+                        <Star className="w-4 h-4" />
+                      )}
+                    </Button>
+                    <Select
+                      value={String(featurePriority[story.id] ?? 1)}
+                      onValueChange={(v) => setFeaturePriority(prev => ({ ...prev, [story.id]: Number(v) }))}
+                    >
+                      <SelectTrigger className="w-28" aria-label="Feature priority">
+                        <SelectValue placeholder="Priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Priority 1</SelectItem>
+                        <SelectItem value="2">Priority 2</SelectItem>
+                        <SelectItem value="3">Priority 3</SelectItem>
+                        <SelectItem value="4">Priority 4</SelectItem>
+                        <SelectItem value="5">Priority 5</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteStory(story.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => updateStoryVisibility(
-                      story.id,
-                      story.visibility === 'public' ? 'private' : 'public'
-                    )}
-                  >
-                    {story.visibility === 'public' ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={featuredIds.has(story.id) ? "secondary" : "outline"}
-                    onClick={() => toggleStoryFeature(story.id, !featuredIds.has(story.id), featurePriority[story.id] ?? 1)}
-                    title={featuredIds.has(story.id) ? 'Remove from Preview' : 'Add to Preview (Landing Carousel)'}
-                    aria-label={featuredIds.has(story.id) ? 'Remove from Preview' : 'Add to Preview'}
-                  >
-                    {featuredIds.has(story.id) ? (
-                      <StarOff className="w-4 h-4" />
-                    ) : (
-                      <Star className="w-4 h-4" />
-                    )}
-                  </Button>
-                  <Select
-                    value={String(featurePriority[story.id] ?? 1)}
-                    onValueChange={(v) => setFeaturePriority(prev => ({ ...prev, [story.id]: Number(v) }))}
-                  >
-                    <SelectTrigger className="w-24" aria-label="Feature priority">
-                      <SelectValue placeholder="Priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">Priority 1</SelectItem>
-                      <SelectItem value="2">Priority 2</SelectItem>
-                      <SelectItem value="3">Priority 3</SelectItem>
-                      <SelectItem value="4">Priority 4</SelectItem>
-                      <SelectItem value="5">Priority 5</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => deleteStory(story.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
                 </div>
               </div>
             ))}

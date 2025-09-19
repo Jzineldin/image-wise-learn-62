@@ -43,6 +43,10 @@ interface StorySidebarProps {
   isOwner: boolean;
   isCompleted: boolean;
   creditLocked?: boolean;
+  hasEnding?: boolean;
+  simpleMode?: boolean;
+  onMakePictureAndVoice?: () => void;
+  endActionLabel?: string;
 }
 
 export const StorySidebar = ({
@@ -64,7 +68,11 @@ export const StorySidebar = ({
   onEndStory,
   isOwner,
   isCompleted,
-  creditLocked = false
+  creditLocked = false,
+  hasEnding = false,
+  simpleMode = false,
+  onMakePictureAndVoice,
+  endActionLabel
 }: StorySidebarProps) => {
   const hasAudio = !!currentSegment?.audio_url;
   const hasImage = !!currentSegment?.image_url;
@@ -79,72 +87,74 @@ export const StorySidebar = ({
             <span>Voice Narration</span>
           </h3>
 
-          <div className="space-y-3">
-            {/* Voice Selector */}
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Select Voice</label>
-              <VoiceSelector
-                selectedVoice={selectedVoice}
-                onVoiceChange={onVoiceChange}
-              />
-            </div>
-
-            {/* Generate Audio Button */}
-            {!hasAudio && (
+          {simpleMode ? (
+            <div className="space-y-3">
               <Button
-                onClick={() => {
-                  console.log('Audio button clicked - calling onGenerateAudio');
-                  onGenerateAudio();
-                }}
-                disabled={generatingAudio || creditLocked || isCompleted || !currentSegment?.content}
-                variant="outline"
-                className="w-full"
+                onClick={() => onMakePictureAndVoice && onMakePictureAndVoice()}
+                disabled={generatingAudio || generatingImage || creditLocked || isCompleted || !currentSegment?.content}
+                className="w-full btn-primary"
               >
-                {generatingAudio ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                    Generating...
-                  </>
-                ) : !currentSegment?.content ? (
-                  <>
-                    <Wand2 className="h-4 w-4 mr-2" />
-                    No Content Available
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-4 w-4 mr-2" />
-                    Generate Audio (2 credits)
-                  </>
-                )}
+                {(generatingAudio || generatingImage) ? 'Working…' : 'Make picture & voice'}
               </Button>
-            )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground">Select Voice</label>
+                <VoiceSelector selectedVoice={selectedVoice} onVoiceChange={onVoiceChange} />
+              </div>
 
-            {/* Audio Player */}
-            {hasAudio && (
-              <div className="bg-muted rounded-lg p-3">
+              {!hasAudio && (
                 <Button
-                  onClick={onToggleAudio}
-                  className="w-full bg-primary hover:bg-primary-hover text-white"
+                  onClick={() => { console.log('Audio button clicked - calling onGenerateAudio'); onGenerateAudio(); }}
+                  disabled={generatingAudio || creditLocked || isCompleted || !currentSegment?.content}
+                  variant="outline"
+                  className="w-full"
                 >
-                  {isPlaying ? (
+                  {generatingAudio ? (
                     <>
-                      <Pause className="h-4 w-4 mr-2" />
-                      Pause Narration
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                      Generating...
+                    </>
+                  ) : !currentSegment?.content ? (
+                    <>
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      No Content Available
                     </>
                   ) : (
                     <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Play Narration
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      Generate Audio (2 credits)
                     </>
                   )}
                 </Button>
-              </div>
-            )}
-          </div>
+              )}
+
+              {hasAudio && (
+                <div className="bg-muted rounded-lg p-3">
+                  <Button onClick={onToggleAudio} className="w-full bg-primary hover:bg-primary-hover text-white">
+                    {isPlaying ? (
+                      <>
+                        <Pause className="h-4 w-4 mr-2" />
+                        Pause Narration
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4 mr-2" />
+                        Play Narration
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Image Generation Card */}
+      {!simpleMode && (
+
       <Card className="bg-surface border border-border/50 shadow-lg rounded-xl overflow-hidden">
         <CardContent className="p-5">
           <h3 className="flex items-center gap-2 text-base font-semibold mb-4">
@@ -196,6 +206,7 @@ export const StorySidebar = ({
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Story Info Card */}
       <Card className="bg-surface border border-border/50 shadow-lg rounded-xl overflow-hidden">
@@ -234,8 +245,8 @@ export const StorySidebar = ({
       {isOwner && !isCompleted && (
         <Card className="bg-gradient-to-br from-destructive to-destructive/80 text-white border-0 shadow-lg rounded-xl overflow-hidden">
           <CardContent className="p-5 text-center">
-            <h3 className="text-base font-semibold mb-2">Ready to End?</h3>
-            <p className="text-sm opacity-90 mb-3">Create a magical ending for your story</p>
+            <h3 className="text-base font-semibold mb-2">{hasEnding ? 'Finalize Story' : 'Ready to End?'}</h3>
+            <p className="text-sm opacity-90 mb-3">{hasEnding ? 'Review your ending and complete the story' : 'Create a magical ending for your story'}</p>
             <Button
               onClick={onEndStory}
               disabled={generatingEnding || creditLocked}
@@ -250,7 +261,7 @@ export const StorySidebar = ({
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  Generate Ending
+                  {endActionLabel || (hasEnding ? 'Finalize Story' : 'Generate Ending')}
                 </>
               )}
             </Button>

@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { logger, generateRequestId } from '@/lib/debug';
+import { AIClient, AIClientError, InsufficientCreditsError } from '@/lib/api/ai-client';
 
 interface Story {
   id: string;
@@ -206,41 +207,53 @@ const StoryEnd = () => {
           ? 'aSLKtNoVBZlxQEMsnGL2' // Sanna - Swedish female voice
           : '9BWtsMINqrJLrRacOk9x'; // Aria - English female voice
 
-        const { data, error } = await supabase.functions.invoke('generate-story-audio', {
-          body: {
+        try {
+          const result = await AIClient.invoke('generate-story-audio', {
             text: segment.content,
             voiceId: voiceId,
             languageCode: selectedLanguage,
             storyId: story?.id,
             segmentId: segment.id,
             modelId: 'eleven_multilingual_v2'
-          }
-        });
-
-        if (error) {
-          console.error('Audio generation error for segment', segment.id, error);
-          continue;
-        }
-
-        if (data?.error_code === 'INSUFFICIENT_CREDITS') {
-          toast({
-            title: "Insufficient Credits",
-            description: data.error,
-            variant: "destructive",
           });
-          break;
-        }
 
-        // Handle both response formats
-        const audioUrl = data.audioUrl || data.audio_url;
-        if (audioUrl) {
-          // Update local state
-          setSegments(prev => prev.map(s => 
-            s.id === segment.id 
-              ? { ...s, audio_url: audioUrl }
-              : s
-          ));
-          successCount++;
+          if (!result.success) {
+            console.error('Audio generation failed for segment', segment.id, result.error);
+            continue;
+          }
+
+          // Handle both response formats
+          const audioUrl = result.data?.audioUrl || result.data?.audio_url;
+          if (audioUrl) {
+            // Update local state
+            setSegments(prev => prev.map(s =>
+              s.id === segment.id
+                ? { ...s, audio_url: audioUrl }
+                : s
+            ));
+            successCount++;
+          }
+
+        } catch (error) {
+          if (error instanceof InsufficientCreditsError) {
+            toast({
+              title: "Insufficient Credits",
+              description: `Need ${error.required} credits, have ${error.available}`,
+              variant: "destructive",
+            });
+            break;
+          } else if (error instanceof AIClientError) {
+            console.error('Audio generation error for segment', segment.id, error.message);
+            toast({
+              title: "Audio Generation Failed",
+              description: error.message,
+              variant: "destructive",
+            });
+            continue;
+          } else {
+            console.error('Unexpected error for segment', segment.id, error);
+            continue;
+          }
         }
       }
 

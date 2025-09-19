@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { createAIService } from '../_shared/ai-service.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
+import { CreditService } from '../_shared/credit-system.ts';
+
 
 
 interface SeedsRequest {
@@ -20,6 +22,11 @@ Deno.serve(async (req) => {
     if (!authHeader) {
       return ResponseHandler.error('No authorization header', 401);
     }
+    // Validate JWT using CreditService
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
+    await creditService.getUserId();
 
     // Parse and validate request body
     let requestBody: SeedsRequest;
@@ -29,22 +36,22 @@ Deno.serve(async (req) => {
       return ResponseHandler.error('Invalid JSON in request body', 400);
     }
 
-    const { 
-      genre = 'fantasy', 
-      ageGroup = '7-9', 
+    const {
+      genre = 'fantasy',
+      ageGroup = '7-9',
       language = 'en',
-      count = 3 
+      count = 3
     } = requestBody;
 
     // Generate story seeds using AI service with timing
     const { result: aiResponse, duration } = await withTiming(async () => {
       const aiService = createAIService();
-      
+
       const systemPrompt = `You are a creative children's story idea generator. Generate structured story concepts as JSON.`;
-      
+
       const userPrompt = `Generate exactly ${count} creative story ideas for children's books with these parameters:
 Genre: ${genre}
-Age Group: ${ageGroup} year olds  
+Age Group: ${ageGroup} year olds
 Language: ${language}
 
 Requirements:
@@ -93,10 +100,6 @@ Return as JSON: {"seeds": [{"id": "1", "title": "Story Title", "description": "1
 
   } catch (error) {
     console.error('Story seeds generation error:', error);
-    return ResponseHandler.error(
-      error.message || 'Failed to generate story seeds',
-      500,
-      { operation: 'story-seeds', timestamp: Date.now() }
-    );
+    return ResponseHandler.handleError(error, { endpoint: 'generate-story-seeds' });
   }
 });
