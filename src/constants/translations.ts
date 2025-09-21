@@ -18,6 +18,7 @@ export const TRANSLATIONS = {
       complete: 'Färdig',
       error: 'Fel',
       success: 'Framgång'
+      , completeLabel: 'klart', step: 'Steg', of: 'av'
     },
     
     // Story Creation Flow
@@ -29,11 +30,13 @@ export const TRANSLATIONS = {
       storyIdeas: 'Berättelseidéer',
       createStory: 'Skapa min berättelse',
       steps: {
+        language: 'Språk',
         ageAndGenre: 'Ålder & Genre',
         characters: 'Karaktärer',
         storyIdeas: 'Berättelseidéer',
         review: 'Granska'
-      }
+      },
+      languageInstruction: 'Berättelser skapas på valt språk. Du kan översätta senare.'
     },
 
     // Age Groups
@@ -194,6 +197,7 @@ export const TRANSLATIONS = {
       complete: 'Complete',
       error: 'Error',
       success: 'Success'
+      , completeLabel: 'Complete', step: 'Step', of: 'of'
     },
     storyCreation: {
       title: 'Create Your Story',
@@ -203,11 +207,13 @@ export const TRANSLATIONS = {
       storyIdeas: 'Story Ideas',
       createStory: 'Create My Story',
       steps: {
+        language: 'Language',
         ageAndGenre: 'Age & Genre',
         characters: 'Characters',
         storyIdeas: 'Story Ideas',
         review: 'Review'
-      }
+      },
+      languageInstruction: 'Stories will be generated in the selected language. You can translate later.'
     },
     ageGroups: {
       '4-6': {

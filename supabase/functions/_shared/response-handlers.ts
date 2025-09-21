@@ -543,3 +543,28 @@ export const Validators = {
   storySegment: new StorySegmentValidator(),
   storyTitles: new StoryTitlesValidator()
 };
+
+// ============= WORD COUNT UTILITIES =============
+
+/**
+ * Parse a word range string like "80-110 words" into { min, max }
+ */
+export function parseWordRange(range: string): { min: number; max: number } {
+  const m = range.match(/(\d+)\s*-\s*(\d+)/);
+  if (!m) return { min: 0, max: Number.MAX_SAFE_INTEGER };
+  const min = parseInt(m[1], 10);
+  const max = parseInt(m[2], 10);
+  return { min, max };
+}
+
+/** Count words in a string (tokens split on whitespace) */
+export function countWords(text: string): number {
+  return (text || '').trim().split(/\s+/).filter(Boolean).length;
+}
+
+/** Trim content to a maximum number of words */
+export function trimToMaxWords(text: string, max: number): string {
+  const words = (text || '').trim().split(/\s+/);
+  if (words.length <= max) return text;
+  return words.slice(0, max).join(' ');
+}

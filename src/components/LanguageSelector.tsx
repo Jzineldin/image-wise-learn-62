@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Globe, Check } from 'lucide-react';
@@ -31,11 +31,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchLanguages();
-  }, []);
-
-  const fetchLanguages = async () => {
+  const fetchLanguages = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('languages')
@@ -56,7 +52,11 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchLanguages();
+  }, [fetchLanguages]);
 
   const handleLanguageChange = (languageCode: string) => {
     onLanguageChange(languageCode);

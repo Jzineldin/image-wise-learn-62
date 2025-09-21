@@ -49,7 +49,7 @@ export const AI_PROVIDERS: Record<string, AIProvider> = {
   openrouter: {
     name: 'OpenRouter',
     baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
-    defaultModel: 'openrouter/sonoma-dusk-alpha',
+    defaultModel: 'x-ai/grok-4-fast:free',
     supportedFeatures: ['json', 'text'],
     priority: 1
   },
@@ -72,28 +72,28 @@ export const AI_PROVIDERS: Record<string, AIProvider> = {
 export const MODEL_CONFIGS: Record<string, ModelConfig> = {
   'story-generation': {
     provider: 'openrouter',
-    model: 'openrouter/sonoma-dusk-alpha',
+    model: 'x-ai/grok-4-fast:free',
     maxTokens: 2000,
     temperature: 0.7,
     supportedFeatures: ['json']
   },
   'story-seeds': {
     provider: 'openrouter',
-    model: 'openrouter/sonoma-dusk-alpha',
+    model: 'x-ai/grok-4-fast:free',
     maxTokens: 1000,
     temperature: 0.7,
     supportedFeatures: ['json']
   },
   'story-segments': {
     provider: 'openrouter',
-    model: 'openrouter/sonoma-dusk-alpha',
+    model: 'x-ai/grok-4-fast:free',
     maxTokens: 1000,
     temperature: 0.8,
     supportedFeatures: ['json']
   },
   'story-titles': {
     provider: 'openrouter',
-    model: 'openrouter/sonoma-dusk-alpha',
+    model: 'x-ai/grok-4-fast:free',
     maxTokens: 300,
     temperature: 0.9,
     supportedFeatures: ['json']
@@ -210,8 +210,14 @@ export class AIServiceManager {
     config: ModelConfig,
     request: AIRequest
   ): any {
+    // Select a provider-compatible model. Use the configured model only when the
+    // provider matches; otherwise fall back to the provider's default model.
+    const modelForProvider = (provider.name === 'OpenRouter')
+      ? config.model
+      : provider.defaultModel || config.model;
+
     const body: any = {
-      model: config.model,
+      model: modelForProvider,
       messages: request.messages,
       max_tokens: request.maxTokens || config.maxTokens,
       temperature: request.temperature ?? config.temperature

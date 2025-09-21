@@ -38,7 +38,7 @@ export const AGE_GUIDELINES = {
     complexity: 'one clear problem or adventure'
   },
   '7-9': {
-    wordCount: '100-140 words',
+    wordCount: '80-110 words',
     vocabulary: 'elementary vocabulary, simple past tense, clear cause-effect',
     sentence: 'medium sentences (8-12 words each)',
     themes: 'school adventures, mild mystery, teamwork, problem-solving',
@@ -46,7 +46,7 @@ export const AGE_GUIDELINES = {
     complexity: 'simple problems with clear solutions'
   },
   '10-12': {
-    wordCount: '150-200 words',
+    wordCount: '120-150 words',
     vocabulary: 'intermediate vocabulary, varied sentence structure, emotional depth',
     sentence: 'varied sentence length (8-15 words)',
     themes: 'friendship challenges, adventure quests, self-discovery, moral choices',
@@ -54,7 +54,7 @@ export const AGE_GUIDELINES = {
     complexity: 'meaningful choices and consequences'
   },
   '13+': {
-    wordCount: '250-400 words',
+    wordCount: '150-200 words',
     vocabulary: 'advanced vocabulary, complex sentence structure, nuanced themes',
     sentence: 'complex and varied sentences',
     themes: 'identity, relationships, moral dilemmas, complex adventures',
@@ -169,7 +169,7 @@ ${processedCharacters && processedCharacters.length > 0
   : ''}
 
 CRITICAL REQUIREMENTS:
-1. Each seed description must be exactly ${ageGuide.wordCount}
+1. Each seed description must be between ${ageGuide.wordCount} (aim for the midpoint)
 2. Use ${ageGuide.vocabulary} appropriate for ${context.ageGroup} readers
 3. Focus on ${ageGuide.themes} and ${ageGuide.complexity}
 4. Incorporate the selected genre: ${context.genre} (use words like: ${genreWords})
@@ -292,7 +292,7 @@ ALWAYS use lowercase references like "the curious cat" or "the brave dog".
 This is MANDATORY and responses with capitalized character names will be REJECTED.
 
 STORY REQUIREMENTS:
-- Write exactly ${wordCount} words for ${context.ageGroup} reading level
+- Write between ${wordCount} (aim for the midpoint) for ${context.ageGroup} reading level
 - Use vocabulary appropriate for ${context.ageGroup}: ${guidelines.vocabulary}
 - Sentence structure: ${guidelines.sentences}  
 - Themes: ${guidelines.themes}

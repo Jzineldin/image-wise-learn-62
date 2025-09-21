@@ -79,8 +79,8 @@ const ContentModeration = () => {
 
       // Aggregate segments/audio for richer UI indicators
       const ids = (storiesData || []).map((s: any) => s.id);
-      let segCounts: Record<string, number> = {};
-      let audCounts: Record<string, number> = {};
+      const segCounts: Record<string, number> = {};
+      const audCounts: Record<string, number> = {};
       if (ids.length > 0) {
         const { data: segs, error: segErr } = await supabase
           .from('story_segments')
@@ -191,30 +191,58 @@ const ContentModeration = () => {
   const toggleStoryFeature = async (storyId: string, shouldFeature: boolean, priority: number = 1) => {
     try {
       if (shouldFeature) {
+        // Pre-check story status/visibility to avoid RPC failure
+        const { data: storyRow, error: sErr } = await supabase
+          .from('stories')
+          .select('status, visibility')
+          .eq('id', storyId)
+          .single();
+        if (sErr) throw sErr;
+
+        if (storyRow.status !== 'completed') {
+          toast({
+            title: 'Not eligible',
+            description: 'Story must be completed before it can be featured.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        if (storyRow.visibility !== 'public') {
+          // Auto-publish to public to satisfy RPC requirement
+          const { error: vErr } = await supabase
+            .from('stories')
+            .update({ visibility: 'public' })
+            .eq('id', storyId);
+          if (vErr) throw vErr;
+          toast({ title: 'Published', description: 'Story visibility set to public.' });
+        }
+
         const { error } = await supabase.rpc('admin_feature_story', {
           p_story_id: storyId,
-          p_priority: priority
+          p_priority: priority,
         });
         if (error) throw error;
       } else {
         const { error } = await supabase.rpc('admin_unfeature_story', {
-          p_story_id: storyId
+          p_story_id: storyId,
         });
         if (error) throw error;
       }
 
       toast({
-        title: "Success",
+        title: 'Success',
         description: `Story ${shouldFeature ? 'featured' : 'unfeatured'} successfully.`,
       });
 
       loadData();
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error toggling story feature', error);
+      const message = error?.message || 'Failed to update story feature status.';
       toast({
-        title: "Error",
-        description: "Failed to update story feature status.",
-        variant: "destructive",
+        title: 'Error',
+        description: message,
+        variant: 'destructive',
       });
     }
   };

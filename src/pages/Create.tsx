@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Home, Settings } from 'lucide-react';
@@ -12,7 +12,6 @@ import CreditDisplay from '@/components/CreditDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import { StoryCreationWizard } from '@/components/story-creation/StoryCreationWizard';
 import { useLanguage } from '@/hooks/useLanguage';
-import LanguageSelector from '@/components/LanguageSelector';
 import { useStoryStore } from '@/stores/storyStore';
 
 export default function CreateStoryFlow() {
@@ -223,6 +222,11 @@ export default function CreateStoryFlow() {
     }
   };
 
+  // Reset wizard state on mount so each visit starts fresh at Step 1
+  useEffect(() => {
+    resetFlow();
+  }, [resetFlow]);
+
   return (
     <div className="min-h-screen">
       {/* Navigation Header */}
@@ -255,11 +259,6 @@ export default function CreateStoryFlow() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <LanguageSelector
-                selectedLanguage={selectedLanguage}
-                onLanguageChange={changeLanguage}
-                variant="compact"
-              />
               <CreditDisplay compact />
               <Link to="/settings">
                 <Button variant="outline" className="btn-secondary flex items-center gap-2">
@@ -286,6 +285,8 @@ export default function CreateStoryFlow() {
         {/* Story Creation Wizard */}
         <StoryCreationWizard
           onCreateStory={generateStory}
+          selectedLanguage={selectedLanguage}
+          onLanguageChange={changeLanguage}
         />
 
         <InsufficientCreditsDialog

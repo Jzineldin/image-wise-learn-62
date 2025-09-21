@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Coins, Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,9 +22,9 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
   const [credits, setCredits] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
-  const fetchCredits = async () => {
-    if (!user) return;
-    
+  const fetchCredits = useCallback(async () => {
+    if (!user?.id) return;
+
     try {
       const { data, error } = await supabase
         .from('user_credits')
@@ -39,15 +39,15 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     fetchCredits();
-  }, [user]);
+  }, [fetchCredits]);
 
   // Listen for real-time credit updates
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
     const channel = supabase
       .channel('credit-updates')
@@ -68,7 +68,7 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.id]);
 
   const handleBuyCredits = async () => {
     // Buy the most popular pack (100 credits for $9)

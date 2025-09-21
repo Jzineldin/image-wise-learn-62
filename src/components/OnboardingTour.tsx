@@ -102,6 +102,14 @@ const OnboardingTour = ({ isOpen, onClose }: OnboardingTourProps) => {
   const currentStepData = TOUR_STEPS[currentStep];
   const progress = ((currentStep + 1) / TOUR_STEPS.length) * 100;
 
+  const persistCompletion = () => {
+    try {
+      localStorage.setItem('onboardingCompleted', 'true');
+    } catch (error) {
+      console.warn('Unable to persist onboarding completion', error);
+    }
+  };
+
   const handleNext = () => {
     if (currentStep < TOUR_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
@@ -121,7 +129,7 @@ const OnboardingTour = ({ isOpen, onClose }: OnboardingTourProps) => {
   };
 
   const handleFinish = () => {
-    try { localStorage.setItem('onboardingCompleted', 'true'); } catch {}
+    persistCompletion();
     setOnboardingCompleted(true);
     onClose();
   };
@@ -134,7 +142,7 @@ const OnboardingTour = ({ isOpen, onClose }: OnboardingTourProps) => {
   };
 
   const handleClose = () => {
-    try { localStorage.setItem('onboardingCompleted', 'true'); } catch {}
+    persistCompletion();
     setOnboardingCompleted(true);
     onClose();
   };

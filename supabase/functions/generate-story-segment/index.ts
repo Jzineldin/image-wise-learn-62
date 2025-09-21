@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { CreditService, CREDIT_COSTS, validateAndDeductCredits } from '../_shared/credit-system.ts';
+import { CreditService, CREDIT_COSTS, validateCredits, deductCreditsAfterSuccess } from '../_shared/credit-system.ts';
 import { createAIService } from '../_shared/ai-service.ts';
+import { AGE_GUIDELINES, PromptTemplateManager } from '../_shared/prompt-templates.ts';
+import { parseWordRange, countWords, trimToMaxWords } from '../_shared/response-handlers.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 
 
@@ -43,17 +45,17 @@ Deno.serve(async (req) => {
     const segment_number = body.segment_number || body.segmentNumber;
 
     if (!story_id) {
-      return ResponseHandler.error('Story ID is required', 400, { 
-        operation: 'story-segment', 
-        requestId, 
+      return ResponseHandler.error('Story ID is required', 400, {
+        operation: 'story-segment',
+        requestId,
         timestamp: Date.now(),
         receivedParams: Object.keys(body)
       });
     }
 
-    // Validate and deduct credits
-    const creditResult = await validateAndDeductCredits(creditService, userId, 'storySegment');
-    console.log(`[${requestId}] Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
+    // Validate credits first (no deduction yet)
+    const validation = await validateCredits(creditService, userId, 'storySegment');
+    console.log(`[${requestId}] Credits validated: ${validation.creditsRequired}`);
 
     // Get story details
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -75,46 +77,103 @@ Deno.serve(async (req) => {
       .eq('story_id', story_id)
       .order('segment_number');
 
-    const previousContent = segments?.map(s => s.content).join('\n\n') || '';
-    
+    let previousContent = segments?.map(s => s.content).join('\n\n') || '';
+
+    // Lightweight narrative memory summary (risk-free, no extra AI calls)
+    try {
+      const recentSegments = (segments || []).slice(-2);
+      const recentText = recentSegments.map(s => s.content || '').join(' ').trim();
+      const recentSummary = recentText ? trimToMaxWords(recentText, 60) : '';
+
+      // Attempt to find the impact of the selected choice from the last segment
+      let lastChoiceImpact: string | undefined = undefined;
+      const lastSeg = (segments || [])[(segments || []).length - 1];
+      if (lastSeg && Array.isArray(lastSeg.choices) && (choice || '').trim()) {
+        const normalizedChoice = (choice || '').trim().toLowerCase();
+        const matched = lastSeg.choices.find((c: any) => String(c?.text || '').trim().toLowerCase() === normalizedChoice);
+        if (matched?.impact) lastChoiceImpact = String(matched.impact);
+      }
+
+      const memoryLines = [
+        recentSummary ? `- Recent events: ${recentSummary}` : undefined,
+        lastChoiceImpact ? `- Last choice consequence to reflect: ${lastChoiceImpact}` : undefined,
+      ].filter(Boolean);
+
+      if (memoryLines.length > 0) {
+        const memoryBlock = `NARRATIVE MEMORY SUMMARY:\n${memoryLines.join('\n')}\n`;
+        previousContent = `${memoryBlock}\n${previousContent}`.trim();
+      }
+    } catch (_e) {
+      // best-effort; ignore summarization errors
+    }
+
     // Generate continuation using AI service (OpenRouter Sonoma Dusk Alpha)
     const aiService = createAIService();
-    
-    const systemPrompt = `You are continuing an interactive children's story. Generate the next segment based on the previous content and user choice.`;
-    
-    let userPrompt = `Continue this story for children aged ${story.age_group} in the ${story.genre} genre.
 
-Story so far:
-${previousContent}
+    const ageGuide = AGE_GUIDELINES[story.age_group as keyof typeof AGE_GUIDELINES] || AGE_GUIDELINES['10-12'];
+    const wordRange = ageGuide.wordCount; // e.g., "80-110 words"
 
-${choice ? `User chose: ${choice}` : 'Continue the story naturally.'}
+    // Build structured prompt using centralized template (JSON schema enforced)
+    const tmpl = PromptTemplateManager.generateStorySegment({
+      ageGroup: story.age_group,
+      genre: story.genre,
+      language: story.language_code,
+      previousContent,
+      choiceText: choice || '',
+      segmentNumber: segment_number || ((segments?.length || 0) + 1),
+      shouldBeEnding: false,
+    });
 
-Requirements:
-- Age-appropriate content for ${story.age_group} year olds
-- Continue the narrative smoothly from previous segments
-- Include dialogue and descriptive scenes
-- Length: 2-3 paragraphs
-- End with 2-3 choices for what happens next
-- Return ONLY the story continuation and choices, no formatting`;
 
     const aiResponse = await aiService.generate('story-segments', {
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        { role: 'system', content: tmpl.system },
+        { role: 'user', content: tmpl.user }
       ],
-      responseFormat: 'text',
-      temperature: 0.8
+      responseFormat: 'json',
+      schema: tmpl.schema,
+      temperature: 0.6
     });
 
-    const segmentContent = aiResponse.content;
+    let parsed: any = aiResponse.content;
+    let segmentContent = '';
+    let choices: Array<{ id: number; text: string; impact?: string }> = [];
+
+    try {
+      if (parsed && typeof parsed === 'object' && parsed.content) {
+        segmentContent = String(parsed.content || '').trim();
+        const rawChoices = Array.isArray(parsed.choices) ? parsed.choices : [];
+        choices = rawChoices.map((c: any, i: number) => ({ id: Number(c.id ?? i + 1), text: String(c.text || '').trim(), impact: c.impact ? String(c.impact) : undefined }))
+          .filter(c => c.text);
+      } else {
+        throw new Error('Missing structured fields');
+      }
+    } catch (e) {
+      // Fallback to previous text parsing path
+      console.warn(`[${requestId}] Structured parse failed, falling back to text parsing`);
+      const fallbackText = typeof aiResponse.content === 'string' ? aiResponse.content : '';
+      segmentContent = fallbackText;
+      const choiceMatches = fallbackText.match(/(?:^|\n)\s*(?:Choice\s*\d+:|Option\s*\d+:|\d+\.)[^\n]*/g) || [];
+      choices = choiceMatches.map((match, index) => ({
+        id: index + 1,
+        text: match.replace(/^(?:\s*|\n)?\s*(?:Choice\s*\d+:|Option\s*\d+:|\d+\.)/, '').trim()
+      }));
+      const contentMatch = fallbackText.match(/CONTENT:\s*([\s\S]*?)(?=CHOICES:|$)/i);
+      if (contentMatch) segmentContent = contentMatch[1].trim();
+    }
+
     console.log(`[${requestId}] Story segment generated using ${aiResponse.provider} - ${aiResponse.model}`);
 
-    // Parse choices from content (simple implementation)
-    const choiceMatches = segmentContent.match(/(?:Choice \d+:|Option \d+:|\d+\.)([^\n]+)/g) || [];
-    const choices = choiceMatches.map((match, index) => ({
-      id: index + 1,
-      text: match.replace(/^(?:Choice \d+:|Option \d+:|\d+\.)/, '').trim()
-    }));
+    // Enforce word limits on cleaned content
+    {
+      const { min, max } = parseWordRange(wordRange);
+      const wc = countWords(segmentContent);
+      if (wc > max) {
+        console.warn(`[${requestId}] Segment exceeds max words (${wc} > ${max}). Trimming to max.`);
+        segmentContent = trimToMaxWords(segmentContent, max);
+      }
+      console.log(`[${requestId}] Segment ${segment_number} word count: ${wc} (target ${min}-${max}) for age ${story.age_group}`);
+    }
 
     // Create story segment
     const { data: segment, error: segmentError } = await supabase
@@ -135,8 +194,18 @@ Requirements:
       throw new Error('Failed to save story segment');
     }
 
-    // Update story credits used
-    await creditService.updateStoryCreditsUsed(story_id, creditResult.creditsUsed);
+    // Deduct credits AFTER successful generation/persistence, with idempotent reference
+    const creditResult = await deductCreditsAfterSuccess(
+      creditService,
+      userId,
+      'storySegment',
+      validation.creditsRequired,
+      segment.id,
+      { story_id, segment_number }
+    );
+
+    // Update story credits used (legacy behavior)
+    await creditService.updateStoryCreditsUsed(story_id, validation.creditsRequired);
 
     console.log(`[${requestId}] Story segment created successfully: ${segment.id}`);
 
@@ -148,7 +217,7 @@ Requirements:
           choices,
           is_ending: choices.length === 0
         },
-        credits_used: creditResult.creditsUsed,
+        credits_used: validation.creditsRequired,
         credits_remaining: creditResult.newBalance
       },
       aiResponse.model,
@@ -157,7 +226,7 @@ Requirements:
 
   } catch (error) {
     console.error(`[${requestId}] Story segment generation error:`, error);
-    
+
     // Handle insufficient credits error
     if (error.message?.includes('Insufficient credits')) {
       return ResponseHandler.error(

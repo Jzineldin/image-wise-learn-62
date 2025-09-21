@@ -22,7 +22,7 @@ interface ThemeContextType {
   getThemeDescription: (theme: ThemeVariant) => string;
   getAllThemes: () => { value: ThemeVariant; label: string; description: string }[];
   isThemeTransitioning: boolean;
-  useRecommendedTheme: () => void;
+  applyRecommendedTheme: () => void;
   enableAutoTheme: boolean;
   setEnableAutoTheme: (enabled: boolean) => void;
 }
@@ -127,7 +127,7 @@ export function ThemeProvider({
     }));
   }, []);
 
-  const useRecommendedTheme = useCallback(() => {
+  const applyRecommendedTheme = useCallback(() => {
     // Get recommended theme based on time of day
     const hour = new Date().getHours();
     let recommendedTheme: ThemeVariant;
@@ -170,7 +170,7 @@ export function ThemeProvider({
     getThemeDescription,
     getAllThemes,
     isThemeTransitioning,
-    useRecommendedTheme,
+    applyRecommendedTheme,
     enableAutoTheme: autoThemeEnabled,
     setEnableAutoTheme,
   };

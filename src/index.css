@@ -22,6 +22,12 @@
     --popover: 240 25% 11%;
     --popover-foreground: 0 0% 100%;
 
+    /* Typography */
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-heading: 'Cinzel', 'Cinzel Decorative', Georgia, serif;
+    --body-line-height: 1.6;
+    --heading-line-height: 1.25;
+
     /* Brand Colors */
     --primary: 39 100% 50%; /* #FFA500 - Amber */
     --primary-foreground: 0 0% 100%;
@@ -91,14 +97,19 @@
 
   html {
     @apply font-sans;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
+    line-height: var(--body-line-height);
   }
 
   body {
     @apply text-foreground antialiased;
+    background-color: hsl(var(--background));
     /* Context7 Pattern: Optimized background with WebP support */
     background-image:
-      linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.4)),
+      linear-gradient(
+        hsl(var(--background) / 0.45),
+        hsl(var(--background) / 0.65)
+      ),
       url('./assets/main-astronaut.webp'),
       url('./assets/main-astronaut.png'); /* Fallback for older browsers */
     background-size: cover;
@@ -109,7 +120,8 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Cinzel', Georgia, serif;
+    font-family: var(--font-heading);
+    line-height: var(--heading-line-height);
     @apply font-medium;
   }
 }
@@ -209,7 +221,7 @@
 
   /* Enhanced Button Components */
   .btn-primary {
-    @apply px-6 py-3 bg-primary hover:bg-primary-hover text-white font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-glow transform hover:-translate-y-0.5;
+    @apply px-6 py-3 bg-primary hover:bg-primary-hover text-primary-foreground font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-glow transform hover:-translate-y-0.5;
   }
 
   .btn-secondary {
@@ -217,20 +229,37 @@
   }
 
   .btn-accent {
-    @apply px-6 py-3 bg-gradient-to-r from-accent to-secondary text-black font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-glow transform hover:-translate-y-0.5;
+    color: hsl(var(--accent-foreground));
+    @apply px-6 py-3 bg-gradient-to-r from-accent to-secondary font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-glow transform hover:-translate-y-0.5;
   }
 
   .btn-ghost {
-    @apply px-4 py-2 text-white/70 hover:text-primary hover:bg-white/5 rounded-lg transition-all duration-300;
+    @apply px-4 py-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-300;
   }
 
   .btn-icon {
-    @apply p-2 text-white/70 hover:text-primary hover:bg-white/10 rounded-full transition-all duration-300;
+    @apply p-2 text-text-secondary hover:text-primary hover:bg-primary/15 rounded-full transition-all duration-300;
   }
 
   /* Enhanced Form Components */
   .input-field {
-    @apply w-full px-4 py-3 bg-black/40 border border-white/20 rounded-lg text-white placeholder-white/40 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-300 hover:border-white/30;
+    background-color: hsl(var(--surface-overlay));
+    color: hsl(var(--text-primary));
+    border-color: hsl(var(--muted-foreground));
+    @apply w-full px-4 py-3 rounded-lg transition-all duration-300 focus:outline-none;
+  }
+
+  .input-field::placeholder {
+    color: hsl(var(--text-tertiary));
+  }
+
+  .input-field:hover {
+    border-color: hsl(var(--primary) / 0.4);
+  }
+
+  .input-field:focus {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.18);
   }
 
   /* Enhanced Text Styles with Better Visibility */

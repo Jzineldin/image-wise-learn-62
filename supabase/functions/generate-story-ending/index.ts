@@ -1,7 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { CreditService, CREDIT_COSTS, validateAndDeductCredits } from '../_shared/credit-system.ts';
+import { CreditService, CREDIT_COSTS, validateCredits, deductCreditsAfterSuccess } from '../_shared/credit-system.ts';
 import { createAIService } from '../_shared/ai-service.ts';
-import { ResponseHandler, ERROR_CODES } from '../_shared/response-handlers.ts';
+import { AGE_GUIDELINES } from '../_shared/prompt-templates.ts';
+import { ResponseHandler, ERROR_CODES, parseWordRange, countWords, trimToMaxWords } from '../_shared/response-handlers.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,9 +50,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate and deduct credits
-    const creditResult = await validateAndDeductCredits(creditService, userId, 'storySegment');
-    console.log(`Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
+    // Validate credits first (no deduction yet)
+    const validation = await validateCredits(creditService, userId, 'storySegment');
+    console.log(`Credits validated: ${validation.creditsRequired}`);
 
     // Get story details and all segments
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -75,22 +76,46 @@ Deno.serve(async (req) => {
 
     const storyContent = segments?.map(s => s.content).join('\n\n') || '';
 
-    // Generate ending using AI service (OpenRouter Sonoma Dusk Alpha)
+    // Lightweight narrative memory summary (last 2 segments)
+    let memoryBlock = '';
+    try {
+      const recent = (segments || []).slice(-2).map(s => s.content || '').join(' ').trim();
+      const summary = recent ? trimToMaxWords(recent, 80) : '';
+      if (summary) {
+        memoryBlock = `NARRATIVE MEMORY SUMMARY:\n- Recent events: ${summary}\n\n`;
+      }
+    } catch (_e) {
+      // best-effort only
+    }
+
+    // Generate ending using AI service (OpenRouter Grok 4 Fast)
     const aiService = createAIService();
 
-    const systemPrompt = `You are creating a satisfying ending for a children's story. The ending should feel natural and complete while teaching a positive lesson.`;
+    const ageGuide = AGE_GUIDELINES[story.age_group as keyof typeof AGE_GUIDELINES] || AGE_GUIDELINES['10-12'];
+    const wordRange = ageGuide.wordCount;
+
+    const systemPrompt = `You are creating a satisfying, age-appropriate ending for a children's story. Keep clarity and concrete imagery over abstract metaphors.
+
+STYLE GUARDRAILS (MANDATORY):
+- Avoid overly metaphorical or purple prose; prefer clear, concrete language
+- Use active voice; keep sentence length within ${ageGuide.sentence}
+- Vocabulary: ${ageGuide.vocabulary}; Themes: ${ageGuide.themes}; Complexity: ${ageGuide.complexity}
+- Maintain continuity with prior segments and reflect the reader's most recent decisions
+- Character references must stay lowercase for descriptive types (e.g., "the curious cat"), never capitalized descriptive names
+`;
+
 
     const userPrompt = `Write a ${ending_type} ending for this children's story (age ${story.age_group}, ${story.genre} genre):
 
 Story so far:
-${storyContent}
+${memoryBlock}${storyContent}
 
 Requirements:
-- Age-appropriate content for ${story.age_group} year olds
-- ${ending_type} ending that feels satisfying and complete
-- Include a positive lesson or moral
-- Wrap up the main story elements
-- Length: 2-3 paragraphs
+- Vocabulary: ${ageGuide.vocabulary}
+- Sentence structure: ${ageGuide.sentence}
+- Themes: ${ageGuide.themes}
+- Length: between ${wordRange} (aim for the midpoint)
+- Ensure closure consistent with ${ageGuide.complexity}
 - Return ONLY the ending content, no formatting`;
 
     const aiResponse = await aiService.generate('story-segments', {
@@ -99,11 +124,19 @@ Requirements:
         { role: 'user', content: userPrompt }
       ],
       responseFormat: 'text',
-      temperature: 0.7
+      temperature: 0.5
     });
 
-    const endingContent = aiResponse.content;
-    console.log(`Story ending generated using ${aiResponse.provider} - ${aiResponse.model}`);
+    let endingContent = aiResponse.content;
+    const { min, max } = parseWordRange(wordRange);
+    const wc = countWords(endingContent);
+    if (wc > max) {
+      console.warn(`Ending exceeds max words (${wc} > ${max}). Trimming to max.`);
+      endingContent = trimToMaxWords(endingContent, max);
+    } else if (wc < min) {
+      console.warn(`Ending below min words (${wc} < ${min}). Proceeding without modification.`);
+    }
+    console.log(`Story ending generated using ${aiResponse.provider} - ${aiResponse.model} with ~${wc} words (target ${wordRange})`);
 
     // Get next segment number
     const nextSegmentNumber = (segments?.length || 0) + 1;
@@ -138,8 +171,18 @@ Requirements:
       })
       .eq('id', story_id);
 
-    // Update story credits used
-    await creditService.updateStoryCreditsUsed(story_id, creditResult.creditsUsed);
+    // Deduct credits AFTER success with idempotent reference
+    const creditResult = await deductCreditsAfterSuccess(
+      creditService,
+      userId,
+      'storySegment',
+      validation.creditsRequired,
+      segment.id,
+      { story_id, ending_type }
+    );
+
+    // Update story credits used (legacy behavior)
+    await creditService.updateStoryCreditsUsed(story_id, validation.creditsRequired);
 
     console.log(`Story ending created successfully: ${segment.id}`);
 
@@ -149,7 +192,7 @@ Requirements:
         segment_id: segment.id,
         content: endingContent,
         ending_type,
-        credits_used: creditResult.creditsUsed,
+        credits_used: validation.creditsRequired,
         credits_remaining: creditResult.newBalance,
       }),
       {

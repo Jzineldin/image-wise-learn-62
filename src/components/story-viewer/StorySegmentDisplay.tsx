@@ -150,6 +150,9 @@ export const StorySegmentDisplay = ({
       {segment.choices && segment.choices.length > 0 && viewMode === 'creation' && (
         <div className="space-y-4">
           <h3 className="font-semibold text-xl text-center">What happens next?</h3>
+          {segment.segment_number === 1 && (
+            <div className="text-center text-sm text-muted-foreground -mt-1">Each choice shows an Impact preview to help you decide.</div>
+          )}
           <div className="grid gap-4">
             {segment.choices.map((choice) => (
               <Button

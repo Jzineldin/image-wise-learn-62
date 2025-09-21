@@ -879,15 +879,9 @@ const StoryViewer = () => {
   const handleEndStory = async () => {
     if (!story || !user) return;
 
-    // If an ending already exists, either make it ready (Simple Mode) or go finalize
+    // If an ending already exists, go to finalize
     const endingSegment = segments.find(s => s.is_ending);
     if (endingSegment) {
-      const ready = !!(endingSegment.content && endingSegment.image_url && endingSegment.audio_url);
-      const isSimple = (() => { try { return JSON.parse(localStorage.getItem('simpleMode') ?? 'true'); } catch { return true; } })();
-      if (!ready && isSimple) {
-        await makePictureAndVoice(endingSegment);
-        return;
-      }
       navigate(`/story/${id}/end`);
       return;
     }
@@ -987,10 +981,9 @@ const StoryViewer = () => {
   const isCompletedStory = story?.status === 'completed' || story?.is_completed;
   const hasEnding = segments.some(s => s.is_ending);
 
-  const simpleMode: boolean = (() => { try { return JSON.parse(localStorage.getItem('simpleMode') ?? 'true'); } catch { return true; } })();
   const endingSeg = segments.find(s => s.is_ending);
   const endingReady = !!(endingSeg && endingSeg.content && endingSeg.image_url && endingSeg.audio_url);
-  const endActionLabel = endingSeg ? (endingReady ? 'Finish Story' : 'Make ending ready') : 'Create Ending';
+  const endActionLabel = endingSeg ? 'Finish Story' : 'Create Ending';
 
   return (
     <div className={`min-h-screen ${isFullscreen ? 'fixed inset-0 z-40 overflow-auto' : ''}`}>
@@ -1157,7 +1150,6 @@ const StoryViewer = () => {
                 isCompleted={isCompletedStory}
                 creditLocked={creditLock.current}
                 hasEnding={hasEnding}
-                simpleMode={simpleMode}
                 onMakePictureAndVoice={() => makePictureAndVoice(currentSegment)}
                 endActionLabel={endActionLabel}
               />

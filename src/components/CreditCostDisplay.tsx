@@ -21,7 +21,7 @@ const calculateAudioCredits = (wordCount: number = 0): number => {
   return Math.ceil(wordCount / 100);
 };
 
-const getOperationDetails = (operation: string, wordCount?: number) => {
+const getOperationDetails = (operation: string, wordCount: number = 0) => {
   switch (operation) {
     case 'story':
       return {
@@ -37,14 +37,17 @@ const getOperationDetails = (operation: string, wordCount?: number) => {
         cost: CREDIT_COSTS.segment,
         description: 'Generate next story chapter'
       };
-    case 'audio':
-      const audioCost = calculateAudioCredits(wordCount || 0);
+    case 'audio': {
+      const normalizedWordCount = Math.max(0, wordCount);
+      const blocksOfHundred = Math.max(1, Math.ceil(normalizedWordCount / 100));
       return {
         label: 'Voice Narration',
         icon: Volume2,
-        cost: audioCost,
-        description: `Generate audio (${Math.ceil((wordCount || 0) / 100)} × 100 words)`
+        cost: blocksOfHundred,
+        description: `Generate audio (${blocksOfHundred} x 100 words)`
       };
+    }
+
     case 'image':
       return {
         label: 'AI Illustration',

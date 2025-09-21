@@ -38,6 +38,11 @@ export const ReviewStep = ({
 
       <CreditCostDisplay operation="story" className="mb-4" />
 
+      {/* Opening choice impact indicator */}
+      <div className="mx-auto max-w-xl text-sm text-muted-foreground bg-muted/30 rounded-md p-3">
+        Opening choices now include <span className="font-medium">Impact</span> previews so you can see likely consequences before deciding.
+      </div>
+
       <div className="bg-muted/30 rounded-lg p-6 text-left space-y-4">
         <div>
           <span className="font-medium">{translate('review.ageGroup')}:</span> {ageGroup}

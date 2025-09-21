@@ -318,6 +318,7 @@ export const createStoryWithLocalization = async (
 
     return story;
   } catch (error) {
+    logger.error('Failed to create story with localization', error, { userId });
     throw error;
   }
 };

@@ -263,19 +263,7 @@ export const AudioControls = ({
               </span>
             </div>
 
-            {audioUrl && (
-              <Button
-                onClick={onGenerateAudio}
-                variant="ghost"
-                size="sm"
-                className="text-xs text-text-tertiary hover:text-text-secondary"
-                disabled={isGenerating || disabled}
-                title={disabled ? "Please wait, another operation is in progress" : "Regenerate audio"}
-              >
-                <RotateCcw className="w-3 h-3 mr-1" />
-                Regenerate
-              </Button>
-            )}
+
           </div>
         </div>
       )}

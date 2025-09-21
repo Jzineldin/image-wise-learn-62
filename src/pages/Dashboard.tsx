@@ -50,9 +50,9 @@ const Dashboard = () => {
 
       // Enrich with segment/audio counts for UI indicators
       const ids = (stories || []).map((s: any) => s.id);
-      let segCounts: Record<string, number> = {};
-      let audCounts: Record<string, number> = {};
-      let textCounts: Record<string, number> = {};
+      const segCounts: Record<string, number> = {};
+      const audCounts: Record<string, number> = {};
+      const textCounts: Record<string, number> = {};
       if (ids.length > 0) {
         const { data: segs, error: segErr } = await supabase
           .from('story_segments')

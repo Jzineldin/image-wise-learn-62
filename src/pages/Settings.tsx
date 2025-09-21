@@ -48,13 +48,17 @@ const Settings = () => {
   const { pageClassName } = usePageThemeClasses('settings');
 
   const [activeSection, setActiveSection] = useState<string>('profile');
-  const [simpleMode, setSimpleMode] = useState<boolean>(() => {
-    try { return JSON.parse(localStorage.getItem('simpleMode') ?? 'true'); } catch { return true; }
-  });
 
+  const safeSetItem = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.warn(`Unable to persist ${key}`, error);
+    }
+  };
 
   useEffect(() => {
-    const ids = ['profile','theme','experience','notifications','privacy','account'];
+    const ids = ['profile','theme','notifications','privacy','account'];
     const observers: IntersectionObserver[] = [];
     ids.forEach((id) => {
       const el = document.getElementById(id);
@@ -63,7 +67,7 @@ const Settings = () => {
         entries.forEach((entry) => {
           if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
             setActiveSection(id);
-            try { history.replaceState(null, '', `#${id}`); } catch {}
+            try { history.replaceState(null, '', `#${id}`); } catch (error) { console.warn('Unable to update URL hash', error); }
           }
         });
       }, { threshold: [0.5] });
@@ -328,33 +332,6 @@ const Settings = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="language">{translate('settings.preferredLanguage')}</Label>
-                  <Select
-                    value={profile.preferred_language}
-                    onValueChange={(value) => setProfile({ ...profile, preferred_language: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableLanguages.map((lang) => (
-                        <SelectItem key={lang.code} value={lang.code}>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{lang.native_name}</span>
-                            <span className="text-xs text-muted-foreground">({lang.name})</span>
-                            {lang.code === 'sv' && (
-                              <span className="text-xs bg-primary/20 text-primary px-1 rounded">🇸🇪</span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {translate('messages.languageUpdated')}
-                  </p>
-                </div>
 
                 <Separator />
                 <Button onClick={saveProfile} disabled={saving} className="btn-primary">
@@ -392,34 +369,6 @@ const Settings = () => {
                   <div>
                     <h4 className="font-medium mb-3">Current Theme Status</h4>
                     <ThemeStatus />
-
-            {/* Experience Mode */}
-            <Card id="experience" className="glass-card-elevated">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <SettingsIcon className="w-5 h-5" />
-                  Experience Mode
-                </CardTitle>
-                <p className="text-sm text-text-secondary mt-1">Simplify the app for kids and parents. One-tap create for pictures and voice.</p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Simple Mode</Label>
-                    <p className="text-sm text-text-secondary">Show fewer controls with a single “Make picture & voice” button.</p>
-                  </div>
-                  <Switch
-                    checked={!!simpleMode}
-                    onCheckedChange={(checked) => {
-                      try { localStorage.setItem('simpleMode', JSON.stringify(checked)); } catch {}
-                      setSimpleMode(checked);
-                      toast({ title: checked ? 'Simple Mode enabled' : 'Simple Mode disabled' });
-                    }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
                   </div>
                 </div>
               </CardContent>

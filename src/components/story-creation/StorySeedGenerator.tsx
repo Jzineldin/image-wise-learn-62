@@ -99,6 +99,11 @@ export const StorySeedGenerator = memo(({
             ))}
           </div>
         ) : (
+          <>
+          {/* Impact preview note for clarity without clutter */}
+          <div className="text-xs text-muted-foreground mb-2">
+            Tip: In the next step, opening choices include <span className="font-medium">Impact</span> previews to help you pick a direction.
+          </div>
           <div className="grid gap-3">
             {seeds.map((seed) => {
               const isSelected = selectedSeed?.id === seed.id;
@@ -132,6 +137,7 @@ export const StorySeedGenerator = memo(({
               );
             })}
           </div>
+          </>
         )}
       </div>
 

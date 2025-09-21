@@ -160,7 +160,7 @@ export function ThemeToggle({
     setTheme,
     toggleTheme,
     getAllThemes,
-    useRecommendedTheme,
+    applyRecommendedTheme,
     enableAutoTheme,
     setEnableAutoTheme,
     isThemeTransitioning,
@@ -275,7 +275,7 @@ export function ThemeToggle({
         {/* Quick actions */}
         <DropdownMenuItem
           onClick={() => {
-            useRecommendedTheme();
+            applyRecommendedTheme();
             setIsOpen(false);
           }}
           className="flex items-center gap-2 px-2 py-1.5"

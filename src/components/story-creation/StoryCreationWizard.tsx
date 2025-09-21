@@ -2,28 +2,34 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, ArrowRight, BookOpen, Users, Sparkles, Wand2 } from 'lucide-react';
-import { useLanguage } from '@/hooks/useLanguage';
+import { t } from '@/constants/translations';
 import { AgeGenreStep } from './AgeGenreStep';
 import { CharacterSelectionStep } from './CharacterSelectionStep';
 import { StoryIdeaStep } from './StoryIdeaStep';
 import { ReviewStep } from './ReviewStep';
 import { useStoryStore } from '@/stores/storyStore';
 
+
 interface StoryCreationWizardProps {
   onCreateStory: () => void;
+  selectedLanguage: string;
+  onLanguageChange: (code: string) => void;
 }
 
 export const StoryCreationWizard = ({
-  onCreateStory
+  onCreateStory,
+  selectedLanguage,
+  onLanguageChange
 }: StoryCreationWizardProps) => {
-  const { translate } = useLanguage();
   const { currentFlow: flow, isGenerating: generating, updateFlow } = useStoryStore();
 
+  const tr = (key: string) => t(key, selectedLanguage);
+
   const STEPS = [
-    { id: 1, title: translate('storyCreation.steps.ageAndGenre'), icon: BookOpen },
-    { id: 2, title: translate('storyCreation.steps.characters'), icon: Users },
-    { id: 3, title: translate('storyCreation.steps.storyIdeas'), icon: Sparkles },
-    { id: 4, title: translate('storyCreation.steps.review'), icon: Wand2 }
+    { id: 1, title: tr('storyCreation.steps.ageAndGenre'), icon: BookOpen },
+    { id: 2, title: tr('storyCreation.steps.characters'), icon: Users },
+    { id: 3, title: tr('storyCreation.steps.storyIdeas'), icon: Sparkles },
+    { id: 4, title: tr('storyCreation.steps.review'), icon: Wand2 }
   ];
 
   const handleNext = () => {
@@ -76,8 +82,8 @@ export const StoryCreationWizard = ({
       {/* Progress Bar */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium">Step {flow.step} of {STEPS.length}</span>
-          <span className="text-sm text-muted-foreground">{Math.round(progress)}% Complete</span>
+          <span className="text-sm font-medium">{tr('ui.step')} {flow.step} {tr('ui.of')} {STEPS.length}</span>
+          <span className="text-sm text-muted-foreground">{Math.round(progress)}% {tr('ui.completeLabel')}</span>
         </div>
         <Progress value={progress} className="h-2" />
 
@@ -175,22 +181,22 @@ export const StoryCreationWizard = ({
       {/* Navigation */}
       {flow.step < 4 && (
         <div className="flex justify-between">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleBack}
             disabled={flow.step === 1}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            {translate('ui.back')}
+            {tr('ui.back')}
           </Button>
-          
-          <Button 
+
+          <Button
             onClick={handleNext}
             disabled={!canProceedFromStep(flow.step)}
             className="flex items-center gap-2"
           >
-            {translate('ui.next')}
+            {tr('ui.next')}
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>

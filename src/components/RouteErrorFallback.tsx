@@ -3,7 +3,7 @@ import { isRouteErrorResponse } from 'react-router-dom';
 import { logger } from '@/lib/debug';
 
 interface Props {
-  error?: any;
+  error?: unknown;
   context?: string;
   onRetry?: () => void;
 }

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { CreditService, calculateAudioCredits, validateAndDeductCredits } from '../_shared/credit-system.ts';
+import { CreditService, calculateAudioCredits, validateCredits, deductCreditsAfterSuccess } from '../_shared/credit-system.ts';
 import { ResponseHandler, ERROR_CODES } from '../_shared/response-handlers.ts';
 
 // Helper function to get current credits
@@ -180,9 +180,17 @@ Deno.serve(async (req) => {
 
     const audioUrl = urlData.publicUrl;
 
-    // NOW deduct credits after successful generation
-    const creditResult = await validateAndDeductCredits(creditService, userId, 'audioGeneration', { text, audioUrl });
-    console.log(`Credits deducted after success: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
+    // Validate and then deduct credits AFTER successful generation
+    const validation = await validateCredits(creditService, userId, 'audioGeneration', { text });
+    const creditResult = await deductCreditsAfterSuccess(
+      creditService,
+      userId,
+      'audioGeneration',
+      validation.creditsRequired,
+      segment_id, // idempotent ref: segment
+      { audioUrl }
+    );
+    console.log(`Credits deducted after success: ${validation.creditsRequired}, New balance: ${creditResult.newBalance}`);
 
     // Update story segment if segment_id provided
     if (segment_id) {

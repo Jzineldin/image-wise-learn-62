@@ -1,8 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { CreditService, validateAndDeductCredits } from '../_shared/credit-system.ts';
+import { CreditService, validateCredits, deductCreditsAfterSuccess } from '../_shared/credit-system.ts';
 import { createAIService } from '../_shared/ai-service.ts';
-import { ResponseHandler } from '../_shared/response-handlers.ts';
-import { PromptTemplateManager } from '../_shared/prompt-templates.ts';
+import { ResponseHandler, parseWordRange, countWords, trimToMaxWords } from '../_shared/response-handlers.ts';
+import { PromptTemplateManager, AGE_GUIDELINES } from '../_shared/prompt-templates.ts';
 
 interface StoryRequest {
   storyId: string;
@@ -60,9 +60,9 @@ Deno.serve(async (req) => {
 
     console.log(`[${requestId}] Request validated:`, { storyId, genre, ageGroup, languageCode, hasCharacters: characters.length > 0 });
 
-    // Validate and deduct credits
-    const creditResult = await validateAndDeductCredits(creditService, userId, 'storyGeneration');
-    console.log(`[${requestId}] Credits deducted: ${creditResult.creditsUsed}, New balance: ${creditResult.newBalance}`);
+    // Validate credits first (no deduction yet)
+    const validation = await validateCredits(creditService, userId, 'storyGeneration');
+    console.log(`[${requestId}] Credits validated: ${validation.creditsRequired}`);
 
     // Get the existing story to update
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -107,8 +107,15 @@ ${protagonistsList}
 - Use natural flow: first mention → pronoun → descriptive reference → pronoun.
 ` : '';
 
+    const ageGuide = AGE_GUIDELINES[ageGroup as keyof typeof AGE_GUIDELINES] || AGE_GUIDELINES['10-12'];
     const systemPrompt = `You are a skilled children's story writer creating interactive stories for ${ageGroup} readers in the ${genre} genre. Create engaging opening segments that set up the story world and present meaningful choices for the reader to continue the adventure.
-${languageInstructions}${characterRules}`;
+${languageInstructions}${characterRules}
+
+STYLE & LENGTH REQUIREMENTS:
+- Vocabulary: ${ageGuide.vocabulary}
+- Sentence structure: ${ageGuide.sentence}
+- Themes: ${ageGuide.themes}; Complexity: ${ageGuide.complexity}
+- Length: between ${ageGuide.wordCount} (aim for the midpoint)`;
 
     const userPrompt = `Create an opening segment for an interactive ${existingStory.story_type || 'short'} story.
 
@@ -118,17 +125,17 @@ ${processedCharacters.length > 0 ? `Use these MAIN PROTAGONISTS (MANDATORY): ${p
 Requirements:
 - Age-appropriate content for ${ageGroup}
 - Introduce the setting and make the listed protagonists the clear focus
-- End with a cliffhanger or decision point that leads to 2-3 meaningful choices
-- Length: 2-3 paragraphs for the opening segment
+- End with a cliffhanger or decision point that leads to 2-3 meaningful choices, each with a specific consequence (impact)
+- Length: between ${ageGuide.wordCount} (aim for the midpoint) for the opening segment
 - The story should continue based on reader choices, not end immediately
 - Output language: ${languageCode}
 
 Format your response as:
 CONTENT: [story opening content]
 CHOICES:
-1. [choice 1 - brief description]
-2. [choice 2 - brief description]
-3. [choice 3 - brief description]`;
+1. [choice 1 text] — Impact: [specific consequence]
+2. [choice 2 text] — Impact: [specific consequence]
+3. [choice 3 text] — Impact: [specific consequence]`;
 
     console.log(`[${requestId}] Generating story with AI service...`);
     const aiResponse = await aiService.generate('story-generation', {
@@ -137,7 +144,7 @@ CHOICES:
         { role: 'user', content: userPrompt }
       ],
       responseFormat: 'text',
-      temperature: 0.8
+      temperature: 0.7
     });
 
     const rawContent = aiResponse.content;
@@ -147,17 +154,33 @@ CHOICES:
     const contentMatch = rawContent.match(/CONTENT:\s*([\s\S]*?)(?=CHOICES:|$)/);
     const choicesMatch = rawContent.match(/CHOICES:\s*([\s\S]*)/);
     
-    const storyContent = contentMatch?.[1]?.trim() || rawContent;
+    let storyContent = contentMatch?.[1]?.trim() || rawContent;
+
+    // Enforce word range for opening CONTENT portion (choices handled separately)
+    {
+      const { min, max } = parseWordRange(AGE_GUIDELINES[ageGroup as keyof typeof AGE_GUIDELINES].wordCount);
+      const wc = countWords(storyContent);
+      if (wc > max) {
+        console.warn(`[${requestId}] Opening exceeds max words (${wc} > ${max}). Trimming to max.`);
+        storyContent = trimToMaxWords(storyContent, max);
+      }
+      console.log(`[${requestId}] Opening segment word count: ${wc} (target ${min}-${max}) for age ${ageGroup}`);
+    }
+
     let choices = [];
-    
+
     if (choicesMatch) {
       const choiceLines = choicesMatch[1].split('\n').filter(line => line.trim());
       choices = choiceLines.map((line, index) => {
-        const cleanLine = line.replace(/^\d+\.\s*/, '').trim();
+        const cleaned = line.replace(/^\d+\.\s*/, '').trim();
+        // Extract optional impact after a dash-like separator and 'Impact:' label
+        const match = cleaned.match(/^(.*?)(?:\s*[—\-–]\s*Impact:\s*(.*))?$/i);
+        const text = (match?.[1] || '').trim();
+        const impact = (match?.[2] || '').trim();
         return {
           id: index + 1,
-          text: cleanLine,
-          consequences: null
+          text,
+          impact: impact || undefined
         };
       }).filter(choice => choice.text);
     }
@@ -176,7 +199,7 @@ CHOICES:
       .from('stories')
       .update({
         status: 'in_progress',
-        credits_used: (existingStory.credits_used || 0) + creditResult.creditsUsed,
+        credits_used: (existingStory.credits_used || 0) + validation.creditsRequired,
       })
       .eq('id', storyId)
       .select()
@@ -187,29 +210,40 @@ CHOICES:
       throw new Error('Failed to update story');
     }
 
-    // Create story segment with content and choices
+    // Create or replace opening segment (segment_number=1) with content and choices
     const { error: segmentError } = await supabase
       .from('story_segments')
-      .insert({
+      .upsert({
         story_id: storyId,
         segment_number: 1,
         content: storyContent,
         segment_text: storyContent,
         is_ending: choices.length === 0,
         choices: choices
-      });
+      }, { onConflict: 'story_id,segment_number' });
 
     if (segmentError) {
-      console.error(`[${requestId}] Error creating story segment:`, segmentError);
+      console.error(`[${requestId}] Error upserting story segment:`, segmentError);
       throw new Error('Failed to save story content');
     }
+
+    // Deduct credits AFTER successful generation and persistence
+    const creditResult = await deductCreditsAfterSuccess(
+      creditService,
+      userId,
+      'storyGeneration',
+      validation.creditsRequired,
+      storyId,
+      { requestId }
+    );
+    console.log(`[${requestId}] Credits deducted: ${validation.creditsRequired}, New balance: ${creditResult.newBalance}`);
 
     console.log(`[${requestId}] Story completed successfully: ${storyId}`);
 
     return ResponseHandler.success({
       story_id: storyId,
       content: storyContent,
-      credits_used: creditResult.creditsUsed,
+      credits_used: validation.creditsRequired,
       credits_remaining: creditResult.newBalance,
     }, aiResponse.model, { requestId });
 

@@ -46,14 +46,7 @@ const StoryCard = memo(({
 }: StoryCardProps) => {
   const navigate = useNavigate();
 
-  // Context7 Pattern: Memoize expensive calculations
-  const simpleMode = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('simpleMode') ?? 'true');
-    } catch {
-      return true;
-    }
-  }, []);
+
 
   // Context7 Pattern: useMemo for expensive completion percentage calculation
   const completionPercent = useMemo(() => {
@@ -311,59 +304,55 @@ const StoryCard = memo(({
           )}
         </div>
 
-        {!simpleMode && (
-          <>
-            {/* Metadata row: chapters, audio, completion */}
-            <div className="flex items-center justify-between text-xs text-text-secondary mb-3">
-              <div className="flex items-center gap-4">
-                {story.segment_count != null && (
-                  <span className="flex items-center gap-1">
-                    <BookOpen className="w-3 h-3" />
-                    {story.segment_count} chapters
-                  </span>
-                )}
-                {story.audio_segments != null && story.segment_count != null && (
-                  <span className="flex items-center gap-1">
-                    <Volume2 className="w-3 h-3" />
-                    {story.audio_segments}/{story.segment_count} audio
-                  </span>
-                )}
-              </div>
-              {story.status === 'completed' && (
-                <span className="flex items-center gap-1 text-success">
-                  <CheckCircle2 className="w-3 h-3" />
-                  Completed
-                </span>
-              )}
-            </div>
-            {typeof completionPercent === 'number' && (
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex-1">
-                  <Progress value={completionPercent} className="h-2" />
-                </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="outline" className="text-xs cursor-help">{completionPercent}%</Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <div className="text-xs">
-                        Combined completion based on text and audio.
-                        <div className="mt-1 opacity-80">
-                          {typeof story.content_segments === 'number' && typeof story.segment_count === 'number' && (
-                            <div>Text: {story.content_segments}/{story.segment_count}</div>
-                          )}
-                          {typeof story.audio_segments === 'number' && typeof story.segment_count === 'number' && (
-                            <div>Audio: {story.audio_segments}/{story.segment_count}</div>
-                          )}
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+        {/* Metadata row: chapters, audio, completion */}
+        <div className="flex items-center justify-between text-xs text-text-secondary mb-3">
+          <div className="flex items-center gap-4">
+            {story.segment_count != null && (
+              <span className="flex items-center gap-1">
+                <BookOpen className="w-3 h-3" />
+                {story.segment_count} chapters
+              </span>
             )}
-          </>
+            {story.audio_segments != null && story.segment_count != null && (
+              <span className="flex items-center gap-1">
+                <Volume2 className="w-3 h-3" />
+                {story.audio_segments}/{story.segment_count} audio
+              </span>
+            )}
+          </div>
+          {story.status === 'completed' && (
+            <span className="flex items-center gap-1 text-success">
+              <CheckCircle2 className="w-3 h-3" />
+              Completed
+            </span>
+          )}
+        </div>
+        {typeof completionPercent === 'number' && (
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-1">
+              <Progress value={completionPercent} className="h-2" />
+            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="text-xs cursor-help">{completionPercent}%</Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs">
+                    Combined completion based on text and audio.
+                    <div className="mt-1 opacity-80">
+                      {typeof story.content_segments === 'number' && typeof story.segment_count === 'number' && (
+                        <div>Text: {story.content_segments}/{story.segment_count}</div>
+                      )}
+                      {typeof story.audio_segments === 'number' && typeof story.segment_count === 'number' && (
+                        <div>Audio: {story.audio_segments}/{story.segment_count}</div>
+                      )}
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         )}
 
         {showActions && (
@@ -371,7 +360,7 @@ const StoryCard = memo(({
             <Link to={`/story/${story.id}?mode=experience`} className="flex-1">
               <Button className="w-full btn-secondary">
                 <Eye className="w-4 h-4 mr-2" />
-                {simpleMode ? 'Read' : 'View'}
+                View
               </Button>
             </Link>
             {onSettingsClick && (
