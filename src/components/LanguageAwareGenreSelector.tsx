@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Check } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { TRANSLATIONS } from '@/constants/translations';
+import { OptimizedImage } from '@/components/ui/optimized-image';
 
 interface Genre {
   id: string;
@@ -56,22 +57,31 @@ const LanguageAwareGenreSelector: React.FC<LanguageAwareGenreSelectorProps> = ({
           return (
             <Card
               key={genre}
-              className={`glass-card-interactive cursor-pointer transition-all duration-300 ${
+              className={`glass-card-interactive cursor-pointer transition-all duration-300 overflow-hidden ${
                 isSelected 
-                  ? 'border-primary/50 bg-primary/10' 
+                  ? 'border-primary/50 bg-primary/10 ring-2 ring-primary/20' 
                   : 'border-primary/20 hover:border-primary/40'
               }`}
               onClick={() => onGenreToggle(genre)}
             >
+              <div className="relative">
+                <OptimizedImage
+                  src={`/images/genres/${genre}.jpg`}
+                  alt={`${genreInfo.name} genre`}
+                  className="w-full h-24 object-cover"
+                  placeholder="blur"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
+                {isSelected && (
+                  <div className="absolute top-2 right-2">
+                    <Check className="w-5 h-5 text-primary bg-background/80 rounded-full p-1" />
+                  </div>
+                )}
+              </div>
               <div className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <h4 className={`font-medium ${isSelected ? 'text-primary' : 'text-foreground'}`}>
-                    {genreInfo.name}
-                  </h4>
-                  {isSelected && (
-                    <Check className="w-5 h-5 text-primary flex-shrink-0" />
-                  )}
-                </div>
+                <h4 className={`font-medium mb-2 ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                  {genreInfo.name}
+                </h4>
                 <p className="text-text-secondary text-sm leading-relaxed">
                   {genreInfo.description}
                 </p>

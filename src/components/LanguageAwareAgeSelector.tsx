@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Check } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { TRANSLATIONS } from '@/constants/translations';
+import { OptimizedImage } from '@/components/ui/optimized-image';
 
 interface LanguageAwareAgeSelectorProps {
   selectedAgeGroup: string | undefined;
@@ -48,22 +49,31 @@ const LanguageAwareAgeSelector: React.FC<LanguageAwareAgeSelectorProps> = ({
           return (
             <Card
               key={ageGroup}
-              className={`glass-card-interactive cursor-pointer transition-all duration-300 ${
+              className={`glass-card-interactive cursor-pointer transition-all duration-300 overflow-hidden ${
                 isSelected 
-                  ? 'border-primary/50 bg-primary/10' 
+                  ? 'border-primary/50 bg-primary/10 ring-2 ring-primary/20' 
                   : 'border-primary/20 hover:border-primary/40'
               }`}
               onClick={() => onAgeGroupSelect(ageGroup)}
             >
+              <div className="relative">
+                <OptimizedImage
+                  src={`/images/age-groups/${ageGroup}.jpg`}
+                  alt={`Age group ${ageInfo.label}`}
+                  className="w-full h-24 object-cover"
+                  placeholder="blur"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
+                {isSelected && (
+                  <div className="absolute top-2 right-2">
+                    <Check className="w-5 h-5 text-primary bg-background/80 rounded-full p-1" />
+                  </div>
+                )}
+              </div>
               <div className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className={`font-medium text-lg ${isSelected ? 'text-primary' : 'text-foreground'}`}>
-                    {ageInfo.label}
-                  </h4>
-                  {isSelected && (
-                    <Check className="w-5 h-5 text-primary" />
-                  )}
-                </div>
+                <h4 className={`font-medium text-lg mb-2 ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                  {ageInfo.label}
+                </h4>
                 <p className="text-text-secondary text-sm">
                   {ageInfo.description}
                 </p>
