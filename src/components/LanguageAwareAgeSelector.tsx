@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Check } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { TRANSLATIONS } from '@/constants/translations';
+import { AGE_GROUP_IMAGES, type AgeGroup } from '@/constants/image-paths';
 
 interface LanguageAwareAgeSelectorProps {
   selectedAgeGroup: string | undefined;
@@ -17,16 +18,6 @@ const LanguageAwareAgeSelector: React.FC<LanguageAwareAgeSelectorProps> = ({
 }) => {
   const { selectedLanguage, translate } = useLanguage();
 
-  // Map age group IDs to image filenames in public/images/story-creation-flow
-  const ageToFilename = (age: string) => {
-    const map: Record<string, string> = {
-      '4-6': 'age-4-6',
-      '7-9': 'age-7-9',
-      '10-12': 'age-10-12',
-      '13+': 'age-13', // updated to match new filename
-    };
-    return map[age];
-  };
 
   const getAgeGroupInfo = (ageGroup: string) => {
     const ageTranslations = TRANSLATIONS[selectedLanguage as keyof typeof TRANSLATIONS]?.ageGroups || TRANSLATIONS.en.ageGroups;
@@ -59,37 +50,35 @@ const LanguageAwareAgeSelector: React.FC<LanguageAwareAgeSelectorProps> = ({
           return (
             <Card
               key={ageGroup}
-              className={`glass-card-interactive cursor-pointer transition-all duration-300 overflow-hidden ${
+              className={`glass-card-interactive cursor-pointer transition-all duration-300 relative overflow-hidden ${
                 isSelected
-                  ? 'border-primary/50 bg-primary/10'
+                  ? 'border-primary/50 bg-primary/10 ring-2 ring-primary/20'
                   : 'border-primary/20 hover:border-primary/40'
               }`}
               onClick={() => onAgeGroupSelect(ageGroup)}
             >
-              <div className="relative p-4 overflow-hidden min-h-28 md:min-h-32">
-                {/* Background preview image */}
-                <img
-                  src={`/images/story-creation-flow/${ageToFilename(ageGroup)}.jpg`}
-                  alt={`${ageGroup} preview`}
-                  className="absolute inset-0 w-full h-full object-cover object-center opacity-60 pointer-events-none"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-br from-background/40 via-background/15 to-transparent pointer-events-none" />
-
-                {/* Foreground content */}
-                <div className="relative">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className={`font-medium text-lg ${isSelected ? 'text-primary' : 'text-foreground'}`}>
-                      {ageInfo.label}
-                    </h4>
-                    {isSelected && (
-                      <Check className="w-5 h-5 text-primary" />
-                    )}
+              <img
+                src={AGE_GROUP_IMAGES[ageGroup as AgeGroup]}
+                alt={`Age group ${ageGroup}`}
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => {
+                  console.warn(`Failed to load age group image: ${AGE_GROUP_IMAGES[ageGroup as AgeGroup]}`);
+                  (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/50 to-transparent" />
+              <div className="relative p-4 flex flex-col justify-end min-h-[120px]">
+                {isSelected && (
+                  <div className="absolute top-2 right-2">
+                    <Check className="w-5 h-5 text-primary bg-background/80 rounded-full p-1" />
                   </div>
-                  <p className="text-text-secondary text-sm">
-                    {ageInfo.description}
-                  </p>
-                </div>
+                )}
+                <h4 className={`font-medium text-lg mb-2 ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                  {ageInfo.label}
+                </h4>
+                <p className="text-text-secondary text-sm">
+                  {ageInfo.description}
+                </p>
               </div>
             </Card>
           );

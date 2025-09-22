@@ -29,19 +29,23 @@ describe('AIClient Context7 Error Handling', () => {
 
   describe('Context7 Pattern: FunctionsHttpError handling', () => {
     it('should handle FunctionsHttpError with error context', async () => {
-      const mockError = new FunctionsHttpError(
-        'Function error',
-        { 
-          status: 400,
-          json: () => Promise.resolve({ error: 'Invalid input', code: 'VALIDATION_ERROR' })
-        } as any
-      );
+    const mockError = new FunctionsHttpError(
+      'Function error'
+    );
 
-      const { supabase } = await import('@/integrations/supabase/client');
-      vi.mocked(supabase.auth.getSession).mockResolvedValue({
-        data: { session: { access_token: 'test-token' } },
-        error: null
-      });
+    const { supabase } = await import('@/integrations/supabase/client');
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { 
+        session: { 
+          access_token: 'test-token',
+          refresh_token: 'refresh-token',
+          expires_in: 3600,
+          token_type: 'bearer',
+          user: { id: 'user-id', email: 'test@example.com' } as any
+        }
+      },
+      error: null
+    });
       vi.mocked(supabase.functions.invoke).mockResolvedValue({
         data: null,
         error: mockError
@@ -59,21 +63,23 @@ describe('AIClient Context7 Error Handling', () => {
     });
 
     it('should handle insufficient credits from function response', async () => {
-      const mockError = new FunctionsHttpError(
-        'Credit error',
-        { 
-          status: 400,
-          json: () => Promise.resolve({ 
-            error: 'Insufficient credits. Required: 5, Available: 2' 
-          })
-        } as any
-      );
+    const mockError = new FunctionsHttpError(
+      'Insufficient credits. Required: 5, Available: 2'
+    );
 
-      const { supabase } = await import('@/integrations/supabase/client');
-      vi.mocked(supabase.auth.getSession).mockResolvedValue({
-        data: { session: { access_token: 'test-token' } },
-        error: null
-      });
+    const { supabase } = await import('@/integrations/supabase/client');
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { 
+        session: { 
+          access_token: 'test-token',
+          refresh_token: 'refresh-token',
+          expires_in: 3600,
+          token_type: 'bearer',
+          user: { id: 'user-id', email: 'test@example.com' } as any
+        }
+      },
+      error: null
+    });
       vi.mocked(supabase.functions.invoke).mockResolvedValue({
         data: null,
         error: mockError
@@ -93,13 +99,21 @@ describe('AIClient Context7 Error Handling', () => {
 
   describe('Context7 Pattern: FunctionsRelayError handling', () => {
     it('should handle FunctionsRelayError as network error', async () => {
-      const mockError = new FunctionsRelayError('Network timeout');
+    const mockError = new FunctionsRelayError('Network timeout');
 
-      const { supabase } = await import('@/integrations/supabase/client');
-      vi.mocked(supabase.auth.getSession).mockResolvedValue({
-        data: { session: { access_token: 'test-token' } },
-        error: null
-      });
+    const { supabase } = await import('@/integrations/supabase/client');
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { 
+        session: { 
+          access_token: 'test-token',
+          refresh_token: 'refresh-token',
+          expires_in: 3600,
+          token_type: 'bearer',
+          user: { id: 'user-id', email: 'test@example.com' } as any
+        }
+      },
+      error: null
+    });
       vi.mocked(supabase.functions.invoke).mockResolvedValue({
         data: null,
         error: mockError
@@ -119,13 +133,21 @@ describe('AIClient Context7 Error Handling', () => {
 
   describe('Context7 Pattern: FunctionsFetchError handling', () => {
     it('should handle FunctionsFetchError as service unavailable', async () => {
-      const mockError = new FunctionsFetchError('Service unreachable');
+    const mockError = new FunctionsFetchError('Service unreachable');
 
-      const { supabase } = await import('@/integrations/supabase/client');
-      vi.mocked(supabase.auth.getSession).mockResolvedValue({
-        data: { session: { access_token: 'test-token' } },
-        error: null
-      });
+    const { supabase } = await import('@/integrations/supabase/client');
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { 
+        session: { 
+          access_token: 'test-token',
+          refresh_token: 'refresh-token',
+          expires_in: 3600,
+          token_type: 'bearer',
+          user: { id: 'user-id', email: 'test@example.com' } as any
+        }
+      },
+      error: null
+    });
       vi.mocked(supabase.functions.invoke).mockResolvedValue({
         data: null,
         error: mockError
@@ -145,20 +167,22 @@ describe('AIClient Context7 Error Handling', () => {
 
   describe('Context7 Pattern: Retry logic', () => {
     it('should retry network errors but not function errors', async () => {
-      const networkError = new FunctionsRelayError('Network timeout');
-      const functionError = new FunctionsHttpError(
-        'Function error',
-        { 
-          status: 400,
-          json: () => Promise.resolve({ error: 'Invalid input' })
-        } as any
-      );
+    const networkError = new FunctionsRelayError('Network timeout');
+    const functionError = new FunctionsHttpError('Function error');
 
-      const { supabase } = await import('@/integrations/supabase/client');
-      vi.mocked(supabase.auth.getSession).mockResolvedValue({
-        data: { session: { access_token: 'test-token' } },
-        error: null
-      });
+    const { supabase } = await import('@/integrations/supabase/client');
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { 
+        session: { 
+          access_token: 'test-token',
+          refresh_token: 'refresh-token',
+          expires_in: 3600,
+          token_type: 'bearer',
+          user: { id: 'user-id', email: 'test@example.com' } as any
+        }
+      },
+      error: null
+    });
 
       // Test network error retry
       vi.mocked(supabase.functions.invoke).mockResolvedValue({
@@ -172,12 +196,20 @@ describe('AIClient Context7 Error Handling', () => {
       // Should have called invoke 3 times (1 initial + 2 retries)
       expect(supabase.functions.invoke).toHaveBeenCalledTimes(3);
 
-      // Reset mock
-      vi.clearAllMocks();
-      vi.mocked(supabase.auth.getSession).mockResolvedValue({
-        data: { session: { access_token: 'test-token' } },
-        error: null
-      });
+    // Reset mock
+    vi.clearAllMocks();
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
+      data: { 
+        session: { 
+          access_token: 'test-token',
+          refresh_token: 'refresh-token',
+          expires_in: 3600,
+          token_type: 'bearer',
+          user: { id: 'user-id', email: 'test@example.com' } as any
+        }
+      },
+      error: null
+    });
 
       // Test function error no retry
       vi.mocked(supabase.functions.invoke).mockResolvedValue({
