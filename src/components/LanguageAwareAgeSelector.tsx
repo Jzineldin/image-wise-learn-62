@@ -55,7 +55,7 @@ const LanguageAwareAgeSelector: React.FC<LanguageAwareAgeSelectorProps> = ({
               }`}
               onClick={() => onAgeGroupSelect(ageGroup)}
               style={{
-                backgroundImage: `url(/images/age-groups/${ageGroup}.jpg)`,
+                backgroundImage: `url("/images/age-groups/${encodeURIComponent(ageGroup)}.jpg")`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 minHeight: '120px'

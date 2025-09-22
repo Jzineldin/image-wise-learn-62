@@ -63,7 +63,7 @@ const LanguageAwareGenreSelector: React.FC<LanguageAwareGenreSelectorProps> = ({
               }`}
               onClick={() => onGenreToggle(genre)}
               style={{
-                backgroundImage: `url(/images/genres/${genre}.jpg)`,
+                backgroundImage: `url("/images/genres/${encodeURIComponent(genre)}.jpg")`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 minHeight: '120px'
