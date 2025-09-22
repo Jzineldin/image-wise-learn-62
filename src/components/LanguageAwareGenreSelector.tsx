@@ -25,7 +25,6 @@ const LanguageAwareGenreSelector: React.FC<LanguageAwareGenreSelectorProps> = ({
 }) => {
   const { selectedLanguage, translate } = useLanguage();
 
-
   const getGenreInfo = (genreId: string) => {
     const isSwedish = selectedLanguage === 'sv';
     const genreTranslations = TRANSLATIONS[selectedLanguage as keyof typeof TRANSLATIONS]?.genres || TRANSLATIONS.en.genres;

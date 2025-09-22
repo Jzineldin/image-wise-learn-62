@@ -18,7 +18,6 @@ const LanguageAwareAgeSelector: React.FC<LanguageAwareAgeSelectorProps> = ({
 }) => {
   const { selectedLanguage, translate } = useLanguage();
 
-
   const getAgeGroupInfo = (ageGroup: string) => {
     const ageTranslations = TRANSLATIONS[selectedLanguage as keyof typeof TRANSLATIONS]?.ageGroups || TRANSLATIONS.en.ageGroups;
     

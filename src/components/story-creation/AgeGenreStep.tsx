@@ -18,6 +18,8 @@ export const AgeGenreStep = ({
 }: AgeGenreStepProps) => {
   const { translate, selectedLanguage, changeLanguage } = useLanguage();
 
+  const BASE_URL = import.meta.env.BASE_URL || '/';
+
   // Map age and genre IDs to actual image filenames under public/images/story-creation-flow
   const ageToFilename = (age?: string) => {
     if (!age) return undefined;
@@ -85,7 +87,7 @@ export const AgeGenreStep = ({
             <div className="text-sm font-medium mb-2">Age group preview</div>
             <div className="relative aspect-[16/9] rounded-lg overflow-hidden border bg-muted/30">
               <img
-                src={`/images/story-creation-flow/${ageToFilename(selectedAgeGroup)}.jpg`}
+                src={`${BASE_URL}images/story-creation-flow/${ageToFilename(selectedAgeGroup)}.jpg`}
                 alt={`${selectedAgeGroup} preview`}
                 className="w-full h-full object-cover"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -102,7 +104,7 @@ export const AgeGenreStep = ({
                 <div key={g} className="rounded-lg overflow-hidden border bg-muted/30">
                   <div className="relative aspect-[4/3]">
                     <img
-                      src={`/images/story-creation-flow/${genreToFilename(g)}.jpg`}
+                      src={`${BASE_URL}images/story-creation-flow/${genreToFilename(g)}.jpg`}
                       alt={`${g} preview`}
                       className="w-full h-full object-cover"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
