@@ -61,7 +61,8 @@ const LanguageAwareAgeSelector: React.FC<LanguageAwareAgeSelectorProps> = ({
                 alt={`Age group ${ageGroup}`}
                 className="absolute inset-0 w-full h-full object-cover"
                 onError={(e) => {
-                  console.error(`Failed to load age group image: ${AGE_GROUP_IMAGES[ageGroup as AgeGroup]}`);
+                  console.warn(`Failed to load age group image: ${AGE_GROUP_IMAGES[ageGroup as AgeGroup]}`);
+                  (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
                 }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/50 to-transparent" />

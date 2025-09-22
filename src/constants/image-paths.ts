@@ -6,7 +6,7 @@ export const AGE_GROUP_IMAGES = {
   '4-6': '/images/age-groups/4-6.jpg',
   '7-9': '/images/age-groups/7-9.jpg',
   '10-12': '/images/age-groups/10-12.jpg',
-  '13+': '/images/age-groups/13+.jpg'
+  '13+': '/images/age-groups/13%2B.jpg'
 } as const;
 
 export const GENRE_IMAGES = {

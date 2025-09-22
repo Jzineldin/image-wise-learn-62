@@ -69,7 +69,8 @@ const LanguageAwareGenreSelector: React.FC<LanguageAwareGenreSelectorProps> = ({
                 alt={`Genre ${genre}`}
                 className="absolute inset-0 w-full h-full object-cover"
                 onError={(e) => {
-                  console.error(`Failed to load genre image: ${GENRE_IMAGES[genre as GenreKey]}`);
+                  console.warn(`Failed to load genre image: ${GENRE_IMAGES[genre as GenreKey]}`);
+                  (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
                 }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/50 to-transparent" />
