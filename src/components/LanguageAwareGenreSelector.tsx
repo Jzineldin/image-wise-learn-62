@@ -4,8 +4,9 @@ import { Card } from '@/components/ui/card';
 import { Check } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { TRANSLATIONS } from '@/constants/translations';
+import { GENRE_IMAGES, type Genre as GenreKey } from '@/constants/image-paths';
 
-interface Genre {
+interface GenreInfo {
   id: string;
   name: string;
   description: string;
@@ -56,19 +57,21 @@ const LanguageAwareGenreSelector: React.FC<LanguageAwareGenreSelectorProps> = ({
           return (
             <Card
               key={genre}
-              className={`glass-card-interactive cursor-pointer transition-all duration-300 relative ${
+              className={`glass-card-interactive cursor-pointer transition-all duration-300 relative overflow-hidden ${
                 isSelected 
                   ? 'border-primary/50 bg-primary/10 ring-2 ring-primary/20' 
                   : 'border-primary/20 hover:border-primary/40'
               }`}
               onClick={() => onGenreToggle(genre)}
-              style={{
-                backgroundImage: `url("/images/genres/${encodeURIComponent(genre)}.jpg")`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                minHeight: '120px'
-              }}
             >
+              <img
+                src={GENRE_IMAGES[genre as GenreKey]}
+                alt={`Genre ${genre}`}
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => {
+                  console.error(`Failed to load genre image: ${GENRE_IMAGES[genre as GenreKey]}`);
+                }}
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/50 to-transparent" />
               <div className="relative p-4 flex flex-col justify-end min-h-[120px]">
                 {isSelected && (
