@@ -158,15 +158,66 @@ export default function CreateStoryFlow() {
         .select()
         .single();
 
-      if (story) {
-        createdStoryId = story.id;
+      if (storyError) throw storyError;
+      if (!story) throw new Error('Failed to create story');
+
+      createdStoryId = story.id;
+
+      // Now generate the actual story content
+      setGenerationProgress({ 
+        progress: 40, 
+        currentStep: 'Generating your story...' 
+      });
+
+      const { data: generationResult, error: generationError } = await supabase.functions.invoke('generate-story', {
+        body: {
+          storyId: story.id,
+          prompt: storyPrompt,
+          genre: flow.genres[0],
+          ageGroup: flow.ageGroup,
+          languageCode: selectedLanguage,
+          isInitialGeneration: true,
+          characters: flow.selectedCharacters.map(c => ({
+            name: c.name,
+            description: c.description,
+            personality: c.personality_traits?.join(', ') || ''
+          }))
+        }
+      });
+
+      if (generationError) {
+        console.error('Story generation failed:', generationError);
+        throw new Error('Failed to generate story content');
       }
 
-      if (storyError) throw storyError;
+      setGenerationProgress({ 
+        progress: 80, 
+        currentStep: 'Finalizing your story...' 
+      });
+
+      // Verify the story has content before navigating
+      const { data: storySegments } = await supabase
+        .from('story_segments')
+        .select('id')
+        .eq('story_id', story.id)
+        .eq('segment_number', 1);
+
+      if (!storySegments || storySegments.length === 0) {
+        throw new Error('Story generation completed but no content was created');
+      }
+
+      setGenerationProgress({ 
+        progress: 100, 
+        currentStep: 'Story created successfully!' 
+      });
 
       await deleteDraft();
       toast.success(selectedLanguage === 'sv' ? 'Berättelse skapad!' : 'Story created successfully!');
-      navigate(`/story/${story.id}`);
+      
+      // Small delay to show completion before navigating
+      setTimeout(() => {
+        navigate(`/story/${story.id}`);
+      }, 500);
 
     } catch (error) {
       logger.error('Error generating story', error);
