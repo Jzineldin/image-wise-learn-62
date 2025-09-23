@@ -266,12 +266,20 @@ const StoryViewer = () => {
 
       setSegments(transformedSegments);
 
-      // Only auto-generate image for the latest segment (prefer ending) if not credit locked
+      // Auto-generate images for segments that need them (prioritize segment 1, then latest/ending) if not credit locked
       if (transformedSegments.length > 0 && !creditLock.current) {
-        const endingCandidate = [...transformedSegments].reverse().find(s => s.is_ending) || transformedSegments[transformedSegments.length - 1];
-        if (endingCandidate && !endingCandidate.image_url && endingCandidate.content) {
-          console.log('🖼️ Auto-generating image for latest/ending segment on load:', endingCandidate.id);
-          generateSegmentImage(endingCandidate);
+        // First, check if segment 1 needs an image (critical for first-time story viewing)
+        const firstSegment = transformedSegments.find(s => s.segment_number === 1);
+        if (firstSegment && !firstSegment.image_url && firstSegment.content) {
+          console.log('🖼️ Auto-generating image for first segment on load:', firstSegment.id);
+          generateSegmentImage(firstSegment);
+        } else {
+          // If segment 1 has an image, check the latest/ending segment
+          const endingCandidate = [...transformedSegments].reverse().find(s => s.is_ending) || transformedSegments[transformedSegments.length - 1];
+          if (endingCandidate && !endingCandidate.image_url && endingCandidate.content && endingCandidate.segment_number !== 1) {
+            console.log('🖼️ Auto-generating image for latest/ending segment on load:', endingCandidate.id);
+            generateSegmentImage(endingCandidate);
+          }
         }
       }
 
