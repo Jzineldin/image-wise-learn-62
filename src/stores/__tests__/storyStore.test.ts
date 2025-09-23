@@ -14,11 +14,19 @@ describe('storyStore', () => {
         customSeed: ''
       },
       isGenerating: false,
-      generationProgress: 0,
+      generationProgress: {
+        currentStep: '',
+        progress: 0,
+        canCancel: false
+      },
+      lastSavedAt: null,
+      hasUnsavedChanges: false,
       currentStoryId: null,
       currentSegmentIndex: 0,
       readingMode: 'text',
       autoPlay: false,
+      lastError: null,
+      retryCount: 0
     });
   });
 
@@ -32,11 +40,15 @@ describe('storyStore', () => {
       expect(state.currentFlow.selectedSeed).toBeUndefined();
       expect(state.currentFlow.customSeed).toBe('');
       expect(state.isGenerating).toBe(false);
-      expect(state.generationProgress).toBe(0);
+      expect(state.generationProgress.progress).toBe(0);
+      expect(state.generationProgress.currentStep).toBe('');
+      expect(state.generationProgress.canCancel).toBe(false);
       expect(state.currentStoryId).toBe(null);
       expect(state.currentSegmentIndex).toBe(0);
       expect(state.readingMode).toBe('text');
       expect(state.autoPlay).toBe(false);
+      expect(state.lastError).toBe(null);
+      expect(state.retryCount).toBe(0);
     });
   });
 
@@ -117,11 +129,16 @@ describe('storyStore', () => {
     it('should update generation progress', () => {
       const { setGenerationProgress } = useStoryStore.getState();
       
-      setGenerationProgress(50);
-      expect(useStoryStore.getState().generationProgress).toBe(50);
+      setGenerationProgress({ progress: 50, currentStep: 'Generating segments...' });
+      let state = useStoryStore.getState();
+      expect(state.generationProgress.progress).toBe(50);
+      expect(state.generationProgress.currentStep).toBe('Generating segments...');
       
-      setGenerationProgress(100);
-      expect(useStoryStore.getState().generationProgress).toBe(100);
+      setGenerationProgress({ progress: 100, canCancel: false });
+      state = useStoryStore.getState();
+      expect(state.generationProgress.progress).toBe(100);
+      expect(state.generationProgress.canCancel).toBe(false);
+      expect(state.generationProgress.currentStep).toBe('Generating segments...'); // Should preserve previous value
     });
   });
 
