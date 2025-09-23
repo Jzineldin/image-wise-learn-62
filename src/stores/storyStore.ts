@@ -6,6 +6,8 @@ interface StoryState {
   currentFlow: StoryCreationFlow;
   isGenerating: boolean;
   generationProgress: number;
+  generationError: string | null;
+  canCancelGeneration: boolean;
   
   // Story Viewer State  
   currentStoryId: string | null;
@@ -18,6 +20,8 @@ interface StoryState {
   resetFlow: () => void;
   setGenerating: (generating: boolean) => void;
   setGenerationProgress: (progress: number) => void;
+  setGenerationError: (error: string | null) => void;
+  setCanCancelGeneration: (canCancel: boolean) => void;
   setCurrentStory: (storyId: string | null) => void;
   setCurrentSegment: (index: number) => void;
   setReadingMode: (mode: 'text' | 'audio' | 'both') => void;
@@ -38,6 +42,8 @@ export const useStoryStore = create<StoryState>((set, get) => ({
   currentFlow: initialFlow,
   isGenerating: false,
   generationProgress: 0,
+  generationError: null,
+  canCancelGeneration: false,
   currentStoryId: null,
   currentSegmentIndex: 0,
   readingMode: 'text',
@@ -48,11 +54,22 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     currentFlow: { ...state.currentFlow, ...updates }
   })),
   
-  resetFlow: () => set({ currentFlow: initialFlow }),
+  resetFlow: () => set({ 
+    currentFlow: initialFlow,
+    generationError: null,
+    generationProgress: 0
+  }),
   
-  setGenerating: (isGenerating) => set({ isGenerating }),
+  setGenerating: (isGenerating) => set({ 
+    isGenerating,
+    generationError: isGenerating ? null : get().generationError
+  }),
   
   setGenerationProgress: (generationProgress) => set({ generationProgress }),
+  
+  setGenerationError: (generationError) => set({ generationError }),
+  
+  setCanCancelGeneration: (canCancelGeneration) => set({ canCancelGeneration }),
   
   setCurrentStory: (currentStoryId) => set({ 
     currentStoryId, 

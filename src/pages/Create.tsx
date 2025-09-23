@@ -11,6 +11,8 @@ import { AIClient, InsufficientCreditsError } from '@/lib/api/ai-client';
 import CreditDisplay from '@/components/CreditDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import { StoryCreationWizard } from '@/components/story-creation/StoryCreationWizard';
+import { StoryGenerationProgress } from '@/components/story-creation/StoryGenerationProgress';
+import { ErrorRecoveryDialog } from '@/components/story-creation/ErrorRecoveryDialog';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useStoryStore } from '@/stores/storyStore';
 
@@ -25,12 +27,30 @@ export default function CreateStoryFlow() {
   const {
     currentFlow: flow,
     isGenerating: generating,
+    generationProgress,
+    generationError,
+    canCancelGeneration,
     updateFlow,
     resetFlow,
-    setGenerating
+    setGenerating,
+    setGenerationProgress,
+    setGenerationError,
+    setCanCancelGeneration
   } = useStoryStore();
 
+  // Additional state for dialogs
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [cancelRequested, setCancelRequested] = useState(false);
+
   const generateStory = async () => {
+    // Reset states
+    setGenerationError(null);
+    setGenerationProgress(0);
+    setCancelRequested(false);
+    setShowProgressDialog(true);
+    setCanCancelGeneration(true);
     if (!user) {
       toast.error('Please sign in to create stories');
       return;
@@ -42,9 +62,12 @@ export default function CreateStoryFlow() {
     }
 
     setGenerating(true);
+    setGenerationProgress(10);
 
     let createdStoryId: string | null = null;
     try {
+      // Check for cancellation
+      if (cancelRequested) throw new Error('Generation cancelled by user');
       const requestId = generateRequestId();
       const storyPrompt = flow.selectedSeed?.description || flow.customSeed;
       const storyTitle = flow.selectedSeed?.title || (selectedLanguage === 'sv' ? 'Anpassad Berättelse' : 'Custom Story');
@@ -58,6 +81,7 @@ export default function CreateStoryFlow() {
       });
 
       // Create the story in database first
+      setGenerationProgress(25);
       const { data: story, error: storyError } = await supabase
         .from('stories')
         .insert({
@@ -91,6 +115,9 @@ export default function CreateStoryFlow() {
 
       if (storyError) throw storyError;
 
+      // Check for cancellation before continuing
+      if (cancelRequested) throw new Error('Generation cancelled by user');
+
       // Increment usage count for selected characters
       for (const character of flow.selectedCharacters) {
         await supabase
@@ -100,6 +127,8 @@ export default function CreateStoryFlow() {
       }
 
       // Generate the first story segment using unified AI client
+      setGenerationProgress(50);
+      setCanCancelGeneration(false); // Cannot cancel during AI generation
       const generationResult = await AIClient.generateStory({
         prompt: storyPrompt,
         genre: flow.genres[0],
@@ -117,6 +146,7 @@ export default function CreateStoryFlow() {
       logger.edgeFunctionResponse('generate-story', requestId, generationResult);
 
       // Save generated segments to database
+      setGenerationProgress(75);
       let insertedSegments: any[] = [];
       if (generationResult?.data?.segments && generationResult.data.segments.length > 0) {
         const segmentsToInsert = generationResult.data.segments.map((segment: any, index: number) => ({
@@ -154,6 +184,7 @@ export default function CreateStoryFlow() {
         .update(storyUpdates)
         .eq('id', story.id);
 
+      setGenerationProgress(90);
 
       // Auto-generate an image for the first segment (non-blocking UX)
       try {
@@ -185,14 +216,21 @@ export default function CreateStoryFlow() {
         logger.error('Failed to schedule initial image generation', e);
       }
 
-      toast.success(selectedLanguage === 'sv' ? 'Berättelse skapad!' : 'Story created successfully!');
-      navigate(`/story/${story.id}`);
+      setGenerationProgress(100);
+      
+      // Small delay to show completion
+      setTimeout(() => {
+        setShowProgressDialog(false);
+        toast.success(selectedLanguage === 'sv' ? 'Berättelse skapad!' : 'Story created successfully!');
+        navigate(`/story/${story.id}`);
+      }, 1000);
 
     } catch (error) {
       logger.error('Error generating story', error);
 
       // Handle specific AI client errors
       if (error instanceof InsufficientCreditsError) {
+        setShowProgressDialog(false);
         setCreditError({
           required: error.required,
           available: error.available
@@ -203,8 +241,16 @@ export default function CreateStoryFlow() {
 
       // Handle auth errors
       if ((error as any).code === 'AUTH_REQUIRED') {
+        setShowProgressDialog(false);
         toast.error('Please sign in to create stories');
         navigate('/auth');
+        return;
+      }
+
+      // Handle cancellation
+      if (error instanceof Error && error.message.includes('cancelled')) {
+        setShowProgressDialog(false);
+        toast.info('Story generation was cancelled');
         return;
       }
 
@@ -216,10 +262,27 @@ export default function CreateStoryFlow() {
           .eq('id', createdStoryId);
       }
 
-      toast.error(selectedLanguage === 'sv' ? 'Kunde inte skapa berättelse. Försök igen.' : 'Failed to create story. Please try again.');
+      // Show error recovery dialog
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      setGenerationError(errorMessage);
+      setShowProgressDialog(false);
+      setShowErrorDialog(true);
     } finally {
       setGenerating(false);
+      setCanCancelGeneration(false);
     }
+  };
+
+  const handleCancelGeneration = () => {
+    setCancelRequested(true);
+    setCanCancelGeneration(false);
+    toast.info('Cancelling story generation...');
+  };
+
+  const handleRetryGeneration = () => {
+    setIsRetrying(true);
+    setShowErrorDialog(false);
+    generateStory().finally(() => setIsRetrying(false));
   };
 
   // Reset wizard state on mount so each visit starts fresh at Step 1
@@ -295,6 +358,21 @@ export default function CreateStoryFlow() {
           requiredCredits={creditError?.required || 0}
           availableCredits={creditError?.available || 0}
           operation="create a story"
+        />
+
+        <StoryGenerationProgress
+          open={showProgressDialog}
+          onOpenChange={setShowProgressDialog}
+          onCancel={canCancelGeneration ? handleCancelGeneration : undefined}
+          error={generationError}
+        />
+
+        <ErrorRecoveryDialog
+          open={showErrorDialog}
+          onOpenChange={setShowErrorDialog}
+          onRetry={handleRetryGeneration}
+          error={generationError || ''}
+          isRetrying={isRetrying}
         />
       </div>
     </div>
