@@ -6,8 +6,8 @@
  * validation, and response parsing.
  */
 
-import { supabase } from '@/integrations/supabase/client';
-import { generateRequestId } from '@/lib/utils/debug';
+import { supabase } from "@/integrations/supabase/client";
+import { logger } from "../logger";
 import { FunctionsHttpError, FunctionsRelayError, FunctionsFetchError } from '@supabase/supabase-js';
 
 export interface AIClientResponse<T = any> {
@@ -94,7 +94,7 @@ export class AIClient {
       try {
         const shouldLog = attempt === 0 || this.shouldLogRetry(functionName, attempt);
         if (shouldLog) {
-          console.log(`🚀 Calling ${functionName} (attempt ${attempt + 1}/${retries + 1})`);
+          logger.apiCall(functionName, { attempt: attempt + 1, retries: retries + 1 });
         }
         
         // Get fresh session
@@ -119,7 +119,7 @@ export class AIClient {
 
           // Handle supabase-js errors using Context7 patterns
           if (error) {
-            console.error(`❌ ${functionName} supabase error:`, error);
+            logger.error(`${functionName} supabase error`, error);
 
             // Context7 Pattern: Distinguish between error types
             if (error instanceof FunctionsHttpError) {
@@ -129,7 +129,7 @@ export class AIClient {
                 message: error.message
               }));
 
-              console.log('Function returned an error', errorMessage);
+              logger.warn('Function returned an error', { errorMessage, functionName });
 
               // Check for insufficient credits in function response
               if (errorMessage.error?.includes('Insufficient credits') ||
@@ -152,7 +152,7 @@ export class AIClient {
 
             } else if (error instanceof FunctionsRelayError) {
               // Network/relay error - retry might help
-              console.log('Relay error:', error.message);
+              logger.warn('Relay error', { error: error.message, functionName });
               throw new AIClientError(
                 'Network error occurred. Please check your connection and try again.',
                 'NETWORK_ERROR',
@@ -162,7 +162,7 @@ export class AIClient {
 
             } else if (error instanceof FunctionsFetchError) {
               // Function unreachable - likely server issue
-              console.log('Fetch error:', error.message);
+              logger.warn('Fetch error', { error: error.message, functionName });
               throw new AIClientError(
                 'Service temporarily unavailable. Please try again in a moment.',
                 'SERVICE_UNAVAILABLE',
@@ -185,7 +185,7 @@ export class AIClient {
           }
 
           if (shouldLog) {
-            console.log(`✅ ${functionName} response received:`, { 
+            logger.apiResponse(functionName, true, { 
               success: data?.success,
               hasData: !!data?.data,
               errorCode: data?.error_code
@@ -231,7 +231,7 @@ export class AIClient {
       } catch (error) {
         const shouldLogError = attempt === 0 || this.shouldLogRetry(functionName, attempt);
         if (shouldLogError) {
-          console.error(`❌ ${functionName} attempt ${attempt + 1} failed:`, error);
+          logger.error(`${functionName} attempt ${attempt + 1} failed`, error, { functionName, attempt: attempt + 1 });
         }
         lastError = error as Error;
         
@@ -253,7 +253,7 @@ export class AIClient {
           const delay = baseDelay + jitter;
           
           if (shouldLogError) {
-            console.log(`⏳ Retrying ${functionName} in ${Math.round(delay)}ms...`);
+            logger.info(`Retrying ${functionName} in ${Math.round(delay)}ms`, { functionName, delay, attempt });
           }
           await new Promise(resolve => setTimeout(resolve, delay));
         }

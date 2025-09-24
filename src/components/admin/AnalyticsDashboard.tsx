@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import React from 'react';
+import { useAnalytics } from '@/hooks/useAnalytics';
+import { logger } from '@/lib/logger';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,83 +14,18 @@ import {
   Download,
   RefreshCw
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { logger } from '@/lib/debug';
-
-interface OverviewData {
-  total_users: number;
-  total_stories: number;
-  total_credits_used: number;
-  monthly_active_users: number;
-  stories_this_month: number;
-  credits_used_this_month: number;
-}
 
 const AnalyticsDashboard = () => {
-  const [overview, setOverview] = useState<OverviewData>({
-    total_users: 0,
-    total_stories: 0,
-    total_credits_used: 0,
-    monthly_active_users: 0,
-    stories_this_month: 0,
-    credits_used_this_month: 0
-  });
-  const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('30d');
+  const [timeRange, setTimeRange] = React.useState('30d');
+  const { data: analytics, isLoading, error, refetch } = useAnalytics(timeRange);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [timeRange]);
-
-  const loadAnalytics = async () => {
-    try {
-      setLoading(true);
-
-      // Get basic counts from database tables
-      const [usersResult, storiesResult, creditsResult] = await Promise.all([
-        supabase.from('profiles').select('id'),
-        supabase.from('stories').select('id, created_at, credits_used'),
-        supabase.from('user_credits').select('total_spent')
-      ]);
-
-      const totalUsers = usersResult.data?.length || 0;
-      const totalStories = storiesResult.data?.length || 0;
-      const totalCreditsUsed = storiesResult.data?.reduce((sum, story) => sum + (story.credits_used || 0), 0) || 0;
-
-      // Calculate monthly stats
-      const currentMonth = new Date();
-      currentMonth.setDate(1);
-      const storiesThisMonth = storiesResult.data?.filter(
-        story => new Date(story.created_at) >= currentMonth
-      ).length || 0;
-
-      setOverview({
-        total_users: totalUsers,
-        total_stories: totalStories,
-        total_credits_used: totalCreditsUsed,
-        monthly_active_users: Math.floor(totalUsers * 0.6), // Estimate
-        stories_this_month: storiesThisMonth,
-        credits_used_this_month: Math.floor(totalCreditsUsed * 0.2) // Estimate
-      });
-
-      logger.info('Loaded analytics data', { timeRange });
-    } catch (error) {
-      logger.error('Error loading analytics', error);
-      toast({
-        title: "Error",
-        description: "Failed to load analytics data.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const exportData = async () => {
+    if (!analytics) return;
+    
     try {
-      const dataStr = JSON.stringify(overview, null, 2);
+      const dataStr = JSON.stringify(analytics, null, 2);
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(dataBlob);
       const link = document.createElement('a');
@@ -111,13 +48,29 @@ const AnalyticsDashboard = () => {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <RefreshCw className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
+
+  if (error) {
+    logger.error('Analytics dashboard error', error);
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-destructive mb-4">Failed to load analytics data</p>
+            <Button onClick={() => refetch()}>Try Again</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!analytics) return null;
 
   return (
     <div className="space-y-6">
@@ -143,7 +96,7 @@ const AnalyticsDashboard = () => {
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
-            <Button onClick={loadAnalytics} variant="outline" size="sm" className="flex-1 sm:flex-none">
+            <Button onClick={() => refetch()} variant="outline" size="sm" className="flex-1 sm:flex-none">
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
             </Button>
@@ -158,7 +111,7 @@ const AnalyticsDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm">Total Users</p>
-                <p className="text-2xl font-bold text-primary">{overview.total_users}</p>
+                <p className="text-2xl font-bold text-primary">{analytics.totalUsers}</p>
               </div>
               <Users className="w-8 h-8 text-primary" />
             </div>
@@ -170,7 +123,7 @@ const AnalyticsDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm">Total Stories</p>
-                <p className="text-2xl font-bold text-primary">{overview.total_stories}</p>
+                <p className="text-2xl font-bold text-primary">{analytics.totalStories}</p>
               </div>
               <BookOpen className="w-8 h-8 text-primary" />
             </div>
@@ -182,7 +135,7 @@ const AnalyticsDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm">Monthly Active</p>
-                <p className="text-2xl font-bold text-primary">{overview.monthly_active_users}</p>
+                <p className="text-2xl font-bold text-primary">{analytics.activeUsers30d}</p>
               </div>
               <Activity className="w-8 h-8 text-primary" />
             </div>
@@ -194,7 +147,7 @@ const AnalyticsDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm">Stories This Month</p>
-                <p className="text-2xl font-bold text-primary">{overview.stories_this_month}</p>
+                <p className="text-2xl font-bold text-primary">{analytics.monthlyStats.stories}</p>
               </div>
               <TrendingUp className="w-8 h-8 text-primary" />
             </div>
@@ -206,7 +159,7 @@ const AnalyticsDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm">Total Credits Used</p>
-                <p className="text-2xl font-bold text-primary">{overview.total_credits_used}</p>
+                <p className="text-2xl font-bold text-primary">{analytics.totalCreditsUsed}</p>
               </div>
               <Coins className="w-8 h-8 text-primary" />
             </div>
@@ -218,7 +171,7 @@ const AnalyticsDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm">Credits This Month</p>
-                <p className="text-2xl font-bold text-primary">{overview.credits_used_this_month}</p>
+                <p className="text-2xl font-bold text-primary">{analytics.monthlyStats.credits}</p>
               </div>
               <Calendar className="w-8 h-8 text-primary" />
             </div>

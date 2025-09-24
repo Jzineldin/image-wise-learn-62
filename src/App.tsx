@@ -33,7 +33,7 @@ const NotFoundPage = lazy(() => import("./pages/NotFound"));
 
 
 import { queryClient } from "@/lib/query-client";
-import { logger } from "@/lib/production-logger";
+import { logger } from "@/lib/logger";
 
 // Force refresh - Testimonials component should be available
 
