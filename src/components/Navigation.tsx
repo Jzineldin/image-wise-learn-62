@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { LogOut, Settings, User, Shield, HelpCircle } from 'lucide-react';
-import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
+import taleForgeLogoImage from '@/assets/tale-forge-logo.webp';
+import taleForgeLogoFallback from '@/assets/tale-forge-logo.png';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import CreditDisplay from './CreditDisplay';
@@ -48,11 +49,14 @@ const Navigation = ({ className = "" }: NavigationProps) => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-            <img 
-              src={taleForgeLogoImage} 
-              alt="Tale Forge Logo" 
-              className="w-10 h-10 object-contain"
-            />
+            <picture>
+              <source srcSet={taleForgeLogoImage} type="image/webp" />
+              <img 
+                src={taleForgeLogoFallback} 
+                alt="Tale Forge Logo" 
+                className="w-10 h-10 object-contain"
+              />
+            </picture>
             <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
           </Link>
           

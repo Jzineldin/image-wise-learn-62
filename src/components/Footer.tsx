@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
+import taleForgeLogoImage from '@/assets/tale-forge-logo.webp';
+import taleForgeLogoFallback from '@/assets/tale-forge-logo.png';
 
 const Footer = () => {
   return (
@@ -8,11 +9,14 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center space-x-3 mb-4">
+            <picture>
+              <source srcSet={taleForgeLogoImage} type="image/webp" />
               <img 
-                src={taleForgeLogoImage} 
+                src={taleForgeLogoFallback} 
                 alt="Tale Forge Logo" 
                 className="w-8 h-8 object-contain"
               />
+            </picture>
               <span className="text-xl font-heading font-bold text-gradient">Tale Forge</span>
             </div>
             <p className="text-text-secondary">

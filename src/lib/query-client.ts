@@ -6,7 +6,9 @@
 
 import { QueryClient } from '@tanstack/react-query';
 import { performanceOptimizer } from './performance-optimization';
+import { logger } from './production-logger';
 
+// Enhanced QueryClient with performance monitoring
 export const queryClient = new QueryClient(
   performanceOptimizer.getOptimalQuerySettings()
 );

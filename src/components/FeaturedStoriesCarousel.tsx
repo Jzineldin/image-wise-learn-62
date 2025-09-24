@@ -25,19 +25,25 @@ const FeaturedStoriesCarousel = () => {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const { data: featuredStories = [], isLoading: loading } = useFeaturedStories();
 
-  // Auto-play functionality
+  // Auto-play functionality with proper cleanup
   useEffect(() => {
     if (!isAutoPlaying || featuredStories.length <= 1) return;
     
-    const interval = setInterval(() => {
+    let intervalId: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout;
+
+    intervalId = setInterval(() => {
       setIsTransitioning(true);
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         setCurrentIndex((prev) => (prev + 1) % featuredStories.length);
         setIsTransitioning(false);
       }, 150);
     }, 5000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+    };
   }, [featuredStories.length, isAutoPlaying]);
 
   // Keyboard navigation
@@ -59,20 +65,34 @@ const FeaturedStoriesCarousel = () => {
   const nextStory = useCallback(() => {
     setIsTransitioning(true);
     setIsAutoPlaying(false);
-    setTimeout(() => {
+    
+    const transitionTimeout = setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % featuredStories.length);
       setIsTransitioning(false);
-      setTimeout(() => setIsAutoPlaying(true), 1000);
+      
+      const resumeTimeout = setTimeout(() => setIsAutoPlaying(true), 1000);
+      
+      return () => {
+        clearTimeout(transitionTimeout);
+        clearTimeout(resumeTimeout);
+      };
     }, 150);
   }, [featuredStories.length]);
 
   const prevStory = useCallback(() => {
     setIsTransitioning(true);
     setIsAutoPlaying(false);
-    setTimeout(() => {
+    
+    const transitionTimeout = setTimeout(() => {
       setCurrentIndex((prev) => (prev - 1 + featuredStories.length) % featuredStories.length);
       setIsTransitioning(false);
-      setTimeout(() => setIsAutoPlaying(true), 1000);
+      
+      const resumeTimeout = setTimeout(() => setIsAutoPlaying(true), 1000);
+      
+      return () => {
+        clearTimeout(transitionTimeout);
+        clearTimeout(resumeTimeout);
+      };
     }, 150);
   }, [featuredStories.length]);
 
@@ -222,10 +242,17 @@ const FeaturedStoriesCarousel = () => {
                   onClick={() => {
                     setIsTransitioning(true);
                     setIsAutoPlaying(false);
-                    setTimeout(() => {
+                    
+                    const transitionTimeout = setTimeout(() => {
                       setCurrentIndex(index);
                       setIsTransitioning(false);
-                      setTimeout(() => setIsAutoPlaying(true), 1000);
+                      
+                      const resumeTimeout = setTimeout(() => setIsAutoPlaying(true), 1000);
+                      
+                      return () => {
+                        clearTimeout(transitionTimeout);
+                        clearTimeout(resumeTimeout);
+                      };
                     }, 150);
                   }}
                   className={`w-3 h-3 rounded-full transition-all duration-300 shadow-md hover:scale-125 ${
