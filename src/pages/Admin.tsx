@@ -39,7 +39,7 @@ const Admin = () => {
         .eq('role', 'admin')
         .single();
 
-      console.log('Role check result:', { roleData, roleError });
+      logger.debug('Role check result', { hasRoleData: !!roleData, errorCode: roleError?.code });
       
       if (roleError && roleError.code !== 'PGRST116') { // PGRST116 is "not found" error
         logger.error('Database error checking admin role', roleError);

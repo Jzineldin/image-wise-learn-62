@@ -83,7 +83,7 @@ const StoryEnd = () => {
       generateTitleSuggestions(storyData, segmentsData);
 
     } catch (error) {
-      console.error('Error loading story:', error);
+      logger.error('Story loading failed', error, { storyId: id });
       toast({
         title: "Error loading story",
         description: "Failed to load the story. Please try again.",
@@ -198,7 +198,7 @@ const StoryEnd = () => {
           .single();
           
         if (freshSegment?.audio_url) {
-          console.log(`Segment ${segment.id} already has audio, skipping`);
+          logger.info('Segment already has audio, skipping', { segmentId: segment.id });
           continue;
         }
 
@@ -218,7 +218,7 @@ const StoryEnd = () => {
           });
 
           if (!result.success) {
-            console.error('Audio generation failed for segment', segment.id, result.error);
+            logger.error('Audio generation failed for segment', result.error, { segmentId: segment.id });
             continue;
           }
 
@@ -243,7 +243,7 @@ const StoryEnd = () => {
             });
             break;
           } else if (error instanceof AIClientError) {
-            console.error('Audio generation error for segment', segment.id, error.message);
+            logger.error('Audio generation AI client error', error, { segmentId: segment.id });
             toast({
               title: "Audio Generation Failed",
               description: error.message,
@@ -251,7 +251,7 @@ const StoryEnd = () => {
             });
             continue;
           } else {
-            console.error('Unexpected error for segment', segment.id, error);
+            logger.error('Unexpected audio generation error', error, { segmentId: segment.id });
             continue;
           }
         }
@@ -265,7 +265,7 @@ const StoryEnd = () => {
       }
 
     } catch (error) {
-      console.error('Error generating audio:', error);
+      logger.error('Audio generation batch failed', error, { storyId: story?.id });
       toast({
         title: "Audio generation failed",
         description: "Some audio files may not have been generated.",

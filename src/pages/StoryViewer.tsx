@@ -16,7 +16,8 @@ import { StoryMetadata } from '@/components/story-viewer/StoryMetadata';
 import { StoryControls } from '@/components/story-viewer/StoryControls';
 import { StoryProgressTracker } from '@/components/story-viewer/StoryProgressTracker';
 import { StorySidebar } from '@/components/story-viewer/StorySidebar';
-import { logger, generateRequestId } from '@/lib/utils/debug';
+import { logger as debugLogger, generateRequestId } from '@/lib/utils/debug';
+import { logger } from '@/lib/logger';
 import { AIClient, InsufficientCreditsError, AIClientError } from '@/lib/api/ai-client';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import { calculateTTSCredits } from '@/lib/api/credit-api';
@@ -178,7 +179,7 @@ const StoryViewer = () => {
     if (story && user) {
       const isUserStory = story.author_id === user.id || story.user_id === user.id;
       setIsOwner(isUserStory);
-      console.log('🔒 Ownership check:', {
+      logger.info('🔒 Ownership check', {
         isOwner: isUserStory,
         userId: user.id,
         authorId: story.author_id,
@@ -209,7 +210,7 @@ const StoryViewer = () => {
       await reloadSegments();
 
     } catch (error) {
-      logger.error('Story loading failed', error, { storyId: id, mode: searchParams.get('mode') });
+      debugLogger.error('Story loading failed', error, { storyId: id, mode: searchParams.get('mode') });
       toast({
         title: "Error loading story",
         description: "Failed to load the story. Please try again.",
@@ -271,13 +272,13 @@ const StoryViewer = () => {
         // First, check if segment 1 needs an image (critical for first-time story viewing)
         const firstSegment = transformedSegments.find(s => s.segment_number === 1);
         if (firstSegment && !firstSegment.image_url && firstSegment.content) {
-          console.log('🖼️ Auto-generating image for first segment on load:', firstSegment.id);
+          logger.info('🖼️ Auto-generating image for first segment on load', { segmentId: firstSegment.id });
           generateSegmentImage(firstSegment);
         } else {
           // If segment 1 has an image, check the latest/ending segment
           const endingCandidate = [...transformedSegments].reverse().find(s => s.is_ending) || transformedSegments[transformedSegments.length - 1];
           if (endingCandidate && !endingCandidate.image_url && endingCandidate.content && endingCandidate.segment_number !== 1) {
-            console.log('🖼️ Auto-generating image for latest/ending segment on load:', endingCandidate.id);
+            logger.info('🖼️ Auto-generating image for latest/ending segment on load', { segmentId: endingCandidate.id });
             generateSegmentImage(endingCandidate);
           }
         }
@@ -286,7 +287,7 @@ const StoryViewer = () => {
       return transformedSegments;
 
     } catch (error) {
-      logger.error('Story segments loading failed', error, { storyId: id });
+      debugLogger.error('Story segments loading failed', error, { storyId: id });
       toast({
         title: "Error loading segments",
         description: "Failed to load story segments. Please refresh the page.",
@@ -324,8 +325,8 @@ const StoryViewer = () => {
 
     const requestId = generateRequestId();
 
-    logger.group('Story Segment Generation', { requestId, storyId: story.id });
-    logger.storySegmentGeneration(story.id, segments.length + 1, requestId);
+    debugLogger.group('Story Segment Generation', { requestId, storyId: story.id });
+    debugLogger.storySegmentGeneration(story.id, segments.length + 1, requestId);
 
     setGeneratingSegment(true);
     creditLock.current = true; // Lock credits during segment generation
@@ -347,7 +348,7 @@ const StoryViewer = () => {
         requestId
       };
 
-      logger.edgeFunction('generate-story-segment', requestId, requestBody);
+      debugLogger.edgeFunction('generate-story-segment', requestId, requestBody);
 
       // Generate next segment based on choice using unified AI client
       const generationResult = await AIClient.generateStorySegment({
@@ -367,7 +368,7 @@ const StoryViewer = () => {
         requestId
       });
 
-      logger.debug('AI Client response', {
+      debugLogger.debug('AI Client response', {
         requestId,
         success: generationResult.success,
         hasData: !!generationResult.data,
@@ -377,7 +378,7 @@ const StoryViewer = () => {
       // Extract the segment data from the response
       if (!generationResult.data?.segment) {
         const errorMsg = 'No segment data returned from generation';
-        logger.error('Invalid response structure', new Error(errorMsg), {
+        debugLogger.error('Invalid response structure', new Error(errorMsg), {
           requestId,
           dataStructure: generationResult.data
         });
@@ -391,7 +392,7 @@ const StoryViewer = () => {
       });
 
       // Reload segments from database to ensure state consistency
-      logger.debug('Reloading segments from database', { requestId });
+      debugLogger.debug('Reloading segments from database', { requestId });
       const updatedSegments = await reloadSegments();
 
       // Navigate to the latest segment (last one in the array)
@@ -401,11 +402,11 @@ const StoryViewer = () => {
         // Automatically generate image for the new segment
         const newSegment = updatedSegments[updatedSegments.length - 1];
         if (newSegment && !newSegment.image_url) {
-          logger.debug('Auto-generating image for new segment', {
+          debugLogger.debug('Auto-generating image for new segment', {
             requestId,
             segmentId: newSegment.id
           });
-          console.log('🖼️ Auto-generating image for new segment:', newSegment.id);
+          logger.imageGeneration(newSegment.id, { requestId });
 
           // Wait for credit lock to be released then generate image
           const autoGenerateImage = async () => {
@@ -421,7 +422,7 @@ const StoryViewer = () => {
 
           // Execute in background
           autoGenerateImage().catch(error => {
-            logger.error('Auto-image generation failed', error, {
+            debugLogger.error('Auto-image generation failed', error, {
               requestId,
               segmentId: newSegment.id
             });
@@ -435,7 +436,7 @@ const StoryViewer = () => {
       });
 
     } catch (error: any) {
-      logger.error('Story segment generation failed', error, {
+      debugLogger.error('Story segment generation failed', error, {
         requestId,
         storyId: story.id,
         choiceId,
@@ -460,12 +461,12 @@ const StoryViewer = () => {
     } finally {
       setGeneratingSegment(false);
       creditLock.current = false; // Release credit lock
-      logger.groupEnd();
+      debugLogger.groupEnd();
     }
   };
 
   const generateSegmentImage = async (segment: StorySegment) => {
-    console.log('generateSegmentImage function called for segment:', segment.id);
+    logger.imageGeneration(segment.id, { operation: 'user_initiated' });
     if (!story) return;
 
     // Check if credit operation is in progress
@@ -483,10 +484,10 @@ const StoryViewer = () => {
     const currentRetries = retryAttempts[retryKey] || 0;
 
     if (currentRetries >= 3) {
-      logger.warn('Max image generation retries reached', {
+      logger.warn('Max image generation retries reached', { 
         requestId,
         segmentId: segment.id,
-        attempts: currentRetries
+        attempts: currentRetries 
       });
       toast({
         title: "Image generation failed",
@@ -496,7 +497,7 @@ const StoryViewer = () => {
       return;
     }
 
-    logger.imageGeneration(segment.id, requestId, currentRetries + 1);
+    logger.imageGeneration(segment.id, { requestId, attempts: currentRetries + 1 });
     setGeneratingImage(segment.id);
     creditLock.current = true; // Lock credits during image generation
 
@@ -513,7 +514,7 @@ const StoryViewer = () => {
         requestId
       };
 
-      logger.edgeFunction('generate-story-image', requestId, requestBody);
+      debugLogger.edgeFunction('generate-story-image', requestId, requestBody);
 
       const imageResult = await AIClient.generateStoryImage({
         storyContent: segment.content,
@@ -527,7 +528,7 @@ const StoryViewer = () => {
         requestId
       });
 
-      logger.edgeFunctionResponse('generate-story-image', requestId, imageResult);
+      debugLogger.edgeFunctionResponse('generate-story-image', requestId, imageResult);
 
       // Update segment with image URL when ready
       setSegments(prev => prev.map(s =>
@@ -619,7 +620,7 @@ const StoryViewer = () => {
       voiceIdToUse = female || male || neutral || '9BWtsMINqrJLrRacOk9x';
     }
 
-    logger.audioGeneration(segmentId, requestId, voiceIdToUse, 1);
+    logger.audioGeneration(segmentId, { requestId, voiceId: voiceIdToUse });
     setGeneratingAudio(true);
     creditLock.current = true; // Lock credits during audio generation
 

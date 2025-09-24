@@ -1,8 +1,9 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -34,10 +35,25 @@ const NotFoundPage = lazy(() => import("./pages/NotFound"));
 
 import { queryClient } from "@/lib/query-client";
 import { logger } from "@/lib/logger";
+import { performanceMonitor } from "@/lib/performance-monitor";
 
 // Force refresh - Testimonials component should be available
 
 const App = () => {
+  // Track initial app performance
+  useEffect(() => {
+    performanceMonitor.trackPageLoad('App');
+    performanceMonitor.trackBundleMetrics();
+    
+    // Log memory usage in development
+    if (import.meta.env.DEV) {
+      const memoryUsage = performanceMonitor.getMemoryUsage();
+      if (memoryUsage) {
+        logger.debug('Initial memory usage', memoryUsage);
+      }
+    }
+  }, []);
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
@@ -141,9 +157,11 @@ const App = () => {
                     <Route path="/privacy" element={<Privacy />} />
                     <Route path="/terms" element={<Terms />} />
                     <Route path="/testimonials" element={<TestimonialsPage />} />
-                    <Route path="*" element={<NotFoundPage />} />
-                  </Routes>
-              </Suspense>
+                     <Route path="*" element={<NotFoundPage />} />
+                   </Routes>
+                   {/* React Query Devtools - only shows in development */}
+                   <ReactQueryDevtools initialIsOpen={false} />
+               </Suspense>
               </>
             </BrowserRouter>
           </TooltipProvider>

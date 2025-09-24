@@ -8,6 +8,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { Sparkles, Eye, EyeOff } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
 import { Separator } from '@/components/ui/separator';
+import { logger } from '@/lib/logger';
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -89,8 +90,7 @@ const Auth = () => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      console.log('Starting Google OAuth flow...');
-      console.log('Current origin:', window.location.origin);
+      logger.info('Starting Google OAuth flow', { origin: window.location.origin });
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -103,10 +103,10 @@ const Auth = () => {
         }
       });
 
-      console.log('Google OAuth response:', { data, error });
+      logger.debug('Google OAuth response', { hasData: !!data, hasError: !!error });
 
       if (error) {
-        console.error('Google OAuth error:', error);
+        logger.error('Google OAuth failed', error);
         
         // Provide more specific error messages
         let errorMessage = error.message;
@@ -125,10 +125,10 @@ const Auth = () => {
         });
       } else {
         // OAuth redirect will happen automatically if successful
-        console.log('Google OAuth initiated successfully');
+        logger.info('Google OAuth initiated successfully');
       }
     } catch (error: any) {
-      console.error('Google sign-in error:', error);
+      logger.error('Google sign-in unexpected error', error);
       toast({
         title: "Authentication Error",
         description: error?.message || "Failed to initiate Google sign-in. Please try again.",
