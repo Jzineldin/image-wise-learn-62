@@ -198,7 +198,7 @@ The journey from clueless student to global runner-up taught me that sometimes t
       
       <main className="py-8">
         {/* Header */}
-        <section className="py-12 bg-secondary/10">
+        <section className="py-12">
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
               Our Story & Community
