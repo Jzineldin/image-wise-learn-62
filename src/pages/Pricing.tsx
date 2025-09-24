@@ -6,6 +6,7 @@ import { Check, Sparkles, Crown, Zap, CreditCard, Package } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 import { useState } from 'react';
 
 const Pricing = () => {
@@ -148,7 +149,7 @@ const Pricing = () => {
         window.open(checkoutUrl, '_blank');
       }
     } catch (error) {
-      console.error('Subscription error:', error);
+      logger.error('Subscription error', error, { operation: 'create_subscription', planId: plan.priceId });
     } finally {
       setProcessingPlan(null);
     }
@@ -171,7 +172,7 @@ const Pricing = () => {
         window.open(checkoutUrl, '_blank');
       }
     } catch (error) {
-      console.error('Credit purchase error:', error);
+      logger.error('Credit purchase error', error, { operation: 'purchase_credits', packName: pack.name });
     } finally {
       setProcessingPlan(null);
     }

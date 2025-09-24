@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { logger } from '@/lib/debug';
+import { useFeaturedStories } from '@/hooks/useDataFetching';
+import { logger } from '@/lib/logger';
 
 interface FeaturedStory {
   story_id: string;
@@ -20,15 +20,10 @@ interface FeaturedStory {
 }
 
 const FeaturedStoriesCarousel = () => {
-  const [featuredStories, setFeaturedStories] = useState<FeaturedStory[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-
-  useEffect(() => {
-    loadFeaturedStories();
-  }, []);
+  const { data: featuredStories = [], isLoading: loading } = useFeaturedStories();
 
   // Auto-play functionality
   useEffect(() => {
@@ -59,25 +54,7 @@ const FeaturedStoriesCarousel = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, []);
 
-  const loadFeaturedStories = useCallback(async () => {
-    try {
-      setLoading(true);
-      logger.info('Loading featured stories', { limit: 30 });
-      const { data, error } = await supabase.rpc('get_featured_stories', { limit_count: 30 });
-      
-      if (error) {
-        logger.error('Failed to load featured stories', error);
-        return;
-      }
-
-      logger.info('Featured stories loaded successfully', { count: data?.length || 0 });
-      setFeaturedStories(data || []);
-    } catch (error) {
-      logger.error('Unexpected error loading featured stories', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Remove the old loadFeaturedStories function as it's handled by React Query
 
   const nextStory = useCallback(() => {
     setIsTransitioning(true);

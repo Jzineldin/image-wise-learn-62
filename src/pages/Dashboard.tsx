@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Book, Users, TrendingUp, Zap, Crown } from 'lucide-react';
@@ -7,6 +7,8 @@ import Footer from '@/components/Footer';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useStories } from '@/hooks/useDataFetching';
+import { logger } from '@/lib/logger';
 import CreditDisplay from '@/components/CreditDisplay';
 import SubscriptionStatus from '@/components/SubscriptionStatus';
 import UsageAnalytics from '@/components/UsageAnalytics';
@@ -22,60 +24,36 @@ const Dashboard = () => {
     creditsUsed: 0,
     voiceMinutes: 0
   });
-  const [recentStories, setRecentStories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { tier, subscribed } = useSubscription();
   const { showTour, closeTour } = useOnboarding();
+  const { data: stories = [], isLoading: storiesLoading } = useStories();
+
+  // Process stories to calculate segment counts
+  const recentStories = useMemo(() => {
+    return stories.slice(0, 5).map((story: any) => ({
+      ...story,
+      segment_count: story.story_segments?.length || 0,
+      audio_segments: story.story_segments?.filter((seg: any) => seg.audio_url).length || 0,
+      content_segments: story.story_segments?.filter((seg: any) => seg.content?.trim().length > 0).length || 0,
+    }));
+  }, [stories]);
 
   useEffect(() => {
-    if (user) {
+    if (user && !storiesLoading) {
       loadDashboardData();
     }
-  }, [user]);
+  }, [user, storiesLoading]);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       
-      // Load user stories
-      const { data: stories, error: storiesError } = await supabase
-        .from('stories')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (storiesError) throw storiesError;
-
-      // Enrich with segment/audio counts for UI indicators
-      const ids = (stories || []).map((s: any) => s.id);
-      const segCounts: Record<string, number> = {};
-      const audCounts: Record<string, number> = {};
-      const textCounts: Record<string, number> = {};
-      if (ids.length > 0) {
-        const { data: segs, error: segErr } = await supabase
-          .from('story_segments')
-          .select('story_id,audio_url,content')
-          .in('story_id', ids);
-        if (!segErr) {
-          (segs || []).forEach((row: any) => {
-            segCounts[row.story_id] = (segCounts[row.story_id] || 0) + 1;
-            if (row.audio_url) {
-              audCounts[row.story_id] = (audCounts[row.story_id] || 0) + 1;
-            }
-            const hasText = typeof row.content === 'string' && row.content.trim().length > 0;
-            if (hasText) {
-              textCounts[row.story_id] = (textCounts[row.story_id] || 0) + 1;
-            }
-          });
-        }
-      }
-
       // Get current month usage statistics
       const { data: usageStats, error: usageError } = await supabase.rpc('get_current_month_usage');
 
-      // Calculate stats
+      // Calculate stats based on stories from React Query
       const totalStories = stories?.length || 0;
       const monthlyStats = usageStats?.[0] || { credits_used: 0, voice_minutes_used: 0 };
 
@@ -87,16 +65,8 @@ const Dashboard = () => {
         creditsUsed: monthlyStats.credits_used || 0,
         voiceMinutes: monthlyStats.voice_minutes_used || 0
       });
-
-      const enriched = (stories || []).map((s: any) => ({
-        ...s,
-        segment_count: segCounts[s.id] ?? 0,
-        audio_segments: audCounts[s.id] ?? 0,
-        content_segments: textCounts[s.id] ?? 0,
-      }));
-      setRecentStories(enriched);
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      logger.error('Error loading dashboard data', error, { operation: 'load_dashboard_data' });
     } finally {
       setLoading(false);
     }
@@ -212,7 +182,7 @@ const Dashboard = () => {
             </Link>
           </div>
 
-          {loading ? (
+          {loading || storiesLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="loading-spinner h-8 w-8" />
             </div>

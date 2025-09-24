@@ -13,6 +13,7 @@ import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 import { useLanguage } from '@/hooks/useLanguage';
 import { ThemeSelect, ThemeStatus } from '@/components/ThemeToggle';
 import { usePageThemeClasses } from '@/components/ThemeProvider';
@@ -53,7 +54,7 @@ const Settings = () => {
     try {
       localStorage.setItem(key, value);
     } catch (error) {
-      console.warn(`Unable to persist ${key}`, error);
+      logger.warn(`Unable to persist ${key}`, error);
     }
   };
 
@@ -67,7 +68,7 @@ const Settings = () => {
         entries.forEach((entry) => {
           if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
             setActiveSection(id);
-            try { history.replaceState(null, '', `#${id}`); } catch (error) { console.warn('Unable to update URL hash', error); }
+            try { history.replaceState(null, '', `#${id}`); } catch (error) { logger.warn('Unable to update URL hash', error); }
           }
         });
       }, { threshold: [0.5] });
@@ -108,7 +109,7 @@ const Settings = () => {
         });
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      logger.error('Error fetching profile', error, { operation: 'fetch_profile' });
       toast({
         title: "Error",
         description: "Failed to load profile settings.",
@@ -141,7 +142,7 @@ const Settings = () => {
         description: "Your profile settings have been updated.",
       });
     } catch (error) {
-      console.error('Error saving profile:', error);
+      logger.error('Error saving profile', error, { operation: 'save_profile' });
       toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
@@ -166,7 +167,7 @@ const Settings = () => {
         description: `${key.replace('_', ' ')} setting has been updated.`,
       });
     } catch (error) {
-      console.error('Error updating visibility setting:', error);
+      logger.error('Error updating visibility setting', error, { operation: 'update_visibility', key, value });
       toast({
         title: "Error",
         description: "Failed to update setting.",

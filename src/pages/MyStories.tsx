@@ -9,9 +9,10 @@ import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import StorySettings from '@/components/StorySettings';
 import StoryCard from '@/components/StoryCard';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useStories } from '@/hooks/useDataFetching';
+import { logger } from '@/lib/logger';
 
 interface Story {
   id: string;
@@ -27,46 +28,29 @@ interface Story {
 }
 
 const MyStories = () => {
-  const [stories, setStories] = useState<Story[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { data: stories = [], isLoading: loading, error } = useStories();
 
+  // Handle query error
   useEffect(() => {
-    fetchStories();
-  }, [user]);
-
-  const fetchStories = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('stories')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setStories(data || []);
-    } catch (error) {
-      console.error('Error fetching stories:', error);
+    if (error) {
+      logger.error('Error fetching stories', error, { operation: 'fetch_stories' });
       toast({
         title: "Error",
         description: "Failed to load your stories. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [error, toast]);
 
   const handleStoryUpdate = (updatedStory: Story) => {
-    setStories(stories.map(story => 
-      story.id === updatedStory.id ? updatedStory : story
-    ));
+    // With React Query, the cache will be automatically updated
+    // when the story is updated through mutations
+    logger.info('Story updated', { storyId: updatedStory.id, title: updatedStory.title });
   };
 
   const filteredStories = stories.filter(story => {

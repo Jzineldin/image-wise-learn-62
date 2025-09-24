@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Settings, Globe, Lock, Share } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 interface Story {
   id: string;
@@ -64,7 +65,7 @@ const StorySettings: React.FC<StorySettingsProps> = ({ story, onUpdate, onClose 
       
       onClose();
     } catch (error) {
-      console.error('Error updating story:', error);
+      logger.error('Error updating story', error, { storyId: story.id, operation: 'update_story' });
       toast({
         title: "Error",
         description: "Failed to update story settings.",

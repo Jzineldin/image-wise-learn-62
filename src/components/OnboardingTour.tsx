@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { logger } from '@/lib/logger';
 import { 
   ArrowRight, 
   ArrowLeft, 
@@ -106,7 +107,7 @@ const OnboardingTour = ({ isOpen, onClose }: OnboardingTourProps) => {
     try {
       localStorage.setItem('onboardingCompleted', 'true');
     } catch (error) {
-      console.warn('Unable to persist onboarding completion', error);
+      logger.warn('Unable to persist onboarding completion', error);
     }
   };
 

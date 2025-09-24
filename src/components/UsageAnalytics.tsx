@@ -16,6 +16,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
+import { logger } from '@/lib/logger';
 import { useNavigate } from 'react-router-dom';
 
 interface UsageData {
@@ -62,7 +63,7 @@ const UsageAnalytics = () => {
         setUsage(data[0]);
       }
     } catch (error) {
-      console.error('Error fetching usage data:', error);
+      logger.error('Error fetching usage data', error, { operation: 'fetch_usage_data' });
     }
   };
 
@@ -75,7 +76,7 @@ const UsageAnalytics = () => {
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching tier limits:', error);
+        logger.error('Error fetching tier limits', error, { operation: 'fetch_tier_limits', tier });
         // Use defaults on error
         setTierLimits({
           credits_per_month: credits_per_month || 10,
@@ -96,7 +97,7 @@ const UsageAnalytics = () => {
         });
       }
     } catch (error) {
-      console.error('Error fetching tier limits:', error);
+      logger.error('Error fetching tier limits', error, { operation: 'fetch_tier_limits', tier });
     } finally {
       setLoading(false);
     }
