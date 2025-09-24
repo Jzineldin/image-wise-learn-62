@@ -74,7 +74,7 @@ export class InputValidator {
    * Validate genre
    */
   static validateGenre(genre: string): ValidationResult<string> {
-    const validGenres = ['adventure', 'fantasy', 'mystery', 'animals', 'fairy-tales', 'superhero'];
+    const validGenres = ['Fantasy', 'Adventure', 'Mystery', 'Superhero Stories', 'Animal Stories', 'Fairy Tales'];
     if (!validGenres.includes(genre)) {
       return { success: false, error: `Invalid genre. Must be one of: ${validGenres.join(', ')}` };
     }
