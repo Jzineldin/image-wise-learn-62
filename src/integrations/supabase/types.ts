@@ -275,6 +275,33 @@ export type Database = {
           },
         ]
       }
+      rate_limits: {
+        Row: {
+          created_at: string
+          id: string
+          identifier: string
+          operation_type: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          identifier: string
+          operation_type: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          identifier?: string
+          operation_type?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       reading_history: {
         Row: {
           created_at: string | null
@@ -312,6 +339,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      security_audit_log: {
+        Row: {
+          created_at: string
+          event_details: Json
+          event_type: string
+          id: string
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_details?: Json
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_details?: Json
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       stories: {
         Row: {
@@ -1009,6 +1066,19 @@ export type Database = {
         Args: { p_story_id: string; p_visibility: string }
         Returns: boolean
       }
+      check_rate_limit: {
+        Args: {
+          p_identifier: string
+          p_max_requests?: number
+          p_operation_type: string
+          p_window_minutes?: number
+        }
+        Returns: boolean
+      }
+      cleanup_rate_limits: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       deduct_credits: {
         Args: { amount: number; user_uuid: string }
         Returns: boolean
@@ -1041,6 +1111,10 @@ export type Database = {
           stories_created: number
           voice_minutes_used: number
         }[]
+      }
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_featured_stories: {
         Args: { limit_count?: number }
@@ -1111,6 +1185,16 @@ export type Database = {
       increment_featured_view_count: {
         Args: { p_story_id: string }
         Returns: undefined
+      }
+      log_security_event: {
+        Args: {
+          event_details?: Json
+          event_type: string
+          ip_address?: string
+          user_agent?: string
+          user_uuid?: string
+        }
+        Returns: string
       }
       set_visibility_setting: {
         Args: { p_setting_key: string; p_setting_value: Json }

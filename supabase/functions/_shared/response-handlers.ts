@@ -218,7 +218,8 @@ export class ResponseHandler {
       ERROR_CODES.PROVIDER_LIMIT,
       ERROR_CODES.INVALID_REQUEST,
       ERROR_CODES.AUTHENTICATION_FAILED,
-      ERROR_CODES.RATE_LIMIT_EXCEEDED
+      ERROR_CODES.RATE_LIMIT_EXCEEDED,
+      ERROR_CODES.VALIDATION_ERROR
     ].includes(code);
   }
 
@@ -245,7 +246,7 @@ export class ResponseHandler {
     if (validation.isValid) {
       // Log warnings if any
       if (validation.warnings.length > 0) {
-        logger.warn('Response validation warnings', { warnings: validation.warnings }, { operation: 'response-validation' });
+        logger.warn('Response validation warnings', { warnings: validation.warnings, operation: 'response-validation' });
       }
       return validator.normalize(response);
     }

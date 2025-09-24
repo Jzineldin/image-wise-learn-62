@@ -4,6 +4,7 @@ import { createAIService } from '../_shared/ai-service.ts';
 import { ResponseHandler, parseWordRange, countWords, trimToMaxWords } from '../_shared/response-handlers.ts';
 import { PromptTemplateManager, AGE_GUIDELINES } from '../_shared/prompt-templates.ts';
 import { logger } from '../_shared/logger.ts';
+import { InputValidator, InputSanitizer, RateLimiter, SecurityAuditor } from '../_shared/validation.ts';
 
 interface StoryRequest {
   storyId: string;
@@ -43,11 +44,40 @@ Deno.serve(async (req) => {
     const userId = await creditService.getUserId();
     logger.info('Processing story generation', { requestId, userId, operation: 'story-generation' });
 
+    // Rate limiting check
+    const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const rateLimitKey = `story_generation_${userId}_${clientIp}`;
+    const rateLimit = RateLimiter.checkLimit(rateLimitKey, 5, 60000); // 5 requests per minute
+    
+    if (!rateLimit.allowed) {
+      SecurityAuditor.logRateLimit(rateLimitKey, { 
+        operation: 'story_generation', 
+        userId, 
+        resetTime: rateLimit.resetTime 
+      });
+      return ResponseHandler.error('Rate limit exceeded. Try again later.', 429, { 
+        requestId, 
+        retryAfter: Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
+      });
+    }
+
     // Parse and validate request body
     const body = await req.json();
+    
+    // Input validation
+    const requestValidation = InputValidator.validateStoryRequest(body);
+    if (!requestValidation.success) {
+      SecurityAuditor.logValidationError(requestValidation.errors || [requestValidation.error!], req);
+      return ResponseHandler.error('Invalid request data', 400, { 
+        requestId, 
+        errors: requestValidation.errors || [requestValidation.error!] 
+      });
+    }
+
+    // Sanitize inputs
     const { 
       storyId, 
-      prompt, 
+      prompt: rawPrompt, 
       genre, 
       ageGroup, 
       languageCode = 'en', 
@@ -55,9 +85,12 @@ Deno.serve(async (req) => {
       characters = []
     }: StoryRequest = body;
 
-    if (!storyId || !prompt || !genre || !ageGroup) {
-      throw new Error('Missing required fields');
-    }
+    const prompt = InputSanitizer.sanitizeText(rawPrompt);
+    const sanitizedCharacters = characters.map(char => ({
+      name: InputSanitizer.sanitizeText(char.name),
+      description: InputSanitizer.sanitizeText(char.description),
+      personality: InputSanitizer.sanitizeText(char.personality || '')
+    }));
 
     logger.info('Request validated successfully', { 
       requestId, 
@@ -70,8 +103,8 @@ Deno.serve(async (req) => {
     });
 
     // Validate credits first (no deduction yet)
-    const validation = await validateCredits(creditService, userId, 'storyGeneration');
-    logger.info('Credits validation completed', { requestId, userId, creditsRequired: validation.creditsRequired });
+    const creditValidation = await validateCredits(creditService, userId, 'storyGeneration');
+    logger.info('Credits validation completed', { requestId, userId, creditsRequired: creditValidation.creditsRequired });
 
     // Get the existing story to update
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -199,8 +232,8 @@ CHOICES:
     let choices = [];
 
     if (choicesMatch) {
-      const choiceLines = choicesMatch[1].split('\n').filter(line => line.trim());
-      choices = choiceLines.map((line, index) => {
+      const choiceLines = choicesMatch[1].split('\n').filter((line: string) => line.trim());
+      choices = choiceLines.map((line: string, index: number) => {
         const cleaned = line.replace(/^\d+\.\s*/, '').trim();
         // Extract optional impact after a dash-like separator and 'Impact:' label
         const match = cleaned.match(/^(.*?)(?:\s*[—\-–]\s*Impact:\s*(.*))?$/i);
@@ -211,7 +244,7 @@ CHOICES:
           text,
           impact: impact || undefined
         };
-      }).filter(choice => choice.text);
+      }).filter((choice: any) => choice.text);
     }
 
     // If no choices were parsed, create default ones
@@ -228,7 +261,7 @@ CHOICES:
       .from('stories')
       .update({
         status: 'in_progress',
-        credits_used: (existingStory.credits_used || 0) + validation.creditsRequired,
+        credits_used: (existingStory.credits_used || 0) + creditValidation.creditsRequired,
       })
       .eq('id', storyId)
       .select()
@@ -261,13 +294,13 @@ CHOICES:
       creditService,
       userId,
       'storyGeneration',
-      validation.creditsRequired,
+      creditValidation.creditsRequired,
       storyId,
       { requestId }
     );
     logger.info('Credits deducted after successful story generation', { 
       requestId, 
-      creditsUsed: validation.creditsRequired, 
+      creditsUsed: creditValidation.creditsRequired, 
       newBalance: creditResult.newBalance 
     });
 
@@ -276,7 +309,7 @@ CHOICES:
     return ResponseHandler.success({
       story_id: storyId,
       content: storyContent,
-      credits_used: validation.creditsRequired,
+      credits_used: creditValidation.creditsRequired,
       credits_remaining: creditResult.newBalance,
     }, aiResponse.model, { requestId });
 
@@ -284,7 +317,7 @@ CHOICES:
     logger.error('Story generation failed', error, { requestId, operation: 'story-generation' });
     
     // Handle insufficient credits error
-    if (error.message?.includes('Insufficient credits')) {
+    if ((error as any)?.message?.includes('Insufficient credits')) {
       return ResponseHandler.error('Insufficient credits', 400, { 
         error_code: 'INSUFFICIENT_CREDITS',
         requestId 
@@ -292,7 +325,7 @@ CHOICES:
     }
 
     return ResponseHandler.error(
-      error.message || 'Failed to generate story', 
+      (error as any)?.message || 'Failed to generate story', 
       500, 
       { requestId }
     );

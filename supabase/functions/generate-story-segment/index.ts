@@ -5,6 +5,7 @@ import { AGE_GUIDELINES, PromptTemplateManager } from '../_shared/prompt-templat
 import { parseWordRange, countWords, trimToMaxWords } from '../_shared/response-handlers.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 import { logger } from '../_shared/logger.ts';
+import { InputValidator, InputSanitizer, RateLimiter, SecurityAuditor } from '../_shared/validation.ts';
 
 
 interface SegmentRequest {
@@ -39,24 +40,44 @@ Deno.serve(async (req) => {
     const userId = await creditService.getUserId();
     logger.info('Story segment generation started', { requestId, userId, operation: 'story-segment-generation' });
 
-    // Parse request body
-    const body: SegmentRequest = await req.json();
-    const story_id = body.story_id || body.storyId;
-    const choice = body.choice || body.choiceText;
-    const segment_number = body.segment_number || body.segmentNumber;
-
-    if (!story_id) {
-      return ResponseHandler.error('Story ID is required', 400, {
-        operation: 'story-segment',
-        requestId,
-        timestamp: Date.now(),
-        receivedParams: Object.keys(body)
+    // Rate limiting check
+    const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const rateLimitKey = `segment_generation_${userId}_${clientIp}`;
+    const rateLimit = RateLimiter.checkLimit(rateLimitKey, 10, 60000); // 10 requests per minute
+    
+    if (!rateLimit.allowed) {
+      SecurityAuditor.logRateLimit(rateLimitKey, { 
+        operation: 'segment_generation', 
+        userId, 
+        resetTime: rateLimit.resetTime 
+      });
+      return ResponseHandler.error('Rate limit exceeded. Try again later.', 429, { 
+        requestId, 
+        retryAfter: Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
       });
     }
 
+    // Parse and validate request body
+    const body: SegmentRequest = await req.json();
+    
+    // Input validation
+    const segmentValidation = InputValidator.validateSegmentRequest(body);
+    if (!segmentValidation.success) {
+      SecurityAuditor.logValidationError(segmentValidation.errors || [segmentValidation.error!], req);
+      return ResponseHandler.error('Invalid request data', 400, { 
+        requestId, 
+        errors: segmentValidation.errors || [segmentValidation.error!] 
+      });
+    }
+
+    // Sanitize inputs
+    const story_id = body.story_id || body.storyId;
+    const choice = body.choice ? InputSanitizer.sanitizeText(body.choice) : undefined;
+    const segment_number = body.segment_number || body.segmentNumber;
+
     // Validate credits first (no deduction yet)
-    const validation = await validateCredits(creditService, userId, 'storySegment');
-    logger.info('Credits validation completed', { requestId, userId, creditsRequired: validation.creditsRequired });
+    const creditValidation = await validateCredits(creditService, userId, 'storySegment');
+    logger.info('Credits validation completed', { requestId, userId, creditsRequired: creditValidation.creditsRequired });
 
     // Get story details
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -145,7 +166,7 @@ Deno.serve(async (req) => {
         segmentContent = String(parsed.content || '').trim();
         const rawChoices = Array.isArray(parsed.choices) ? parsed.choices : [];
         choices = rawChoices.map((c: any, i: number) => ({ id: Number(c.id ?? i + 1), text: String(c.text || '').trim(), impact: c.impact ? String(c.impact) : undefined }))
-          .filter(c => c.text);
+          .filter((c: any) => c.text);
       } else {
         throw new Error('Missing structured fields');
       }
@@ -216,19 +237,21 @@ Deno.serve(async (req) => {
       creditService,
       userId,
       'storySegment',
-      validation.creditsRequired,
+      creditValidation.creditsRequired,
       segment.id,
       { story_id, segment_number }
     );
 
     // Update story credits used (legacy behavior)
-    await creditService.updateStoryCreditsUsed(story_id, validation.creditsRequired);
+    if (story_id) {
+      await creditService.updateStoryCreditsUsed(story_id, creditValidation.creditsRequired);
+    }
 
     logger.info('Story segment created successfully', { 
       requestId, 
       segmentId: segment.id, 
       storyId: story_id, 
-      creditsUsed: validation.creditsRequired,
+      creditsUsed: creditValidation.creditsRequired,
       operation: 'segment-creation'
     });
 
@@ -240,7 +263,7 @@ Deno.serve(async (req) => {
           choices,
           is_ending: choices.length === 0
         },
-        credits_used: validation.creditsRequired,
+        credits_used: creditValidation.creditsRequired,
         credits_remaining: creditResult.newBalance
       },
       aiResponse.model,
@@ -251,16 +274,16 @@ Deno.serve(async (req) => {
     logger.error('Story segment generation failed', error, { requestId, operation: 'story-segment-generation' });
 
     // Handle insufficient credits error
-    if (error.message?.includes('Insufficient credits')) {
+    if ((error as any)?.message?.includes('Insufficient credits')) {
       return ResponseHandler.error(
-        error.message,
+        (error as any)?.message,
         400,
         { error_code: 'INSUFFICIENT_CREDITS', operation: 'story-segment', requestId }
       );
     }
 
     return ResponseHandler.error(
-      error.message || 'Failed to generate story segment',
+      (error as any)?.message || 'Failed to generate story segment',
       500,
       { operation: 'story-segment', requestId, timestamp: Date.now() }
     );

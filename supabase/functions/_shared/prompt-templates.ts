@@ -440,8 +440,8 @@ export class FallbackGenerators {
       ? PromptTemplateManager.getCharacterReference(context.characters[0])
       : 'our hero';
     
-    const allCharacterRefs = context.characters?.length > 1 
-      ? context.characters.map(char => PromptTemplateManager.getCharacterReference(char)).join(' and ')
+    const allCharacterRefs = (context.characters?.length || 0) > 1 
+      ? (context.characters || []).map(char => PromptTemplateManager.getCharacterReference(char)).join(' and ')
       : characterRef;
     
     if (context.language === 'sv') {
@@ -507,7 +507,7 @@ export class FallbackGenerators {
         `The Secret of ${titleCharacter}`,
         `${titleCharacter}'s Magical Journey`
       ],
-      recommended: `${character}'s ${genreCap} Adventure`
+      recommended: `${characterRef}'s ${genreCap} Adventure`
     };
   }
 }

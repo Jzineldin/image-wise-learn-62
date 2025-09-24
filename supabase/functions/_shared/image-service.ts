@@ -106,7 +106,7 @@ export class ImageService {
           success: true
         };
       } catch (error) {
-        console.error(`❌ ${provider.name} failed:`, error.message);
+        console.error(`❌ ${provider.name} failed:`, (error as Error)?.message || error);
         lastError = error as Error;
         continue;
       }
@@ -205,7 +205,7 @@ export class ImageService {
           seed: result.seed || request.seed
         };
       } catch (jsonError) {
-        throw new Error(`OVH API returned invalid JSON: ${jsonError.message}`);
+        throw new Error(`OVH API returned invalid JSON: ${(jsonError as Error)?.message || jsonError}`);
       }
     }
   }

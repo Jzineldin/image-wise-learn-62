@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('maintenance-clean-segments error', error);
-    return ResponseHandler.error(error.message || 'Cleanup failed', 500);
+    return ResponseHandler.error((error as any)?.message || 'Cleanup failed', 500);
   }
 });
 

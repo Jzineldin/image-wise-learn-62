@@ -8,6 +8,8 @@ import { CharacterSelectionStep } from './CharacterSelectionStep';
 import { StoryIdeaStep } from './StoryIdeaStep';
 import { ReviewStep } from './ReviewStep';
 import { useStoryStore } from '@/stores/storyStore';
+import { useStoryValidation, useRateLimit } from '@/hooks/useInputValidation';
+import { toast } from 'sonner';
 
 
 interface StoryCreationWizardProps {
@@ -22,6 +24,13 @@ export const StoryCreationWizard = ({
   onLanguageChange
 }: StoryCreationWizardProps) => {
   const { currentFlow: flow, isGenerating: generating, updateFlow } = useStoryStore();
+  
+  // Input validation and rate limiting
+  const { validate, getFieldError, hasFieldError } = useStoryValidation({ 
+    validateOnChange: true, 
+    sanitizeInputs: true 
+  });
+  const { checkRateLimit } = useRateLimit(5, 60000); // 5 story creations per minute
 
   const tr = (key: string) => t(key, selectedLanguage);
 
@@ -62,7 +71,36 @@ export const StoryCreationWizard = ({
       case 2:
         return true; // Characters are optional
       case 3:
-        return !!(flow.selectedSeed || flow.customSeed.trim());
+        const seedText = typeof flow.selectedSeed === 'object' && flow.selectedSeed 
+          ? flow.selectedSeed.title || flow.selectedSeed.description || ''
+          : String(flow.selectedSeed || '');
+        const customText = flow.customSeed?.trim() || '';
+        const finalSeedText = seedText || customText;
+        
+        if (!finalSeedText) return false;
+        
+        // Basic validation for story seed
+        if (finalSeedText.length < 10 || finalSeedText.length > 1000) {
+          return false;
+        }
+        return true;
+      case 4:
+        // Final validation before submission
+        const seedForValidation = typeof flow.selectedSeed === 'object' && flow.selectedSeed
+          ? flow.selectedSeed.title || flow.selectedSeed.description || ''
+          : String(flow.selectedSeed || flow.customSeed || '');
+          
+        const storyData = {
+          title: 'My Story',
+          prompt: seedForValidation,
+          genre: flow.genres[0], // Use first selected genre
+          ageGroup: flow.ageGroup,
+          languageCode: selectedLanguage,
+          characters: flow.selectedCharacters
+        };
+        
+        const validationResult = validate(storyData);
+        return validationResult.isValid;
       default:
         return true;
     }

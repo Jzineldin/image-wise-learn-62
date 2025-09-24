@@ -231,7 +231,13 @@ export async function refundCredits(
   referenceId?: string
 ): Promise<{ success: boolean; newBalance: number }> {
   // Use the existing add_credits RPC function
-  const { data, error } = await creditService.supabase.rpc('add_credits', {
+  // Use a separate Supabase client for refund operations
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
+  
+  const { data, error } = await supabase.rpc('add_credits', {
     user_uuid: userId,
     credits_to_add: amount,
     description_text: `Credit refund: ${reason}`,
@@ -246,7 +252,7 @@ export async function refundCredits(
   }
 
   // Get updated balance
-  const { data: userCredits } = await creditService.supabase
+  const { data: userCredits } = await supabase
     .from('user_credits')
     .select('current_balance')
     .eq('user_id', userId)

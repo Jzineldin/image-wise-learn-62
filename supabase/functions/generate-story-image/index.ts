@@ -3,6 +3,8 @@ import { CreditService, validateCredits, deductCreditsAfterSuccess, refundCredit
 import { createImageService } from '../_shared/image-service.ts';
 import { ResponseHandler, ERROR_CODES } from '../_shared/response-handlers.ts';
 import { logger } from '../_shared/logger.ts';
+import { InputValidator, InputSanitizer, RateLimiter, SecurityAuditor } from '../_shared/validation.ts';
+import { createSupabaseClient } from '../_shared/supabase-client.ts';
 
 interface ImageRequest {
   prompt?: string;
@@ -47,18 +49,52 @@ serve(async (req) => {
     userId = await creditService.getUserId();
     logger.info('Processing image generation for user', { userId, operation: 'image-generation' });
 
-    // Parse request body
+    // Rate limiting check
+    const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const rateLimitKey = `image_generation_${userId}_${clientIp}`;
+    const rateLimit = RateLimiter.checkLimit(rateLimitKey, 3, 60000); // 3 requests per minute
+    
+    if (!rateLimit.allowed) {
+      SecurityAuditor.logRateLimit(rateLimitKey, { 
+        operation: 'image_generation', 
+        userId, 
+        resetTime: rateLimit.resetTime 
+      });
+      return ResponseHandler.errorWithCode(
+        ERROR_CODES.RATE_LIMIT_EXCEEDED,
+        'Rate limit exceeded. Please wait before generating more images.'
+      );
+    }
+
+    // Parse and validate request body
+    const body: ImageRequest = await req.json();
+    
+    // Input validation
+    const inputValidation = InputValidator.validateImageRequest(body);
+    if (!inputValidation.success) {
+      SecurityAuditor.logValidationError(inputValidation.errors || [inputValidation.error!], req);
+      return ResponseHandler.errorWithCode(
+        ERROR_CODES.INVALID_REQUEST,
+        `Invalid request: ${inputValidation.errors?.join(', ') || inputValidation.error}`
+      );
+    }
+
+    // Sanitize inputs
     const {
-      prompt,
-      storyContent,
-      storyTitle,
+      prompt: rawPrompt,
+      storyContent: rawStoryContent,
+      storyTitle: rawStoryTitle,
       ageGroup,
       genre,
       characters,
       story_id,
       segment_id,
       style = 'children_book'
-    }: ImageRequest = await req.json();
+    } = body;
+
+    const prompt = rawPrompt ? InputSanitizer.sanitizeText(rawPrompt) : undefined;
+    const storyContent = rawStoryContent ? InputSanitizer.sanitizeText(rawStoryContent) : undefined;
+    const storyTitle = rawStoryTitle ? InputSanitizer.sanitizeText(rawStoryTitle) : undefined;
 
     // Build prompt if not provided (enhanced for SDXL quality)
     let finalPrompt = prompt;
@@ -106,12 +142,12 @@ serve(async (req) => {
 
 
     // Validate credits (don't deduct yet)
-    const validation = await validateCredits(creditService, userId, 'imageGeneration');
-    creditsRequired = validation.creditsRequired;
+    const creditsValidation = await validateCredits(creditService, userId, 'imageGeneration');
+    creditsRequired = creditsValidation.creditsRequired;
 
     logger.info('Credits validated for image generation', { 
       creditsRequired, 
-      availableCredits: validation.currentCredits, 
+      availableCredits: creditsValidation.currentCredits, 
       operation: 'credit-validation' 
     });
 
@@ -160,7 +196,8 @@ serve(async (req) => {
         const blob = await response.blob();
         const fileName = `${segment_id || story_id || 'image'}_${Date.now()}.png`;
 
-        const { data: uploadData, error: uploadError } = await creditService.supabase.storage
+        const supabase = createSupabaseClient(true);
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('story-images')
           .upload(fileName, blob, {
             contentType: 'image/png',
@@ -171,7 +208,7 @@ serve(async (req) => {
           logger.error('Storage upload failed', uploadError, { operation: 'storage-upload' });
         } else {
           // Get public URL
-          const { data: urlData } = creditService.supabase.storage
+          const { data: urlData } = supabase.storage
             .from('story-images')
             .getPublicUrl(fileName);
 
@@ -187,7 +224,8 @@ serve(async (req) => {
 
     // Update story segment with image URL
     if (segment_id) {
-      const { error: updateError } = await creditService.supabase
+      const supabase = createSupabaseClient(true);
+      const { error: updateError } = await supabase
         .from('story_segments')
         .update({
           image_url: finalImageUrl,
@@ -203,14 +241,16 @@ serve(async (req) => {
 
     // Update story cover image if needed
     if (story_id) {
-      const { data: story } = await creditService.supabase
+      const supabase = createSupabaseClient(true);
+      const { data: story } = await supabase
         .from('stories')
         .select('cover_image')
         .eq('id', story_id)
         .single();
 
       if (!story?.cover_image) {
-        await creditService.supabase
+        const supabase = createSupabaseClient(true);
+        await supabase
           .from('stories')
           .update({ cover_image: finalImageUrl })
           .eq('id', story_id);
@@ -239,7 +279,7 @@ serve(async (req) => {
     logger.error('Image generation failed', error, { userId, creditsRequired, operation: 'image-generation' });
 
     // Refund credits if they were deducted but operation failed
-    if (userId && creditsRequired > 0 && error.message?.includes('after deduction')) {
+    if (userId && creditsRequired > 0 && (error as any)?.message?.includes('after deduction')) {
       try {
         await refundCredits(
           new CreditService(
