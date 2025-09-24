@@ -1,6 +1,7 @@
 // ============= CREDIT SYSTEM CONFIGURATION =============
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { logger } from './logger.ts';
 
 export interface CreditCosts {
   storyGeneration: number;
@@ -64,7 +65,7 @@ export class CreditService {
       .single();
 
     if (error || !userCredits) {
-      console.error('Failed to fetch user credits:', error);
+      logger.error('Failed to fetch user credits', error, { userId, operation: 'credit-check' });
       throw new Error('Failed to fetch user credits');
     }
 
@@ -96,7 +97,7 @@ export class CreditService {
     });
 
     if (error) {
-      console.error('Credit deduction failed:', error);
+      logger.error('Credit deduction failed', error, { userId, amount, operation: 'credit-deduction' });
       throw new Error(`Failed to deduct credits: ${error.message}`);
     }
 
@@ -125,7 +126,7 @@ export class CreditService {
       .eq('id', storyId);
 
     if (error) {
-      console.error('Failed to update story credits:', error);
+      logger.error('Failed to update story credits', error, { storyId, creditsUsed, operation: 'story-update' });
     }
   }
 
@@ -143,7 +144,7 @@ export class CreditService {
     if (!this.userClient) {
       const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
       if (!anonKey) {
-        console.error('SUPABASE_ANON_KEY is not set');
+        logger.error('SUPABASE_ANON_KEY is not set', null, { operation: 'auth-setup' });
       }
       throw new Error('User authentication failed: Auth client not initialized');
     }
@@ -151,12 +152,12 @@ export class CreditService {
     try {
       const { data, error } = await this.userClient.auth.getUser(token);
       if (error || !data?.user) {
-        console.error('JWT validation failed', error);
+        logger.error('JWT validation failed', error, { operation: 'auth-validation' });
         throw new Error('User authentication failed: Invalid or expired token');
       }
       return data.user.id;
     } catch (e) {
-      console.error('Error validating JWT token:', e);
+      logger.error('Error validating JWT token', e, { operation: 'auth-validation' });
       throw new Error('User authentication failed: Token validation error');
     }
   }
@@ -240,7 +241,7 @@ export async function refundCredits(
   });
 
   if (error) {
-    console.error('Credit refund failed:', error);
+    logger.error('Credit refund failed', error, { userId, amount, operation: 'credit-refund' });
     throw new Error(`Failed to refund credits: ${error.message}`);
   }
 

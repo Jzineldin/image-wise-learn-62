@@ -2,16 +2,11 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { ResponseHandler } from "../_shared/response-handlers.ts";
+import { logger } from "../_shared/logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-// Helper logging function for debugging
-const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
@@ -20,11 +15,11 @@ serve(async (req) => {
   }
 
   try {
-    logStep("Function started");
+    logger.info('Create checkout function started', { operation: 'create-checkout' });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
+    logger.info('Stripe key verified', { operation: 'create-checkout' });
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -35,7 +30,7 @@ serve(async (req) => {
     if (!authHeader) {
       return ResponseHandler.error('No authorization header', 401, { endpoint: 'create-checkout' });
     }
-    logStep("Authorization header found");
+    logger.info('Authorization header found', { operation: 'create-checkout' });
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
@@ -46,11 +41,11 @@ serve(async (req) => {
     if (!user?.email) {
       return ResponseHandler.error('User is not authenticated', 403, { endpoint: 'create-checkout' });
     }
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    logger.info('User authenticated', { userId: user.id, email: user.email, operation: 'create-checkout' });
 
     const { price_id, type = "subscription" } = await req.json();
     if (!price_id) throw new Error("price_id is required");
-    logStep("Request parsed", { price_id, type });
+    logger.info('Request parsed', { price_id, type, operation: 'create-checkout' });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -59,9 +54,9 @@ serve(async (req) => {
     let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
-      logStep("Existing customer found", { customerId });
+      logger.info('Existing customer found', { customerId, operation: 'create-checkout' });
     } else {
-      logStep("No existing customer found");
+      logger.info('No existing customer found', { operation: 'create-checkout' });
     }
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
@@ -92,7 +87,7 @@ serve(async (req) => {
     }
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
-    logStep("Checkout session created", { sessionId: session.id, url: session.url });
+    logger.info('Checkout session created', { sessionId: session.id, url: session.url, operation: 'create-checkout' });
 
     return new Response(JSON.stringify({
       url: session.url,
@@ -103,7 +98,7 @@ serve(async (req) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in create-checkout", { message: errorMessage });
+    logger.error('Error in create-checkout', error, { operation: 'create-checkout' });
     return ResponseHandler.error(errorMessage, 500, { endpoint: 'create-checkout' });
   }
 });

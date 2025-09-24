@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { createAIService } from '../_shared/ai-service.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 import { CreditService } from '../_shared/credit-system.ts';
+import { logger } from '../_shared/logger.ts';
 
 
 
@@ -71,7 +72,12 @@ Return as JSON: {"seeds": [{"id": "1", "title": "Story Title", "description": "1
       });
     });
 
-    console.log(`Story seeds generated using ${aiResponse.provider} - ${aiResponse.model} in ${duration}ms`);
+    logger.info('Story seeds generated successfully', { 
+      provider: aiResponse.provider, 
+      model: aiResponse.model, 
+      duration, 
+      operation: 'ai-generation' 
+    });
 
     // Validate and normalize AI response
     const validatedResponse = ResponseHandler.validateAndNormalize(
@@ -99,7 +105,7 @@ Return as JSON: {"seeds": [{"id": "1", "title": "Story Title", "description": "1
     );
 
   } catch (error) {
-    console.error('Story seeds generation error:', error);
+    logger.error('Story seeds generation failed', error, { operation: 'story-seeds-generation' });
     return ResponseHandler.handleError(error, { endpoint: 'generate-story-seeds' });
   }
 });

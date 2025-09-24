@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { createAIService } from '../_shared/ai-service.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 import { CreditService } from '../_shared/credit-system.ts';
+import { logger } from '../_shared/logger.ts';
 
 
 
@@ -73,7 +74,12 @@ Return as JSON: {"titles": ["Title 1", "Title 2", "Title 3"], "recommended": "Ti
       });
     });
 
-    console.log(`Titles generated using ${aiResponse.provider} - ${aiResponse.model} in ${duration}ms`);
+    logger.info('Titles generated successfully', { 
+      provider: aiResponse.provider, 
+      model: aiResponse.model, 
+      duration, 
+      operation: 'ai-generation' 
+    });
 
     // Validate and normalize AI response
     const validatedResponse = ResponseHandler.validateAndNormalize(
@@ -97,7 +103,7 @@ Return as JSON: {"titles": ["Title 1", "Title 2", "Title 3"], "recommended": "Ti
     );
 
   } catch (error) {
-    console.error('Title generation error:', error);
+    logger.error('Title generation failed', error, { operation: 'title-generation' });
     return ResponseHandler.handleError(error, { endpoint: 'generate-story-title' });
   }
 });

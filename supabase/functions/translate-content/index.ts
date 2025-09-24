@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { createAIService } from '../_shared/ai-service.ts';
 import { CreditService } from '../_shared/credit-system.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
+import { logger } from '../_shared/logger.ts';
 
 interface TranslationRequest {
   content: string;
@@ -102,9 +103,14 @@ Requirements:
     });
 
     const translatedContent = aiResponse.content;
-    console.log(`Translation completed using ${aiResponse.provider} - ${aiResponse.model}`);
-
-    console.log(`Content translated from ${fromLang} to ${toLang} (${content_type})`);
+    logger.info('Translation completed successfully', { 
+      provider: aiResponse.provider, 
+      model: aiResponse.model,
+      fromLanguage: fromLang,
+      toLanguage: toLang,
+      contentType: content_type,
+      operation: 'ai-generation' 
+    });
 
     return ResponseHandler.success({
       translated_content: translatedContent,
@@ -115,7 +121,7 @@ Requirements:
     }, aiResponse.model);
 
   } catch (error) {
-    console.error('Translation error:', error);
+    logger.error('Translation failed', error, { operation: 'translate-content' });
     return ResponseHandler.handleError(error, { endpoint: 'translate-content' });
   }
 });

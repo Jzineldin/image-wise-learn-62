@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { CreditService, validateCredits, deductCreditsAfterSuccess, refundCredits } from '../_shared/credit-system.ts';
 import { createImageService } from '../_shared/image-service.ts';
 import { ResponseHandler, ERROR_CODES } from '../_shared/response-handlers.ts';
+import { logger } from '../_shared/logger.ts';
 
 interface ImageRequest {
   prompt?: string;
@@ -44,7 +45,7 @@ serve(async (req) => {
 
     // Get user ID
     userId = await creditService.getUserId();
-    console.log(`Processing image generation for user: ${userId}`);
+    logger.info('Processing image generation for user', { userId, operation: 'image-generation' });
 
     // Parse request body
     const {
@@ -108,7 +109,11 @@ serve(async (req) => {
     const validation = await validateCredits(creditService, userId, 'imageGeneration');
     creditsRequired = validation.creditsRequired;
 
-    console.log(`Credits validated: ${creditsRequired} required, ${validation.currentCredits} available`);
+    logger.info('Credits validated for image generation', { 
+      creditsRequired, 
+      availableCredits: validation.currentCredits, 
+      operation: 'credit-validation' 
+    });
 
     // Generate image using new service
     const imageResult = await imageService.generateImage({
@@ -122,7 +127,7 @@ serve(async (req) => {
       negativePrompt
     });
 
-    console.log(`Image generated successfully with ${imageResult.provider}`);
+    logger.info('Image generated successfully', { provider: imageResult.provider, operation: 'ai-generation' });
 
     // Only deduct credits AFTER successful generation
     const creditResult = await deductCreditsAfterSuccess(
@@ -138,7 +143,11 @@ serve(async (req) => {
       }
     );
 
-    console.log(`Credits deducted: ${creditsRequired}, New balance: ${creditResult.newBalance}`);
+    logger.info('Credits deducted successfully', { 
+      creditsUsed: creditsRequired, 
+      newBalance: creditResult.newBalance, 
+      operation: 'credit-deduction' 
+    });
 
     // Store image URL in database
     let finalImageUrl = imageResult.imageUrl;
@@ -159,7 +168,7 @@ serve(async (req) => {
           });
 
         if (uploadError) {
-          console.error('Storage upload failed:', uploadError);
+          logger.error('Storage upload failed', uploadError, { operation: 'storage-upload' });
         } else {
           // Get public URL
           const { data: urlData } = creditService.supabase.storage
@@ -171,7 +180,7 @@ serve(async (req) => {
           }
         }
       } catch (storageError) {
-        console.error('Storage handling failed:', storageError);
+        logger.error('Storage handling failed', storageError, { operation: 'storage-upload' });
         // Continue with data URL if storage fails
       }
     }
@@ -188,7 +197,7 @@ serve(async (req) => {
         .eq('id', segment_id);
 
       if (updateError) {
-        console.error('Failed to update story segment:', updateError);
+        logger.error('Failed to update story segment', updateError, { segmentId: segment_id, operation: 'database-update' });
       }
     }
 
@@ -227,7 +236,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Image generation error:', error);
+    logger.error('Image generation failed', error, { userId, creditsRequired, operation: 'image-generation' });
 
     // Refund credits if they were deducted but operation failed
     if (userId && creditsRequired > 0 && error.message?.includes('after deduction')) {
@@ -241,9 +250,9 @@ serve(async (req) => {
           creditsRequired,
           'Image generation failed after credit deduction'
         );
-        console.log(`Refunded ${creditsRequired} credits due to failure`);
+        logger.info('Credits refunded due to failure', { refundedCredits: creditsRequired, operation: 'credit-refund' });
       } catch (refundError) {
-        console.error('Failed to refund credits:', refundError);
+        logger.error('Failed to refund credits', refundError, { operation: 'credit-refund' });
       }
     }
 

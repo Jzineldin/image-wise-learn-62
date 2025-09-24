@@ -5,6 +5,8 @@
  * It handles model selection, fallback strategies, response validation, and error handling.
  */
 
+import { logger } from './logger.ts';
+
 // ============= TYPES & INTERFACES =============
 
 export interface AIProvider {
@@ -131,11 +133,11 @@ export class AIServiceManager {
 
     for (const provider of sortedProviders) {
       try {
-        console.log(`Attempting ${provider.name} for ${operationType}...`);
+        logger.info('AI provider attempt', { provider: provider.name, operationType, operation: 'ai-generation' });
         
         const result = await this.callProvider(provider, config, request);
         
-        console.log(`✅ ${provider.name} succeeded for ${operationType}`);
+        logger.info('AI provider succeeded', { provider: provider.name, operationType, operation: 'ai-generation' });
         return {
           content: result.content,
           model: result.model,
@@ -144,7 +146,7 @@ export class AIServiceManager {
           success: true
         };
       } catch (error) {
-        console.error(`❌ ${provider.name} failed:`, error.message);
+        logger.error('AI provider failed', error, { provider: provider.name, operationType, operation: 'ai-generation' });
         lastError = error as Error;
         continue;
       }

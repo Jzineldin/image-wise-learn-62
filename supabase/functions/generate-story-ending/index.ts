@@ -3,6 +3,7 @@ import { CreditService, CREDIT_COSTS, validateCredits, deductCreditsAfterSuccess
 import { createAIService } from '../_shared/ai-service.ts';
 import { AGE_GUIDELINES } from '../_shared/prompt-templates.ts';
 import { ResponseHandler, ERROR_CODES, parseWordRange, countWords, trimToMaxWords } from '../_shared/response-handlers.ts';
+import { logger } from '../_shared/logger.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,7 +36,7 @@ Deno.serve(async (req) => {
 
     // Get user ID
     const userId = await creditService.getUserId();
-    console.log(`Processing story ending for user: ${userId}`);
+    logger.info('Processing story ending for user', { userId, operation: 'story-ending-generation' });
 
     // Parse request body
     const body: EndingRequest = await req.json();
@@ -52,7 +53,7 @@ Deno.serve(async (req) => {
 
     // Validate credits first (no deduction yet)
     const validation = await validateCredits(creditService, userId, 'storySegment');
-    console.log(`Credits validated: ${validation.creditsRequired}`);
+    logger.info('Credits validated for story ending', { creditsRequired: validation.creditsRequired, operation: 'credit-validation' });
 
     // Get story details and all segments
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -131,12 +132,18 @@ Requirements:
     const { min, max } = parseWordRange(wordRange);
     const wc = countWords(endingContent);
     if (wc > max) {
-      console.warn(`Ending exceeds max words (${wc} > ${max}). Trimming to max.`);
+      logger.warn('Ending exceeds max words, trimming', { wordCount: wc, maxWords: max, operation: 'word-count-validation' });
       endingContent = trimToMaxWords(endingContent, max);
     } else if (wc < min) {
-      console.warn(`Ending below min words (${wc} < ${min}). Proceeding without modification.`);
+      logger.warn('Ending below min words', { wordCount: wc, minWords: min, operation: 'word-count-validation' });
     }
-    console.log(`Story ending generated using ${aiResponse.provider} - ${aiResponse.model} with ~${wc} words (target ${wordRange})`);
+    logger.info('Story ending generated successfully', { 
+      provider: aiResponse.provider, 
+      model: aiResponse.model,
+      wordCount: wc,
+      targetRange: wordRange,
+      operation: 'ai-generation'
+    });
 
     // Get next segment number
     const nextSegmentNumber = (segments?.length || 0) + 1;
@@ -157,7 +164,7 @@ Requirements:
       .single();
 
     if (segmentError) {
-      console.error('Error creating ending segment:', segmentError);
+      logger.error('Error creating ending segment', segmentError, { operation: 'segment-creation' });
       throw new Error('Failed to save story ending');
     }
 
@@ -184,7 +191,7 @@ Requirements:
     // Update story credits used (legacy behavior)
     await creditService.updateStoryCreditsUsed(story_id, validation.creditsRequired);
 
-    console.log(`Story ending created successfully: ${segment.id}`);
+    logger.info('Story ending created successfully', { segmentId: segment.id, operation: 'story-completion' });
 
     return new Response(
       JSON.stringify({
@@ -202,7 +209,7 @@ Requirements:
     );
 
   } catch (error) {
-    console.error('Story ending generation error:', error);
+    logger.error('Story ending generation failed', error, { operation: 'story-ending-generation' });
 
     // Handle insufficient credits error
     if ((error as any)?.message?.includes('Insufficient credits')) {

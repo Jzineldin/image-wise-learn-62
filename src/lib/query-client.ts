@@ -11,6 +11,9 @@ export const queryClient = new QueryClient(
   performanceOptimizer.getOptimalQuerySettings()
 );
 
+// Enable performance monitoring in production
+performanceOptimizer.enableProductionMonitoring();
+
 /**
  * Query Keys for consistent caching
  */

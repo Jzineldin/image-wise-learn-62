@@ -5,6 +5,8 @@
  * across all AI operations. It ensures type safety and proper error reporting.
  */
 
+import { logger } from './logger.ts';
+
 // ============= TYPES & INTERFACES =============
 
 export interface StandardResponse<T = any> {
@@ -99,7 +101,7 @@ export class ResponseHandler {
       ...(details && { metadata: { details } })
     };
 
-    console.error('API Error:', message, details);
+    logger.error('API Error', { message, details }, { operation: 'response-handler' });
 
     return new Response(JSON.stringify(response), {
       status,
@@ -126,11 +128,7 @@ export class ResponseHandler {
       ...(context && { metadata: { context } })
     };
 
-    console.error(`[ERROR] ${code}: ${message}`, {
-      context,
-      details,
-      timestamp: new Date().toISOString()
-    });
+    logger.error(`${code}`, { message, context, details, timestamp: new Date().toISOString() }, { operation: 'response-handler' });
 
     // Use 200 status for known errors to avoid browser network error handling
     const status = this.isClientError(code) ? 200 : 500;
@@ -247,15 +245,15 @@ export class ResponseHandler {
     if (validation.isValid) {
       // Log warnings if any
       if (validation.warnings.length > 0) {
-        console.warn('Response validation warnings:', validation.warnings);
+        logger.warn('Response validation warnings', { warnings: validation.warnings }, { operation: 'response-validation' });
       }
       return validator.normalize(response);
     }
 
-    console.error('Response validation failed:', validation.errors);
+    logger.error('Response validation failed', { errors: validation.errors }, { operation: 'response-validation' });
 
     if (fallbackGenerator) {
-      console.log('Using fallback response generator');
+      logger.info('Using fallback response generator', { operation: 'response-validation' });
       return fallbackGenerator();
     }
 

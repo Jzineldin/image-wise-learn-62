@@ -3,6 +3,8 @@ import App from "./App.tsx";
 import "./index.css";
 import { logger } from "./lib/production-logger";
 
+// Log startup with performance monitoring enabled
+
 // Global error handlers for better debugging
 window.addEventListener('error', (event) => {
   logger.error('Global error caught', event.error, {

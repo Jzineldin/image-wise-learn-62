@@ -2,16 +2,11 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { ResponseHandler } from "../_shared/response-handlers.ts";
+import { logger } from "../_shared/logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-// Helper logging function for debugging
-const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
@@ -20,11 +15,11 @@ serve(async (req) => {
   }
 
   try {
-    logStep("Function started");
+    logger.info('Check subscription function started', { operation: 'check-subscription' });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
+    logger.info('Stripe key verified', { operation: 'check-subscription' });
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -35,7 +30,7 @@ serve(async (req) => {
     if (!authHeader) {
       return ResponseHandler.error('No authorization header', 401, { endpoint: 'check-subscription' });
     }
-    logStep("Authorization header found");
+    logger.info('Authorization header found', { operation: 'check-subscription' });
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
@@ -46,7 +41,7 @@ serve(async (req) => {
     if (!user?.email) {
       return ResponseHandler.error('User is not authenticated', 403, { endpoint: 'check-subscription' });
     }
-    logStep("User authenticated", { userId: user.id, email: user.email });
+    logger.info('User authenticated', { userId: user.id, email: user.email, operation: 'check-subscription' });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -54,7 +49,7 @@ serve(async (req) => {
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
 
     if (customers.data.length === 0) {
-      logStep("No customer found, returning free tier");
+      logger.info('No customer found, returning free tier', { operation: 'check-subscription' });
       return new Response(JSON.stringify({
         subscribed: false,
         tier: "free",
@@ -68,7 +63,7 @@ serve(async (req) => {
     }
 
     const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
+    logger.info('Found Stripe customer', { customerId, operation: 'check-subscription' });
 
     // Check for active subscriptions
     const subscriptions = await stripe.subscriptions.list({
@@ -109,14 +104,15 @@ serve(async (req) => {
         creditsPerMonth = 300;
       }
 
-      logStep("Active subscription found", {
+      logger.info('Active subscription found', {
         subscriptionId: subscription.id,
         endDate: subscriptionEnd,
         tier,
-        creditsPerMonth
+        creditsPerMonth,
+        operation: 'check-subscription'
       });
     } else {
-      logStep("No active subscription found");
+      logger.info('No active subscription found', { operation: 'check-subscription' });
     }
 
     return new Response(JSON.stringify({
@@ -131,7 +127,7 @@ serve(async (req) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in check-subscription", { message: errorMessage });
+    logger.error('Error in check-subscription', error, { operation: 'check-subscription' });
     return ResponseHandler.error(errorMessage, 500, { endpoint: 'check-subscription' });
   }
 });
