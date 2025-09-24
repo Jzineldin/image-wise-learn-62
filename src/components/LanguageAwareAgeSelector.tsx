@@ -4,6 +4,7 @@ import { Check } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { TRANSLATIONS } from '@/constants/translations';
 import { AGE_GROUP_IMAGES, type AgeGroup } from '@/constants/image-paths';
+import { logger } from '@/lib/logger';
 
 interface LanguageAwareAgeSelectorProps {
   selectedAgeGroup: string | undefined;
@@ -61,7 +62,11 @@ const LanguageAwareAgeSelector: React.FC<LanguageAwareAgeSelectorProps> = ({
                 alt={`Age group ${ageGroup}`}
                 className="absolute inset-0 w-full h-full object-cover"
                 onError={(e) => {
-                  console.warn(`Failed to load age group image: ${AGE_GROUP_IMAGES[ageGroup as AgeGroup]}`);
+                  logger.warn('Failed to load age group image', { 
+                    imageUrl: AGE_GROUP_IMAGES[ageGroup as AgeGroup],
+                    ageGroup,
+                    component: 'LanguageAwareAgeSelector'
+                  });
                   (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
                 }}
               />

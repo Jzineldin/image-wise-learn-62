@@ -5,32 +5,22 @@
  */
 
 import { QueryClient } from '@tanstack/react-query';
+import { performanceOptimizer } from './performance-optimization';
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // Cache data for 5 minutes by default
-      staleTime: 5 * 60 * 1000,
-      // Keep data in cache for 10 minutes
-      gcTime: 10 * 60 * 1000,
-      // Retry failed requests 2 times
-      retry: 2,
-      // Don't refetch on window focus for better UX
-      refetchOnWindowFocus: false,
-      // Refetch on reconnect
-      refetchOnReconnect: true,
-    },
-    mutations: {
-      // Retry failed mutations once
-      retry: 1,
-    },
-  },
-});
+export const queryClient = new QueryClient(
+  performanceOptimizer.getOptimalQuerySettings()
+);
 
 /**
  * Query Keys for consistent caching
  */
 export const queryKeys = {
+  // Auth-related queries
+  auth: {
+    session: ['auth', 'session'] as const,
+    user: ['auth', 'user'] as const,
+  },
+  
   // User-related queries
   profile: ['profile'] as const,
   credits: ['credits'] as const,
@@ -49,6 +39,18 @@ export const queryKeys = {
   // Analytics
   usage: ['usage'] as const,
   analytics: ['analytics'] as const,
+  
+  // Admin queries
+  admin: {
+    analytics: ['admin', 'analytics'] as const,
+    dailyUsage: (days: number) => ['admin', 'daily-usage', days] as const,
+    genreDistribution: ['admin', 'genre-distribution'] as const,
+    ageGroupDistribution: ['admin', 'age-group-distribution'] as const,
+    topUsers: (limit: number) => ['admin', 'top-users', limit] as const,
+    allStories: (limit?: number) => ['admin', 'all-stories', limit] as const,
+    completedStories: (limit?: number) => ['admin', 'completed-stories', limit] as const,
+    featuredStories: ['admin', 'featured-stories'] as const,
+  },
 } as const;
 
 /**

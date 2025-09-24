@@ -582,7 +582,10 @@ const StoryViewer = () => {
   };
 
   const generateAudio = async (segmentId: string, content: string) => {
-    console.log('generateAudio function called with segmentId:', segmentId);
+    logger.audioGeneration(segmentId, {
+      contentLength: content.length,
+      component: 'StoryViewer'
+    });
     // Calculate credit cost for TTS
     const { credits: ttsCost, priceBreakdown } = calculateTTSCredits(content);
 

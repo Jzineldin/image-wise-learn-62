@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 interface AudioCharge {
   id: string;
@@ -44,7 +45,10 @@ export const AudioChargeMonitor = () => {
       setCharges(data || []);
       analyzeDuplicates(data || []);
     } catch (error) {
-      console.error('Error loading audio charges:', error);
+      logger.error('Error loading audio charges', error, {
+        component: 'AudioChargeMonitor',
+        operation: 'loadAudioCharges'
+      });
       toast({
         title: "Error",
         description: "Failed to load audio charges",

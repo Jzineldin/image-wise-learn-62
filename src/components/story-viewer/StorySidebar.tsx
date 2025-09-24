@@ -14,6 +14,7 @@ import {
   Download,
   Wand2
 } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface StorySidebarProps {
   story: {
@@ -143,7 +144,13 @@ export const StorySidebar = ({
 
             {!hasAudio && (
               <Button
-                onClick={() => { console.log('Audio button clicked - calling onGenerateAudio'); onGenerateAudio(); }}
+                onClick={() => { 
+                  logger.userAction('Generate audio clicked', {
+                    segmentId: currentSegment?.id,
+                    component: 'StorySidebar'
+                  });
+                  onGenerateAudio(); 
+                }}
                 disabled={generatingAudio || creditLocked || isCompleted || !currentSegment?.content}
                 variant="outline"
                 className="w-full"
@@ -199,7 +206,11 @@ export const StorySidebar = ({
           <div className="space-y-3">
             <Button
               onClick={() => {
-                console.log('Image button clicked - calling onGenerateImage');
+                logger.userAction('Generate image clicked', {
+                  segmentId: currentSegment?.id,
+                  hasExistingImage: hasImage,
+                  component: 'StorySidebar'
+                });
                 onGenerateImage();
               }}
               disabled={generatingImage || creditLocked || isCompleted}

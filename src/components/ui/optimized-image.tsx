@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 interface OptimizedImageProps {
   src: string;
@@ -65,7 +66,11 @@ export const OptimizedImage = ({
   };
 
   const handleError = () => {
-    console.warn('Image failed to load:', src);
+    logger.warn('Image failed to load', {
+      src,
+      alt,
+      component: 'OptimizedImage'
+    });
     setHasError(true);
     onError?.();
   };

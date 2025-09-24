@@ -5,6 +5,7 @@ import { Check } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { TRANSLATIONS } from '@/constants/translations';
 import { GENRE_IMAGES, type Genre as GenreKey } from '@/constants/image-paths';
+import { logger } from '@/lib/logger';
 
 interface GenreInfo {
   id: string;
@@ -69,7 +70,11 @@ const LanguageAwareGenreSelector: React.FC<LanguageAwareGenreSelectorProps> = ({
                 alt={`Genre ${genre}`}
                 className="absolute inset-0 w-full h-full object-cover"
                 onError={(e) => {
-                  console.warn(`Failed to load genre image: ${GENRE_IMAGES[genre as GenreKey]}`);
+                  logger.warn('Failed to load genre image', {
+                    imageUrl: GENRE_IMAGES[genre as GenreKey],
+                    genre,
+                    component: 'LanguageAwareGenreSelector'
+                  });
                   (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
                 }}
               />

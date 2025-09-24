@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '../logger';
 
 export const addSampleFeaturedStories = async () => {
   const sampleData = {
@@ -79,7 +80,10 @@ But Mia's greatest challenge came when the city planned to cut down the old oak 
   };
 
   try {
-    console.log('Adding sample featured stories...');
+    logger.info('Adding sample featured stories', {
+      operation: 'addSampleFeaturedStories',
+      storiesCount: sampleData.stories.length
+    });
     
     // Create sample profile
     const { error: profileError } = await supabase
@@ -94,7 +98,10 @@ But Mia's greatest challenge came when the city planned to cut down the old oak 
       });
 
     if (profileError) {
-      console.error('Error creating sample profile:', profileError);
+      logger.error('Error creating sample profile', profileError, {
+        operation: 'addSampleFeaturedStories',
+        profileId: sampleData.profile.id
+      });
       return false;
     }
 
@@ -119,7 +126,11 @@ But Mia's greatest challenge came when the city planned to cut down the old oak 
         });
 
       if (storyError) {
-        console.error(`Error creating story ${story.title}:`, storyError);
+        logger.error('Error creating story', storyError, {
+          operation: 'addSampleFeaturedStories',
+          storyTitle: story.title,
+          storyId: story.id
+        });
         continue;
       }
 
@@ -137,7 +148,11 @@ But Mia's greatest challenge came when the city planned to cut down the old oak 
         });
 
       if (segmentError) {
-        console.error(`Error creating segment for ${story.title}:`, segmentError);
+        logger.error('Error creating segment', segmentError, {
+          operation: 'addSampleFeaturedStories',
+          storyTitle: story.title,
+          storyId: story.id
+        });
         continue;
       }
 
@@ -154,14 +169,23 @@ But Mia's greatest challenge came when the city planned to cut down the old oak 
         });
 
       if (featureError) {
-        console.error(`Error featuring story ${story.title}:`, featureError);
+        logger.error('Error featuring story', featureError, {
+          operation: 'addSampleFeaturedStories',
+          storyTitle: story.title,
+          storyId: story.id
+        });
       }
     }
 
-    console.log('Sample featured stories added successfully!');
+    logger.info('Sample featured stories added successfully', {
+      operation: 'addSampleFeaturedStories',
+      storiesCount: sampleData.stories.length
+    });
     return true;
   } catch (error) {
-    console.error('Error adding sample featured stories:', error);
+    logger.error('Error adding sample featured stories', error, {
+      operation: 'addSampleFeaturedStories'
+    });
     return false;
   }
 };
