@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { CreditService, calculateAudioCredits, validateCredits, deductCreditsAfterSuccess } from '../_shared/credit-system.ts';
 import { ResponseHandler, ERROR_CODES } from '../_shared/response-handlers.ts';
+import { logger } from '../_shared/logger.ts';
 
 // Helper function to get current credits
 const getCurrentCredits = async (creditService: any, userId: string): Promise<number> => {
@@ -8,7 +9,7 @@ const getCurrentCredits = async (creditService: any, userId: string): Promise<nu
     const { currentCredits } = await creditService.checkUserCredits(userId, 0);
     return currentCredits;
   } catch (error) {
-    console.error('Error getting current credits:', error);
+    logger.error('Error getting current credits', error, { userId, operation: 'get-credits' });
     return 0;
   }
 };
@@ -52,7 +53,8 @@ Deno.serve(async (req) => {
 
     // Get user ID
     const userId = await creditService.getUserId();
-    console.log(`Processing audio generation for user: ${userId}`);
+    const requestId = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    logger.info('Processing audio generation', { requestId, userId, operation: 'audio-generation' });
 
     // Parse request body
     const requestBody: AudioRequest = await req.json();
@@ -83,7 +85,11 @@ Deno.serve(async (req) => {
         .single();
 
       if (!segmentError && existingSegment?.audio_url) {
-        console.log(`Audio already exists for segment ${segment_id}, returning existing URL`);
+        logger.info('Audio already exists, returning cached URL', { 
+          requestId, 
+          segmentId: segment_id, 
+          operation: 'audio-cache-hit' 
+        });
         return new Response(
           JSON.stringify({
             success: true,
@@ -118,7 +124,13 @@ Deno.serve(async (req) => {
       throw new Error(`Insufficient credits. Required: ${creditsRequired}, Available: ${currentCredits}`);
     }
 
-    console.log(`Processing audio generation. Credits required: ${creditsRequired}, Available: ${currentCredits}`);
+    logger.info('Processing audio generation with credits validation', { 
+      requestId, 
+      userId,
+      creditsRequired, 
+      currentCredits, 
+      operation: 'audio-credit-check' 
+    });
 
     // Generate audio using ElevenLabs
     const elevenlabsApiKey = Deno.env.get('ELEVENLABS_API_KEY');
@@ -162,7 +174,7 @@ Deno.serve(async (req) => {
       });
 
     if (uploadError) {
-      console.error('Storage upload error:', uploadError);
+      logger.error('Storage upload failed', uploadError, { requestId, filePath, operation: 'storage-upload' });
       // Mark segment as failed
       if (segment_id) {
         await supabase
@@ -190,7 +202,12 @@ Deno.serve(async (req) => {
       segment_id, // idempotent ref: segment
       { audioUrl }
     );
-    console.log(`Credits deducted after success: ${validation.creditsRequired}, New balance: ${creditResult.newBalance}`);
+    logger.info('Credits deducted after successful audio generation', { 
+      requestId, 
+      creditsUsed: validation.creditsRequired, 
+      newBalance: creditResult.newBalance, 
+      operation: 'credit-deduction' 
+    });
 
     // Update story segment if segment_id provided
     if (segment_id) {
@@ -203,7 +220,7 @@ Deno.serve(async (req) => {
         .eq('id', segment_id);
 
       if (updateError) {
-        console.error('Error updating segment:', updateError);
+        logger.error('Error updating segment with audio URL', updateError, { requestId, segmentId: segment_id });
       }
     }
 
@@ -218,11 +235,16 @@ Deno.serve(async (req) => {
         .eq('id', story_id);
 
       if (storyUpdateError) {
-        console.error('Error updating story:', storyUpdateError);
+        logger.error('Error updating story with audio URL', storyUpdateError, { requestId, storyId: story_id });
       }
     }
 
-    console.log(`Audio generated successfully: ${audioUrl}`);
+    logger.info('Audio generated successfully', { 
+      requestId, 
+      audioUrl, 
+      creditsUsed: creditResult.creditsUsed, 
+      operation: 'audio-generation-success' 
+    });
 
     return new Response(
       JSON.stringify({
@@ -241,7 +263,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Audio generation error:', error);
+    logger.error('Audio generation failed', error, { segmentId: segment_id, operation: 'audio-generation' });
 
     // Mark segment as failed if segment_id provided and we have credentials
     if (segment_id && supabaseUrl && supabaseKey) {
@@ -252,7 +274,7 @@ Deno.serve(async (req) => {
           .update({ audio_generation_status: 'failed' })
           .eq('id', segment_id);
       } catch (updateError) {
-        console.error('Failed to update segment status:', updateError);
+        logger.error('Failed to update segment status to failed', updateError, { segmentId: segment_id });
       }
     }
 

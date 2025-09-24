@@ -3,6 +3,7 @@ import { CreditService, validateCredits, deductCreditsAfterSuccess } from '../_s
 import { createAIService } from '../_shared/ai-service.ts';
 import { ResponseHandler, parseWordRange, countWords, trimToMaxWords } from '../_shared/response-handlers.ts';
 import { PromptTemplateManager, AGE_GUIDELINES } from '../_shared/prompt-templates.ts';
+import { logger } from '../_shared/logger.ts';
 
 interface StoryRequest {
   storyId: string;
@@ -25,7 +26,7 @@ Deno.serve(async (req) => {
   }
 
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  console.log(`[${requestId}] Story generation request started`);
+  logger.info('Story generation request started', { requestId, operation: 'story-generation' });
 
   try {
     const authHeader = req.headers.get('Authorization');
@@ -40,7 +41,7 @@ Deno.serve(async (req) => {
 
     // Get user ID
     const userId = await creditService.getUserId();
-    console.log(`[${requestId}] Processing story generation for user: ${userId}`);
+    logger.info('Processing story generation', { requestId, userId, operation: 'story-generation' });
 
     // Parse and validate request body
     const body = await req.json();
@@ -58,11 +59,19 @@ Deno.serve(async (req) => {
       throw new Error('Missing required fields');
     }
 
-    console.log(`[${requestId}] Request validated:`, { storyId, genre, ageGroup, languageCode, hasCharacters: characters.length > 0 });
+    logger.info('Request validated successfully', { 
+      requestId, 
+      storyId, 
+      genre, 
+      ageGroup, 
+      languageCode, 
+      hasCharacters: characters.length > 0,
+      operation: 'request-validation'
+    });
 
     // Validate credits first (no deduction yet)
     const validation = await validateCredits(creditService, userId, 'storyGeneration');
-    console.log(`[${requestId}] Credits validated: ${validation.creditsRequired}`);
+    logger.info('Credits validation completed', { requestId, userId, creditsRequired: validation.creditsRequired });
 
     // Get the existing story to update
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -74,7 +83,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (fetchError || !existingStory) {
-      console.error(`[${requestId}] Story not found:`, fetchError);
+      logger.error('Story not found or access denied', fetchError, { requestId, storyId, userId });
       throw new Error('Story not found or access denied');
     }
 
@@ -137,7 +146,12 @@ CHOICES:
 2. [choice 2 text] — Impact: [specific consequence]
 3. [choice 3 text] — Impact: [specific consequence]`;
 
-    console.log(`[${requestId}] Generating story with AI service...`);
+    logger.info('Generating story with AI service', { 
+      requestId, 
+      storyId, 
+      charactersCount: processedCharacters.length,
+      operation: 'ai-generation'
+    });
     const aiResponse = await aiService.generate('story-generation', {
       messages: [
         { role: 'system', content: systemPrompt },
@@ -148,7 +162,12 @@ CHOICES:
     });
 
     const rawContent = aiResponse.content;
-    console.log(`[${requestId}] Story generated using ${aiResponse.provider} - ${aiResponse.model}`);
+    logger.info('Story generated successfully', { 
+      requestId, 
+      provider: aiResponse.provider, 
+      model: aiResponse.model,
+      operation: 'ai-generation-complete'
+    });
 
     // Parse content and choices
     const contentMatch = rawContent.match(/CONTENT:\s*([\s\S]*?)(?=CHOICES:|$)/);
@@ -161,10 +180,20 @@ CHOICES:
       const { min, max } = parseWordRange(AGE_GUIDELINES[ageGroup as keyof typeof AGE_GUIDELINES].wordCount);
       const wc = countWords(storyContent);
       if (wc > max) {
-        console.warn(`[${requestId}] Opening exceeds max words (${wc} > ${max}). Trimming to max.`);
+        logger.warn('Opening exceeds max words, trimming', { 
+          requestId, 
+          wordCount: wc, 
+          maxWords: max, 
+          operation: 'word-count-validation' 
+        });
         storyContent = trimToMaxWords(storyContent, max);
       }
-      console.log(`[${requestId}] Opening segment word count: ${wc} (target ${min}-${max}) for age ${ageGroup}`);
+      logger.info('Opening segment word count validated', { 
+        requestId, 
+        wordCount: wc, 
+        targetRange: `${min}-${max}`, 
+        ageGroup 
+      });
     }
 
     let choices = [];
@@ -206,7 +235,7 @@ CHOICES:
       .single();
 
     if (updateError) {
-      console.error(`[${requestId}] Error updating story:`, updateError);
+      logger.error('Failed to update story status', updateError, { requestId, storyId });
       throw new Error('Failed to update story');
     }
 
@@ -223,7 +252,7 @@ CHOICES:
       }, { onConflict: 'story_id,segment_number' });
 
     if (segmentError) {
-      console.error(`[${requestId}] Error upserting story segment:`, segmentError);
+      logger.error('Failed to save story segment', segmentError, { requestId, storyId });
       throw new Error('Failed to save story content');
     }
 
@@ -236,9 +265,13 @@ CHOICES:
       storyId,
       { requestId }
     );
-    console.log(`[${requestId}] Credits deducted: ${validation.creditsRequired}, New balance: ${creditResult.newBalance}`);
+    logger.info('Credits deducted after successful story generation', { 
+      requestId, 
+      creditsUsed: validation.creditsRequired, 
+      newBalance: creditResult.newBalance 
+    });
 
-    console.log(`[${requestId}] Story completed successfully: ${storyId}`);
+    logger.info('Story generation completed successfully', { requestId, storyId, operation: 'story-generation-complete' });
 
     return ResponseHandler.success({
       story_id: storyId,
@@ -248,7 +281,7 @@ CHOICES:
     }, aiResponse.model, { requestId });
 
   } catch (error) {
-    console.error(`[${requestId}] Story generation error:`, error);
+    logger.error('Story generation failed', error, { requestId, operation: 'story-generation' });
     
     // Handle insufficient credits error
     if (error.message?.includes('Insufficient credits')) {

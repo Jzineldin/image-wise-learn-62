@@ -11,20 +11,20 @@ const Testimonials = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
 
   const creatorStory = {
-    name: "Kevin Josef Z. El-zarka",
+    name: "Kevin El-Zarka",
     role: "Founder & Creator of Tale Forge",
-    story: `Started building Tale Forge 4 weeks ago thinking I was creating 'just another AI story generator.' But the feedback from parents, educators, and fellow creators completely transformed my vision.
+    story: `I'm Kevin, and I created Tale Forge during Lovable Shipped S1, where I ended up 2nd place globally.
 
-I have a background in interactive fiction, where I used to manually calculate and write all the story branches. What fun to have AI do some of this! The manual branching was incredibly complex, and that's exactly what I wanted to solve - let AI handle the infinite possibilities.
+Before Shipped, I was just a clueless student, not knowing where I belonged. All I knew was that my imagination has always been driving me. I've got 8 nephews and an incredible interest for AI, and when I realized the AI world is moving forward for adults and leaving kids behind, I knew I had to do something.
 
-The breakthrough came when I realized I wasn't just building a generic tool - I was creating something specifically for families. After completely adapting everything to be family-safe, rewriting the landing page to speak directly to parents and teachers, and adding 12 warm voices perfect for kids, Tale Forge finally felt like it was built for families, not just labeled for them.
+So I created Tale Forge. What started as an idea to solve the complexity of manual interactive fiction branching became something much bigger - a platform that brings AI-powered storytelling to families and children.
 
-The feedback from our amazing community has been my fuel throughout this journey. From parents seeing their kids' reactions to educators recognizing the creative learning potential, every testimonial drives me to continue evolving Tale Forge.`,
+The journey from clueless student to global runner-up taught me that sometimes the best solutions come from personal passion and real need. Every story created, every child's reaction, every parent's feedback drives me to keep evolving Tale Forge into the family-safe AI storytelling platform I always envisioned.`,
     stats: {
       testimonials: "35+",
-      weeks: "4",
-      voices: "12",
-      features: "Interactive storytelling, Family-safe AI, Educational tools"
+      placement: "2nd",
+      nephews: "8",
+      voices: "12"
     }
   };
 
@@ -198,7 +198,7 @@ The feedback from our amazing community has been my fuel throughout this journey
       
       <main className="py-8">
         {/* Header */}
-        <section className="py-12 bg-gradient-to-r from-primary/10 via-primary-glow/10 to-primary/10">
+        <section className="py-12 bg-secondary/10">
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
               Our Story & Community
@@ -238,16 +238,16 @@ The feedback from our amazing community has been my fuel throughout this journey
                     <div className="text-sm text-muted-foreground">Testimonials</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-primary">{creatorStory.stats.weeks}</div>
-                    <div className="text-sm text-muted-foreground">Weeks Building</div>
+                    <div className="text-2xl font-bold text-primary">{creatorStory.stats.placement}</div>
+                    <div className="text-sm text-muted-foreground">Global Placement</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-primary">{creatorStory.stats.nephews}</div>
+                    <div className="text-sm text-muted-foreground">Nephews Inspiring</div>
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-primary">{creatorStory.stats.voices}</div>
                     <div className="text-sm text-muted-foreground">Kid-Friendly Voices</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-primary">∞</div>
-                    <div className="text-sm text-muted-foreground">Story Possibilities</div>
                   </div>
                 </div>
               </CardContent>
@@ -312,7 +312,7 @@ The feedback from our amazing community has been my fuel throughout this journey
         </section>
 
         {/* CTA Section */}
-        <section className="py-16 bg-gradient-to-r from-primary/10 via-primary-glow/10 to-primary/10">
+        <section className="py-16 bg-secondary/10">
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Ready to Create Your Own Tale?

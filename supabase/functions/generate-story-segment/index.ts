@@ -4,6 +4,7 @@ import { createAIService } from '../_shared/ai-service.ts';
 import { AGE_GUIDELINES, PromptTemplateManager } from '../_shared/prompt-templates.ts';
 import { parseWordRange, countWords, trimToMaxWords } from '../_shared/response-handlers.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
+import { logger } from '../_shared/logger.ts';
 
 
 interface SegmentRequest {
@@ -21,7 +22,7 @@ Deno.serve(async (req) => {
   }
 
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  console.log(`[${requestId}] Story segment generation request started`);
+  logger.storySegmentGeneration('unknown', 1, requestId);
 
   try {
     const authHeader = req.headers.get('Authorization');
@@ -36,7 +37,7 @@ Deno.serve(async (req) => {
 
     // Get user ID
     const userId = await creditService.getUserId();
-    console.log(`[${requestId}] Processing story segment for user: ${userId}`);
+    logger.info('Story segment generation started', { requestId, userId, operation: 'story-segment-generation' });
 
     // Parse request body
     const body: SegmentRequest = await req.json();
@@ -55,7 +56,7 @@ Deno.serve(async (req) => {
 
     // Validate credits first (no deduction yet)
     const validation = await validateCredits(creditService, userId, 'storySegment');
-    console.log(`[${requestId}] Credits validated: ${validation.creditsRequired}`);
+    logger.info('Credits validation completed', { requestId, userId, creditsRequired: validation.creditsRequired });
 
     // Get story details
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -150,7 +151,7 @@ Deno.serve(async (req) => {
       }
     } catch (e) {
       // Fallback to previous text parsing path
-      console.warn(`[${requestId}] Structured parse failed, falling back to text parsing`);
+      logger.warn('Structured parse failed, falling back to text parsing', { requestId, operation: 'story-segment-generation' });
       const fallbackText = typeof aiResponse.content === 'string' ? aiResponse.content : '';
       segmentContent = fallbackText;
       const choiceMatches = fallbackText.match(/(?:^|\n)\s*(?:Choice\s*\d+:|Option\s*\d+:|\d+\.)[^\n]*/g) || [];
@@ -162,17 +163,33 @@ Deno.serve(async (req) => {
       if (contentMatch) segmentContent = contentMatch[1].trim();
     }
 
-    console.log(`[${requestId}] Story segment generated using ${aiResponse.provider} - ${aiResponse.model}`);
+    logger.info('Story segment generated successfully', { 
+      requestId, 
+      provider: aiResponse.provider, 
+      model: aiResponse.model,
+      operation: 'ai-generation'
+    });
 
     // Enforce word limits on cleaned content
     {
       const { min, max } = parseWordRange(wordRange);
       const wc = countWords(segmentContent);
       if (wc > max) {
-        console.warn(`[${requestId}] Segment exceeds max words (${wc} > ${max}). Trimming to max.`);
+        logger.warn('Segment exceeds max words, trimming', { 
+          requestId, 
+          wordCount: wc, 
+          maxWords: max, 
+          operation: 'word-count-validation' 
+        });
         segmentContent = trimToMaxWords(segmentContent, max);
       }
-      console.log(`[${requestId}] Segment ${segment_number} word count: ${wc} (target ${min}-${max}) for age ${story.age_group}`);
+      logger.info('Segment word count validated', { 
+        requestId, 
+        segmentNumber: segment_number, 
+        wordCount: wc, 
+        targetRange: `${min}-${max}`, 
+        ageGroup: story.age_group 
+      });
     }
 
     // Create story segment
@@ -190,7 +207,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (segmentError) {
-      console.error(`[${requestId}] Error creating segment:`, segmentError);
+      logger.error('Failed to create segment', segmentError, { requestId, storyId: story_id, segmentNumber: segment_number });
       throw new Error('Failed to save story segment');
     }
 
@@ -207,7 +224,13 @@ Deno.serve(async (req) => {
     // Update story credits used (legacy behavior)
     await creditService.updateStoryCreditsUsed(story_id, validation.creditsRequired);
 
-    console.log(`[${requestId}] Story segment created successfully: ${segment.id}`);
+    logger.info('Story segment created successfully', { 
+      requestId, 
+      segmentId: segment.id, 
+      storyId: story_id, 
+      creditsUsed: validation.creditsRequired,
+      operation: 'segment-creation'
+    });
 
     return ResponseHandler.success(
       {
@@ -225,7 +248,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error(`[${requestId}] Story segment generation error:`, error);
+    logger.error('Story segment generation failed', error, { requestId, operation: 'story-segment-generation' });
 
     // Handle insufficient credits error
     if (error.message?.includes('Insufficient credits')) {
