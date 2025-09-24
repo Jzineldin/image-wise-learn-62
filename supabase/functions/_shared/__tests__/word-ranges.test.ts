@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { AGE_GUIDELINES } from '../prompt-templates';
-import { parseWordRange } from '../response-handlers';
+import { AGE_GUIDELINES } from '../prompt-templates.ts';
+import { parseWordRange } from '../response-handlers.ts';
 
 describe('AGE_GUIDELINES word ranges', () => {
   it('matches updated ranges', () => {

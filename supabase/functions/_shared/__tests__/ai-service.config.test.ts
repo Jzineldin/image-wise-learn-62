@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MODEL_CONFIGS, AI_PROVIDERS } from '../ai-service';
+import { MODEL_CONFIGS, AI_PROVIDERS } from '../ai-service.ts';
 
 describe('AI model configuration', () => {
   it('uses x-ai/grok-4-fast:free for story-segments via OpenRouter', () => {

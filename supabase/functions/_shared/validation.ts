@@ -103,7 +103,7 @@ export class InputValidator {
       errors.push('Valid story ID is required');
     }
 
-    const promptResult = this.validateString(body.prompt, 10, 1000);
+    const promptResult = this.validateString(body.prompt, 1, 2000);
     if (!promptResult.success) {
       errors.push(`Prompt: ${promptResult.error}`);
     }
@@ -133,12 +133,12 @@ export class InputValidator {
       }
 
       body.characters.forEach((char: any, index: number) => {
-        const nameResult = this.validateString(char.name, 2, 50, /^[a-zA-Z\s\-']+$/);
+        const nameResult = this.validateString(char.name, 2, 50, /^[\p{L}\p{M}\s\-'']+$/u);
         if (!nameResult.success) {
           errors.push(`Character ${index + 1} name: ${nameResult.error}`);
         }
 
-        const descResult = this.validateString(char.description, 10, 200);
+        const descResult = this.validateString(char.description, 0, 500);
         if (!descResult.success) {
           errors.push(`Character ${index + 1} description: ${descResult.error}`);
         }

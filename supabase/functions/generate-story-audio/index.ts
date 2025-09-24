@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
     logger.info('Audio generated successfully', { 
       requestId, 
       audioUrl, 
-      creditsUsed: creditResult.creditsUsed, 
+      creditsUsed: validation.creditsRequired, 
       operation: 'audio-generation-success' 
     });
 
@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
         success: true,
         audio_url: audioUrl,
         audioUrl: audioUrl, // Support both formats for frontend compatibility
-        credits_used: creditResult.creditsUsed,
+        credits_used: validation.creditsRequired,
         credits_remaining: creditResult.newBalance,
         word_count: text.trim().split(/\s+/).length,
         from_cache: false

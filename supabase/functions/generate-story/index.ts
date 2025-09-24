@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.2';
 import { CreditService, validateCredits, deductCreditsAfterSuccess } from '../_shared/credit-system.ts';
 import { createAIService } from '../_shared/ai-service.ts';
 import { ResponseHandler, parseWordRange, countWords, trimToMaxWords } from '../_shared/response-handlers.ts';
@@ -64,11 +64,16 @@ Deno.serve(async (req) => {
     // Parse and validate request body
     const body = await req.json();
     
-    // Input validation
+    // Basic validation - only check critical fields for story generation
+    if (!body.storyId || !InputValidator.validateUUID(body.storyId)) {
+      return ResponseHandler.error('Invalid story ID format', 400, { requestId });
+    }
+    
+    // Log validation issues but don't block story generation
     const requestValidation = InputValidator.validateStoryRequest(body);
     if (!requestValidation.success) {
       SecurityAuditor.logValidationError(requestValidation.errors || [requestValidation.error!], req);
-      return ResponseHandler.error('Invalid request data', 400, { 
+      logger.warn('Validation issues detected but proceeding with generation', { 
         requestId, 
         errors: requestValidation.errors || [requestValidation.error!] 
       });
