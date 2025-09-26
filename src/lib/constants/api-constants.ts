@@ -17,7 +17,7 @@ export const RETRY_ATTEMPTS = {
 
 export const CREDIT_COSTS = {
   story: 2,
-  segment: 1, 
+  segment: 2, // 1 for text + 1 for image
   image: 1,
   audioBase: 1, // Plus word-based calculation
 };
