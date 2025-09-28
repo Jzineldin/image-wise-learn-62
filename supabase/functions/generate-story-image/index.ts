@@ -89,7 +89,7 @@ serve(async (req) => {
       characters,
       story_id,
       segment_id,
-      style = 'natural'
+      style = 'magical'
     } = body;
 
     const prompt = rawPrompt ? InputSanitizer.sanitizeText(rawPrompt) : undefined;

@@ -43,7 +43,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProvider> = {
     name: 'OVH',
     baseUrl: 'https://stable-diffusion-xl.endpoints.kepler.ai.cloud.ovh.net/api/text2image',
     defaultModel: 'stable-diffusion-xl-base-v10',
-    supportedStyles: ['children_book', 'realistic', 'cartoon', 'watercolor'],
+    supportedStyles: ['magical', 'surreal', 'children_book', 'realistic', 'cartoon', 'watercolor'],
     priority: 1,
     costPerImage: 0 // Free on OVH
   },
@@ -51,7 +51,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProvider> = {
     name: 'Replicate',
     baseUrl: 'https://api.replicate.com/v1/predictions',
     defaultModel: 'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc',
-    supportedStyles: ['children_book', 'realistic', 'cartoon', 'watercolor'],
+    supportedStyles: ['magical', 'surreal', 'children_book', 'realistic', 'cartoon', 'watercolor'],
     priority: 2,
     costPerImage: 1
   },
@@ -59,7 +59,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProvider> = {
     name: 'HuggingFace',
     baseUrl: 'https://api-inference.huggingface.co/models',
     defaultModel: 'stabilityai/stable-diffusion-xl-base-1.0',
-    supportedStyles: ['children_book', 'realistic', 'artistic'],
+    supportedStyles: ['magical', 'surreal', 'children_book', 'realistic', 'artistic'],
     priority: 3,
     costPerImage: 1
   }
@@ -352,14 +352,15 @@ export class ImageService {
    */
   private enhancePromptForStyle(prompt: string, style: string): string {
     const stylePrompts: Record<string, string> = {
-      children_book: "illustrated story art, clean and colorful",
-      realistic: "photorealistic, detailed, high quality",
-      cartoon: "cartoon style, bold colors, expressive",
-      watercolor: "watercolor painting style",
-      natural: "high quality, detailed"
+      magical: "magical, surreal, ethereal, dreamlike, fantasy art, mystical atmosphere, enchanted, whimsical, beautiful lighting, vibrant magical colors, masterpiece, highly detailed, cinematic composition, award-winning digital art",
+      children_book: "illustrated story art, clean and colorful, friendly",
+      realistic: "photorealistic, detailed, high quality, cinematic lighting",
+      cartoon: "cartoon style, bold colors, expressive, clean lines",
+      watercolor: "watercolor painting style, soft textures, artistic",
+      surreal: "surreal, dreamlike, fantastical, otherworldly, magical realism, ethereal beauty, mystical, enchanted atmosphere, vibrant colors, masterpiece digital art"
     };
 
-    const styleAddition = stylePrompts[style] || stylePrompts.natural;
+    const styleAddition = stylePrompts[style] || stylePrompts.magical;
     return `${prompt}, ${styleAddition}`;
   }
   /**
@@ -374,8 +375,10 @@ export class ImageService {
     ];
 
     // Style-specific exclusions
-    if (style === 'children_book' || !style) {
+    if (style === 'children_book') {
       base.push('dark horror', 'realistic gore', 'hyperreal violence');
+    } else if (style === 'magical' || style === 'surreal') {
+      base.push('ugly', 'boring', 'plain', 'simple', 'dull colors');
     }
 
     return base.join(', ');
