@@ -352,13 +352,14 @@ export class ImageService {
    */
   private enhancePromptForStyle(prompt: string, style: string): string {
     const stylePrompts: Record<string, string> = {
-      children_book: "storybook illustration, soft lighting, crisp linework, vibrant but harmonious colors, whimsical, age-appropriate, friendly characters, clean background, high quality digital art, detailed, award-winning children's book style",
-      realistic: "photorealistic, cinematic lighting, high detail, ultra-detailed textures, shallow depth of field, 50mm lens, professional photography",
-      cartoon: "clean vector cartoon style, bold outlines, vibrant colors, expressive characters, cel-shaded, flat background, modern animation style",
-      watercolor: "watercolor painting, soft gradients, textured paper, gentle color bleeding, hand-painted aesthetic, traditional media"
+      children_book: "illustrated story art, clean and colorful",
+      realistic: "photorealistic, detailed, high quality",
+      cartoon: "cartoon style, bold colors, expressive",
+      watercolor: "watercolor painting style",
+      natural: "high quality, detailed"
     };
 
-    const styleAddition = stylePrompts[style] || stylePrompts.children_book;
+    const styleAddition = stylePrompts[style] || stylePrompts.natural;
     return `${prompt}, ${styleAddition}`;
   }
   /**

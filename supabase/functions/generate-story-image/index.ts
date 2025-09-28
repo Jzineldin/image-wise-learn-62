@@ -89,29 +89,39 @@ serve(async (req) => {
       characters,
       story_id,
       segment_id,
-      style = 'children_book'
+      style = 'natural'
     } = body;
 
     const prompt = rawPrompt ? InputSanitizer.sanitizeText(rawPrompt) : undefined;
     const storyContent = rawStoryContent ? InputSanitizer.sanitizeText(rawStoryContent) : undefined;
     const storyTitle = rawStoryTitle ? InputSanitizer.sanitizeText(rawStoryTitle) : undefined;
 
-    // Build prompt if not provided (enhanced for SDXL quality)
+    // Build prompt if not provided - focus on character consistency
     let finalPrompt = prompt;
     if (!finalPrompt && storyContent) {
-      const charSnippets = (characters || [])
+      const charDescriptions = (characters || [])
         .slice(0, 3)
         .map((c: any) => {
           const name = c?.name ? String(c.name) : '';
           const desc = c?.description ? String(c.description) : '';
-          const brief = (desc || '').slice(0, 60).trim();
-          return brief ? `${name} (${brief})` : name;
+          const type = c?.character_type ? String(c.character_type) : '';
+          
+          // Build detailed character description for consistency
+          let charDesc = name;
+          if (desc) charDesc += ` (${desc})`;
+          if (type && type !== 'human') charDesc += ` [${type}]`;
+          
+          return charDesc;
         })
-        .filter(Boolean)
-        .join(', ');
-      const charText = charSnippets ? ` featuring ${charSnippets}` : '';
-      const scene = storyContent.slice(0, 280).replace(/\s+/g, ' ').trim();
-      finalPrompt = `A storybook scene for "${storyTitle || 'story'}" in the ${genre || 'adventure'} genre, suitable for ${ageGroup || 'children'} readers. Depict: ${scene}${charText}.`;
+        .filter(Boolean);
+      
+      const scene = storyContent.slice(0, 200).replace(/\s+/g, ' ').trim();
+      
+      if (charDescriptions.length > 0) {
+        finalPrompt = `${scene}. Characters: ${charDescriptions.join(', ')}`;
+      } else {
+        finalPrompt = scene;
+      }
     }
 
     if (!finalPrompt) {
