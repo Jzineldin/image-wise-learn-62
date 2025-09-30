@@ -410,6 +410,11 @@ export default function CreateStoryFlow() {
                 src={taleForgeLogoImage}
                 alt="Tale Forge Logo"
                 className="w-10 h-10 object-contain"
+                width="40"
+                height="40"
+                loading="eager"
+                decoding="async"
+                style={{ imageRendering: 'crisp-edges' }}
               />
               <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
             </Link>

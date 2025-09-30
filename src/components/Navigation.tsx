@@ -51,10 +51,15 @@ const Navigation = ({ className = "" }: NavigationProps) => {
           <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
             <picture>
               <source srcSet={taleForgeLogoImage} type="image/webp" />
-              <img 
-                src={taleForgeLogoFallback} 
-                alt="Tale Forge Logo" 
+              <img
+                src={taleForgeLogoFallback}
+                alt="Tale Forge Logo"
                 className="w-10 h-10 object-contain"
+                width="40"
+                height="40"
+                loading="eager"
+                decoding="async"
+                style={{ imageRendering: 'crisp-edges' }}
               />
             </picture>
             <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
