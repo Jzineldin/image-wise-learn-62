@@ -1,0 +1,348 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.2';
+import { CreditService, validateCredits, deductCreditsAfterSuccess } from '../_shared/credit-system.ts';
+import { createAIService } from '../_shared/ai-service.ts';
+import { ResponseHandler, parseWordRange, countWords, trimToMaxWords, withTiming, Validators } from '../_shared/response-handlers.ts';
+import { PromptTemplateManager, AGE_GUIDELINES } from '../_shared/prompt-templates.ts';
+import { logger } from '../_shared/logger.ts';
+import { InputValidator, InputSanitizer, RateLimiter, SecurityAuditor } from '../_shared/validation.ts';
+
+interface StoryRequest {
+  storyId: string;
+  prompt: string;
+  genre: string;
+  ageGroup: string;
+  languageCode?: string;
+  isInitialGeneration?: boolean;
+  characters?: Array<{
+    name: string;
+    description: string;
+    personality: string;
+  }>;
+}
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return ResponseHandler.corsOptions();
+  }
+
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  logger.info('Story generation request started', { requestId, operation: 'story-generation' });
+
+  try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return ResponseHandler.error('No authorization header', 401, { requestId });
+    }
+
+    // Initialize services
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const creditService = new CreditService(supabaseUrl, supabaseKey, authHeader);
+
+    // Get user ID
+    const userId = await creditService.getUserId();
+    logger.info('Processing story generation', { requestId, userId, operation: 'story-generation' });
+
+    // Rate limiting check
+    const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const rateLimitKey = `story_generation_${userId}_${clientIp}`;
+    const rateLimit = RateLimiter.checkLimit(rateLimitKey, 5, 60000); // 5 requests per minute
+    
+    if (!rateLimit.allowed) {
+      SecurityAuditor.logRateLimit(rateLimitKey, { 
+        operation: 'story_generation', 
+        userId, 
+        resetTime: rateLimit.resetTime 
+      });
+      return ResponseHandler.error('Rate limit exceeded. Try again later.', 429, { 
+        requestId, 
+        retryAfter: Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
+      });
+    }
+
+    // Parse and validate request body
+    const body = await req.json();
+    
+    // Basic validation - only check critical fields for story generation
+    if (!body.storyId || !InputValidator.validateUUID(body.storyId)) {
+      return ResponseHandler.error('Invalid story ID format', 400, { requestId });
+    }
+    
+    // Log validation issues but don't block story generation
+    const requestValidation = InputValidator.validateStoryRequest(body);
+    if (!requestValidation.success) {
+      SecurityAuditor.logValidationError(requestValidation.errors || [requestValidation.error!], req);
+      logger.warn('Validation issues detected but proceeding with generation', { 
+        requestId, 
+        errors: requestValidation.errors || [requestValidation.error!] 
+      });
+    }
+
+    // Sanitize inputs
+    const { 
+      storyId, 
+      prompt: rawPrompt, 
+      genre, 
+      ageGroup, 
+      languageCode = 'en', 
+      isInitialGeneration = true,
+      characters = []
+    }: StoryRequest = body;
+
+    const prompt = InputSanitizer.sanitizeText(rawPrompt);
+    const sanitizedCharacters = characters.map(char => ({
+      name: InputSanitizer.sanitizeText(char.name),
+      description: InputSanitizer.sanitizeText(char.description),
+      personality: InputSanitizer.sanitizeText(char.personality || '')
+    }));
+
+    logger.info('Request validated successfully', { 
+      requestId, 
+      storyId, 
+      genre, 
+      ageGroup, 
+      languageCode, 
+      hasCharacters: characters.length > 0,
+      operation: 'request-validation'
+    });
+
+    // Validate credits first (no deduction yet)
+    const creditValidation = await validateCredits(creditService, userId, 'storyGeneration');
+    logger.info('Credits validation completed', { requestId, userId, creditsRequired: creditValidation.creditsRequired });
+
+    // Get the existing story to update
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const { data: existingStory, error: fetchError } = await supabase
+      .from('stories')
+      .select('*')
+      .eq('id', storyId)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !existingStory) {
+      logger.error('Story not found or access denied', fetchError, { requestId, storyId, userId });
+      throw new Error('Story not found or access denied');
+    }
+
+    // Generate story using AI service
+    const aiService = createAIService();
+
+    // Feature flag to guard JSON opening rollout
+    // Feature flag can be overridden via header for dev/test
+    const headerOverride = (req.headers.get('x-feature-json-opening') || '').toLowerCase() === 'true';
+    const USE_JSON_OPENING = headerOverride || (Deno.env.get('FEATURE_JSON_OPENING') || '').toLowerCase() === 'true';
+
+    // Process character references and build concise protagonist instructions
+    const processedCharacters = (characters || []).map(c => ({
+      ...c,
+      reference: PromptTemplateManager.getCharacterReference({ name: c.name, description: c.description })
+    }));
+
+    const protagonistsList = processedCharacters.length > 0
+      ? processedCharacters.map(c => `- ${c.reference}: ${c.description}${c.personality ? ` (personality: ${c.personality})` : ''}`).join('\n')
+      : '';
+
+    const ageGuide = AGE_GUIDELINES[ageGroup as keyof typeof AGE_GUIDELINES] || AGE_GUIDELINES['10-12'];
+
+    // Additional guardrails
+    const safetyRule = 'Safety: no violence beyond mild peril; always kind and inclusive.';
+    const kidsFluencyRule = ageGroup === '7-9'
+      ? 'Fluency (7-9): use simple, concrete words; short sentences (≈8–12 words); avoid archaic phrasing.'
+      : undefined;
+
+    // Short, consolidated instructions
+    const systemPrompt = [
+      `You write engaging openings for ${ageGroup} readers in ${genre}.`,
+      processedCharacters.length > 0 ? `Protagonists: ${processedCharacters.map(c => c.reference).join(', ')} (use exact references; if descriptive, keep lowercase).` : undefined,
+      `Language: ${languageCode}.` ,
+      `Style: vocab ${ageGuide.vocabulary}; sentences ${ageGuide.sentence}; themes ${ageGuide.themes}; complexity ${ageGuide.complexity}.`,
+      `Length: ${ageGuide.wordCount} (aim midpoint).`,
+      safetyRule,
+      kidsFluencyRule
+    ].filter(Boolean).join('\n- ');
+
+    const userPrompt = [
+      `Create an opening for an interactive ${existingStory.story_type || 'short'} story.`,
+      `Context: ${prompt}`,
+      processedCharacters.length > 0 ? `Make these the clear focus: ${processedCharacters.map(c => c.reference).join(', ')}` : undefined,
+      `End with 2–3 meaningful choices; each choice includes a brief, concrete consequence (impact). Impacts must be short, distinct, and non-duplicative.`,
+      `Return ${USE_JSON_OPENING ? 'JSON' : 'text as labeled sections'}.`
+    ].filter(Boolean).join('\n');
+
+    logger.info('Generating story with AI service', {
+      requestId,
+      storyId,
+      charactersCount: processedCharacters.length,
+      operation: 'ai-generation'
+    });
+
+    // Prepare JSON schema if feature flag is enabled
+    const jsonSchema = {
+      type: 'object',
+      properties: {
+        content: { type: 'string' },
+        choices: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              text: { type: 'string' },
+              impact: { type: 'string' }
+            },
+            required: ['text']
+          },
+          minItems: 2,
+          maxItems: 3
+        },
+        is_ending: { type: 'boolean' }
+      },
+      required: ['content', 'choices']
+    };
+
+    const { result: aiResponse, duration } = await withTiming(async () => {
+      return await aiService.generate('story-generation', {
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        responseFormat: USE_JSON_OPENING ? 'json' : 'text',
+        ...(USE_JSON_OPENING ? { schema: jsonSchema } : {}),
+        temperature: 0.7
+      });
+    });
+
+    logger.info('Story generated successfully', {
+      requestId,
+      provider: aiResponse.provider,
+      model: aiResponse.model,
+      duration,
+      operation: 'ai-generation-complete'
+    });
+
+    let storyContent = '';
+    let choices: any[] = [];
+
+    if (USE_JSON_OPENING) {
+      // Validate/normalize JSON response
+      const validated = ResponseHandler.validateAndNormalize(
+        aiResponse.content,
+        Validators.storySegment,
+        () => ({ content: String(aiResponse.content || ''), choices: [] })
+      );
+      storyContent = validated.content;
+      choices = validated.choices || [];
+    } else {
+      // Legacy text parsing fallback
+      const rawContent = aiResponse.content;
+      const contentMatch = rawContent.match(/CONTENT:\s*([\s\S]*?)(?=CHOICES:|$)/);
+      const choicesMatch = rawContent.match(/CHOICES:\s*([\s\S]*)/);
+      storyContent = contentMatch?.[1]?.trim() || rawContent;
+
+      if (choicesMatch) {
+        const choiceLines = choicesMatch[1].split('\n').filter((line: string) => line.trim());
+        choices = choiceLines.map((line: string, index: number) => {
+          const cleaned = line.replace(/^\d+\.\s*/, '').trim();
+          const match = cleaned.match(/^(.*?)(?:\s*[—\-–]\s*Impact:\s*(.*))?$/i);
+          const text = (match?.[1] || '').trim();
+          const impact = (match?.[2] || '').trim();
+          return { id: index + 1, text, impact: impact || undefined };
+        }).filter((choice: any) => choice.text);
+      }
+
+      if (choices.length === 0) {
+        choices = [
+          { id: 1, text: 'Continue the adventure', consequences: null },
+          { id: 2, text: 'Explore a different path', consequences: null },
+          { id: 3, text: 'Take a moment to think', consequences: null }
+        ];
+      }
+    }
+
+    // Enforce word range for opening CONTENT portion (choices handled separately)
+    {
+      const { min, max } = parseWordRange(AGE_GUIDELINES[ageGroup as keyof typeof AGE_GUIDELINES].wordCount);
+      const wc = countWords(storyContent);
+      if (wc > max) {
+        logger.warn('Opening exceeds max words, trimming', { requestId, wordCount: wc, maxWords: max, operation: 'word-count-validation' });
+        storyContent = trimToMaxWords(storyContent, max);
+      }
+      logger.info('Opening segment word count validated', { requestId, wordCount: wc, targetRange: `${min}-${max}`, ageGroup });
+    }
+
+    // Update story status (in progress, not completed yet)
+    const { data: updatedStory, error: updateError } = await supabase
+      .from('stories')
+      .update({
+        status: 'in_progress',
+        credits_used: (existingStory.credits_used || 0) + creditValidation.creditsRequired,
+      })
+      .eq('id', storyId)
+      .select()
+      .single();
+
+    if (updateError) {
+      logger.error('Failed to update story status', updateError, { requestId, storyId });
+      throw new Error('Failed to update story');
+    }
+
+    // Create or replace opening segment (segment_number=1) with content and choices
+    const { error: segmentError } = await supabase
+      .from('story_segments')
+      .upsert({
+        story_id: storyId,
+        segment_number: 1,
+        content: storyContent,
+        segment_text: storyContent,
+        is_ending: choices.length === 0,
+        choices: choices
+      }, { onConflict: 'story_id,segment_number' });
+
+    if (segmentError) {
+      logger.error('Failed to save story segment', segmentError, { requestId, storyId });
+      throw new Error('Failed to save story content');
+    }
+
+    // Deduct credits AFTER successful generation and persistence
+    const creditResult = await deductCreditsAfterSuccess(
+      creditService,
+      userId,
+      'storyGeneration',
+      creditValidation.creditsRequired,
+      storyId,
+      { requestId }
+    );
+    logger.info('Credits deducted after successful story generation', { 
+      requestId, 
+      creditsUsed: creditValidation.creditsRequired, 
+      newBalance: creditResult.newBalance 
+    });
+
+    logger.info('Story generation completed successfully', { requestId, storyId, operation: 'story-generation-complete' });
+
+    return ResponseHandler.success({
+      story_id: storyId,
+      content: storyContent,
+      credits_used: creditValidation.creditsRequired,
+      credits_remaining: creditResult.newBalance,
+    }, aiResponse.model, { requestId, processingTime: duration });
+
+  } catch (error) {
+    logger.error('Story generation failed', error, { requestId, operation: 'story-generation' });
+    
+    // Handle insufficient credits error
+    if ((error as any)?.message?.includes('Insufficient credits')) {
+      return ResponseHandler.error('Insufficient credits', 400, { 
+        error_code: 'INSUFFICIENT_CREDITS',
+        requestId 
+      });
+    }
+
+    return ResponseHandler.error(
+      (error as any)?.message || 'Failed to generate story', 
+      500, 
+      { requestId }
+    );
+  }
+});

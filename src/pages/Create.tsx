@@ -145,29 +145,40 @@ export default function CreateStoryFlow() {
 
       logger.edgeFunctionResponse('generate-story', requestId, generationResult);
 
-      // Save generated segments to database
+      // Fetch generated segments from database (Edge Function already saved them via upsert)
       setGenerationProgress(75);
       let insertedSegments: any[] = [];
+
+      // Edge Function now saves segments directly to DB, so we just fetch them
+      // instead of inserting (which would cause duplicate key error)
       if (generationResult?.data?.segments && generationResult.data.segments.length > 0) {
-        const segmentsToInsert = generationResult.data.segments.map((segment: any, index: number) => ({
-          story_id: story.id,
-          segment_number: index + 1,
-          content: segment.content || segment.text || '',
-          choices: Array.isArray(segment.choices) ? segment.choices : [],
-          is_ending: (segment.isEnding ?? segment.is_ending ?? false),
-          image_prompt: segment.imagePrompt
-        }));
+        console.info('[DIAG:image-call] segments returned from Edge Function', {
+          count: generationResult.data.segments.length,
+          segmentNumbers: generationResult.data.segments.map((s: any) => s.segment_number),
+          ts: new Date().toISOString()
+        });
 
-        const { data: inserted, error: segmentsError } = await supabase
+        // Fetch the segments that the Edge Function already saved
+        const { data: fetchedSegments, error: fetchError } = await supabase
           .from('story_segments')
-          .insert(segmentsToInsert)
-          .select('id, segment_number, content');
+          .select('id, segment_number, content')
+          .eq('story_id', story.id)
+          .order('segment_number', { ascending: true });
 
-        if (segmentsError) {
-          logger.error('Error saving segments', segmentsError);
-          throw new Error('Failed to save story segments');
+        if (fetchError) {
+          logger.error('Error fetching segments', fetchError);
+          throw new Error('Failed to fetch story segments');
         }
-        insertedSegments = inserted || [];
+
+        insertedSegments = fetchedSegments || [];
+
+        // [DIAG:image-call] fetched segments from DB
+        console.info('[DIAG:image-call] insertedSegments (fetched from DB)', {
+          count: (insertedSegments || []).length,
+          ids: (insertedSegments || []).map((s: any) => s.id).slice(0, 3),
+          ts: new Date().toISOString()
+        });
+
       }
 
       // Update story with generated title and status
@@ -184,6 +195,16 @@ export default function CreateStoryFlow() {
         .update(storyUpdates)
         .eq('id', story.id);
 
+      // [DIAG:image-call] evaluating firstInserted for image trigger
+      const _diagFirst = (insertedSegments || []).slice().sort((a: any, b: any) => a.segment_number - b.segment_number)[0];
+      console.info('[DIAG:image-call] firstInserted check', {
+        hasFirst: !!_diagFirst,
+        firstId: _diagFirst?.id,
+        firstSegmentNumber: _diagFirst?.segment_number,
+        ts: new Date().toISOString()
+      });
+
+
       setGenerationProgress(90);
 
       // Auto-generate an image for the first segment (non-blocking UX)
@@ -198,6 +219,14 @@ export default function CreateStoryFlow() {
           }));
 
           // Fire-and-forget; we don't block navigation
+          // [DIAG] image-call: emit pre-call log with identifiers
+          const _diagImgStart = performance.now();
+          console.info('[DIAG:image-call] calling generate-story-image', {
+            storyId: story.id,
+            segmentId: firstInserted.id,
+            segmentNumber: firstInserted.segment_number,
+            ts: new Date().toISOString()
+          });
           AIClient.generateStoryImage({
             storyContent: firstInserted.content || storyPrompt || '',
             storyTitle: generationResult?.data?.title || storyTitle,
@@ -208,21 +237,101 @@ export default function CreateStoryFlow() {
             segmentId: firstInserted.id,
             characters: charactersPayload,
             requestId
-          }).catch((err) => {
+          })
+          .then((res) => {
+            console.info('[DIAG:image-call] result', {
+              success: !!res?.success,
+              errorCode: (res as any)?.error_code,
+              durationMs: Math.round(performance.now() - _diagImgStart),
+              ts: new Date().toISOString(),
+            });
+          })
+          .catch((err) => {
+            console.warn('[DIAG:image-call] error', {
+              message: (err && (err.message || err.toString())) || 'unknown',
+              code: (err && (err.code || err.statusCode)) || undefined,
+              durationMs: Math.round(performance.now() - _diagImgStart),
+              ts: new Date().toISOString(),
+              storyId: story.id,
+              segmentId: firstInserted.id
+            });
             logger.error('Initial image generation failed (non-blocking)', err, { storyId: story.id, segmentId: firstInserted.id });
           });
+        } else {
+          // [DIAG] image-call: no insertedSegments; fetch first segment from DB and trigger image
+          console.info('[DIAG:image-call] no insertedSegments; fetching first segment from DB', { storyId: story.id });
+          try {
+            const { data: firstSegDb, error: firstSegErr } = await supabase
+              .from('story_segments')
+              .select('id, segment_number, content')
+              .eq('story_id', story.id)
+              .order('segment_number', { ascending: true })
+              .limit(1)
+              .single();
+            if (firstSegErr) {
+              console.warn('[DIAG:image-call] fetch first segment error', { message: firstSegErr.message });
+            }
+            if (firstSegDb?.id && firstSegDb.content) {
+              const _diagImgStart2 = performance.now();
+              const charactersPayload2 = flow.selectedCharacters.map(c => ({
+                name: c.name,
+                description: c.description,
+                personality: (c.personality_traits || []).join(', ')
+              }));
+              console.info('[DIAG:image-call] calling generate-story-image (fallback)', {
+                storyId: story.id,
+                segmentId: firstSegDb.id,
+                segmentNumber: firstSegDb.segment_number,
+                ts: new Date().toISOString()
+              });
+              AIClient.generateStoryImage({
+                storyContent: firstSegDb.content || storyPrompt || '',
+                storyTitle: generationResult?.data?.title || storyTitle,
+                ageGroup: flow.ageGroup,
+                genre: flow.genres[0],
+                segmentNumber: firstSegDb.segment_number,
+                storyId: story.id,
+                segmentId: firstSegDb.id,
+                characters: charactersPayload2,
+                requestId
+              })
+              .then((res) => {
+                console.info('[DIAG:image-call] result (fallback)', {
+                  success: !!res?.success,
+                  errorCode: (res as any)?.error_code,
+                  durationMs: Math.round(performance.now() - _diagImgStart2),
+                  ts: new Date().toISOString(),
+                });
+              })
+              .catch((err) => {
+                console.warn('[DIAG:image-call] error (fallback)', {
+                  message: (err && (err.message || err.toString())) || 'unknown',
+                  code: (err && (err.code || err.statusCode)) || undefined,
+                  durationMs: Math.round(performance.now() - _diagImgStart2),
+                  ts: new Date().toISOString(),
+                  storyId: story.id,
+                  segmentId: firstSegDb.id
+                });
+                logger.error('Initial image generation (fallback) failed (non-blocking)', err, { storyId: story.id, segmentId: firstSegDb.id });
+              });
+            } else {
+              console.info('[DIAG:image-call] no first segment found in DB; skipping image trigger', { storyId: story.id });
+            }
+          } catch (e2) {
+            console.warn('[DIAG:image-call] fallback DB fetch failed', { message: (e2 as any)?.message || String(e2) });
+          }
         }
       } catch (e) {
         logger.error('Failed to schedule initial image generation', e);
       }
 
       setGenerationProgress(100);
-      
+
       // Small delay to show completion
       setTimeout(() => {
         setShowProgressDialog(false);
         toast.success(selectedLanguage === 'sv' ? 'Berättelse skapad!' : 'Story created successfully!');
-        navigate(`/story/${story.id}`);
+        navigate(`/story/${story.id}?imgPending=1`);
       }, 1000);
 
     } catch (error) {

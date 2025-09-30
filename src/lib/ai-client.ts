@@ -107,11 +107,15 @@ export class AIClient {
           throw new AIClientError('Authentication required', 'AUTH_REQUIRED', 401);
         }
 
-        // Create timeout controller
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        // Implement a hard client-side timeout using Promise.race to avoid long hangs
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          const id = setTimeout(() => {
+            clearTimeout(id);
+            reject(new AIClientError('Request timeout', 'TIMEOUT', 408));
+          }, timeout);
+        });
 
-        try {
+        const invokePromise = (async () => {
           const { data, error } = await supabase.functions.invoke(functionName, {
             body,
             headers: {
@@ -119,29 +123,27 @@ export class AIClient {
             }
           });
 
-          clearTimeout(timeoutId);
-
           // Handle supabase-js errors (network, auth, etc.)
           if (error) {
-            logger.error(`❌ ${functionName} supabase error`, error, {
+            logger.error(`X ${functionName} supabase error`, error, {
               operation: 'edge-function-error',
               functionName
             });
-            
+
             // Check for specific error patterns
             const errorMessage = this.parseSupabaseError(error);
             const errorCode = this.classifyError(error, errorMessage);
-            
+
             if (errorMessage.includes('Insufficient credits')) {
               const match = errorMessage.match(/Required: (\d+), Available: (\d+)/);
               if (match) {
                 throw new InsufficientCreditsError(
-                  parseInt(match[1]), 
+                  parseInt(match[1]),
                   parseInt(match[2])
                 );
               }
             }
-            
+
             throw new AIClientError(
               errorMessage,
               errorCode,
@@ -151,7 +153,7 @@ export class AIClient {
           }
 
           if (shouldLog) {
-            logger.info(`✅ ${functionName} response received`, {
+            logger.info(`OK ${functionName} response received`, {
               operation: 'edge-function-response',
               functionName,
               success: data?.success,
@@ -168,7 +170,7 @@ export class AIClient {
                 data.metadata?.available || 0
               );
             }
-            
+
             throw new AIClientError(
               data.error || 'Edge function returned error',
               data.error_code,
@@ -191,10 +193,10 @@ export class AIClient {
             model_used: data.model_used,
             metadata: data.metadata
           };
+        })();
 
-        } finally {
-          clearTimeout(timeoutId);
-        }
+        // Race invocation against timeout
+        return await Promise.race([invokePromise, timeoutPromise]);
 
       } catch (error) {
         const shouldLogError = attempt === 0 || this.shouldLogRetry(functionName, attempt);
@@ -330,7 +332,7 @@ export class AIClient {
     language?: string;
     count?: number;
   }) {
-    return this.invoke('generate-story-seeds', params, { timeout: 30000, retries: 1 });
+    return this.invoke('generate-story-seeds', params, { timeout: 30000, retries: 0 });
   }
 
   /**
@@ -347,13 +349,13 @@ export class AIClient {
     characters?: any[];
     requestId: string;
   }) {
-    // Build comprehensive prompt from story details
-    const characterNames = params.characters?.map(c => c.name).filter(Boolean).join(', ') || '';
-    const characterDesc = characterNames ? ` featuring characters ${characterNames}` : '';
-    
-    const prompt = `A children's book illustration for "${params.storyTitle}" (${params.ageGroup} age group, ${params.genre} genre). Scene: ${params.storyContent.slice(0, 200)}...${characterDesc}. Style: colorful, friendly, safe for children, high quality digital art.`;
-    
-    return this.invoke('generate-story-image', { ...params, prompt }, { timeout: 60000, retries: 2 });
+    // Build simplified, visual-first prompt: subject + setting + mood + style
+    const names = (params.characters || []).map((c: any) => c?.name).filter(Boolean);
+    const subject = names.slice(0, 2).join(' and ') || params.storyTitle;
+    const settingHint = params.storyContent.slice(0, 160).replace(/\s+/g, ' ').trim();
+    const prompt = `${subject}. Setting: ${settingHint}. Mood: warm, adventurous, friendly. Style: children's book illustration, cohesive composition, soft lighting, colorful, safe for children, high quality.`;
+
+    return this.invoke('generate-story-image', { ...params, prompt }, { timeout: 30000, retries: 0 });
   }
 
   /**

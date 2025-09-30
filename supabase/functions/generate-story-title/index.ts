@@ -71,7 +71,7 @@ Return as JSON: {"titles": ["Title 1", "Title 2", "Title 3"], "recommended": "Ti
         ],
         responseFormat: 'json',
         temperature: 0.9
-      });
+      }, language);  // Pass language code for model selection
     });
 
     logger.info('Titles generated successfully', { 

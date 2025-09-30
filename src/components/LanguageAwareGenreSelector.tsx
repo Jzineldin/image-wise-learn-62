@@ -43,9 +43,9 @@ const LanguageAwareGenreSelector: React.FC<LanguageAwareGenreSelectorProps> = ({
           {translate('storyCreation.selectGenre')}
         </h3>
         <p className="text-text-secondary text-sm mb-4">
-          {selectedLanguage === 'sv' 
-            ? 'Välj en eller flera genrer för din berättelse' 
-            : 'Select one or more genres for your story'
+          {selectedLanguage === 'sv'
+            ? 'Välj en huvudgenre för din berättelse'
+            : 'Select one primary genre for your story'
           }
         </p>
       </div>

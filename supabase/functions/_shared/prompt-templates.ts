@@ -139,12 +139,18 @@ export class PromptTemplateManager {
       : 'No specific characters selected - create engaging characters appropriate for the age group.';
 
     const languageInstructions = context.language === 'sv' ? `
-🚨 CRITICAL LANGUAGE REQUIREMENT - MANDATORY:
+🚨 CRITICAL SWEDISH LANGUAGE REQUIREMENT - MANDATORY:
 Generate ALL content in Swedish (Svenska):
-- The seed titles must be in Swedish
-- The seed descriptions must be in Swedish
+- The seed titles must be 100% in Swedish - NO English words
+- The seed descriptions must be 100% in Swedish - NO English words
+- Translate ALL character descriptions to Swedish (e.g., "the friendly dragon" → "den vänliga draken")
 - Use natural, fluent Swedish appropriate for children aged ${context.ageGroup}
 - Prefer Swedish names and cultural references when natural
+- NEVER mix English and Swedish in the same sentence
+
+EXAMPLES:
+✅ CORRECT: "Den vänliga draken hittar en skattkarta i skogen."
+❌ WRONG: "The friendly dragon hittar en skattkarta i skogen." ← NEVER DO THIS
 
 ` : context.language && context.language !== 'en' ? `
 🚨 CRITICAL LANGUAGE REQUIREMENT - MANDATORY:
@@ -264,13 +270,20 @@ Return as a JSON array of exactly 3 seeds with this structure:
       : 'No specific characters - create appropriate character references for the age group.';
 
     const languageInstructions = context.language === 'sv' ? `
-🚨 CRITICAL LANGUAGE REQUIREMENT - MANDATORY:
+🚨 CRITICAL SWEDISH LANGUAGE REQUIREMENT - MANDATORY:
 Generate ALL content in Swedish (Svenska):
-- The story content must be in Swedish  
+- The story content must be 100% in Swedish - NO English words allowed
 - All choice text must be in Swedish
 - All choice impact descriptions must be in Swedish
+- Translate ALL character descriptions to Swedish (e.g., "the friendly dragon" → "den vänliga draken")
 - Use natural, fluent Swedish appropriate for children aged ${context.ageGroup}
 - Use Swedish names and cultural references where appropriate
+- NEVER mix English and Swedish in the same sentence
+- Character references like "the brave knight" must become "den modiga riddaren"
+
+EXAMPLES:
+✅ CORRECT: "Den vänliga draken leker i skogen."
+❌ WRONG: "The friendly dragon leker i skogen." ← NEVER DO THIS
 
 ` : context.language && context.language !== 'en' ? `
 🚨 CRITICAL LANGUAGE REQUIREMENT - MANDATORY:

@@ -108,10 +108,16 @@ export class AIClient {
         const timeoutId = setTimeout(() => controller.abort(), timeout);
 
         try {
+          // Optional dev flag to enable JSON opening path in Edge Function
+          const featureHdr = ((import.meta as any)?.env?.VITE_FEATURE_JSON_OPENING === 'true')
+            ? { 'x-feature-json-opening': 'true' }
+            : {};
+
           const { data, error } = await supabase.functions.invoke(functionName, {
             body,
             headers: {
               Authorization: `Bearer ${session.access_token}`,
+              ...featureHdr,
             }
           });
 
@@ -381,11 +387,11 @@ export class AIClient {
     characters?: any[];
     requestId: string;
   }) {
-    // Build comprehensive prompt from story details
-    const characterNames = params.characters?.map(c => c.name).filter(Boolean).join(', ') || '';
-    const characterDesc = characterNames ? ` featuring characters ${characterNames}` : '';
-
-    const prompt = `A children's book illustration for "${params.storyTitle}" (${params.ageGroup} age group, ${params.genre} genre). Scene: ${params.storyContent.slice(0, 200)}...${characterDesc}. Style: colorful, friendly, safe for children, high quality digital art.`;
+    // Build simplified, visual-first prompt: subject + setting + mood + style
+    const names = (params.characters || []).map((c: any) => c?.name).filter(Boolean);
+    const subject = names.slice(0, 2).join(' and ') || params.storyTitle;
+    const settingHint = params.storyContent.slice(0, 160).replace(/\s+/g, ' ').trim();
+    const prompt = `${subject}. Setting: ${settingHint}. Mood: warm, adventurous, friendly. Style: children's book illustration, cohesive composition, soft lighting, colorful, safe for children, high quality.`;
 
     // Map camelCase IDs to snake_case expected by the Edge Function
     const { storyId, segmentId, ...rest } = params as any;

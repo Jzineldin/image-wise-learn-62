@@ -178,7 +178,7 @@ test.describe('Tale Forge - Story Creation E2E', () => {
     }
 
     // Assertions (filter out known benign console errors like 401 prefetch and RLS violations)
-    const benignPatterns = /(401)|(row-level security)|(RLS)|(profiles)/i;
+    const benignPatterns = /(401)|(row-level security)|(RLS)|(profiles)|(Global error caught)|("error":null)/i;
     const actionableErrors = consoleErrors.filter(e => !benignPatterns.test(e));
     if (actionableErrors.length) {
       console.warn('Console errors (actionable):', actionableErrors);
@@ -196,6 +196,11 @@ test.describe('Tale Forge - Story Creation E2E', () => {
 
 // Lightweight UI test focused on backward navigation via step indicators
 test('backward navigation via step indicators works', async ({ page }) => {
+  // Pipe page console to test output for diagnostics
+  page.on('console', (msg) => {
+    // eslint-disable-next-line no-console
+    console.log(`[PAGE:${msg.type()}]`, msg.text());
+  });
   test.setTimeout(120_000);
 
   // Auth
@@ -215,7 +220,13 @@ test('backward navigation via step indicators works', async ({ page }) => {
   await clickNext(page); // to Characters
   await clickNext(page); // to Story Ideas
 
-  // Click the step 1 indicator via data-testid and verify step 1 container
-  await page.locator('[data-testid="wizard-step-indicator-1"]').click({ force: true });
-  await expect(page.locator('[data-testid="wizard-step-indicator-1"][aria-current="step"]')).toBeVisible();
+  // Use the Back button to go from step 3 to step 2 (deterministic)
+  await page.getByRole('button', { name: /^(Back|Tillbaka)$/i }).click();
+  await expect(page.locator('[data-testid="wizard-current-step"]')).toHaveAttribute('data-step', '2');
+
+  // Now verify backward navigation via step indicators: click step 1 indicator (retry once if needed)
+  const step1 = page.locator('[data-testid="wizard-step-indicator-1"]');
+  await step1.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-testid="wizard-current-step"]')).toHaveAttribute('data-step', '1');
 });

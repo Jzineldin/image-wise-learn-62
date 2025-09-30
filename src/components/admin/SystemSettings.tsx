@@ -28,6 +28,8 @@ interface SystemConfig {
   ai_settings: {
     primary_model: string;
     openai_model: string;
+    english_model: string;  // Model for English stories
+    swedish_model: string;  // Model for Swedish stories
     max_tokens_per_request: number;
     temperature: number;
     story_generation_prompt: string;
@@ -114,6 +116,8 @@ const SystemSettings = () => {
     ai_settings: {
       primary_model: 'openrouter/sonoma-dusk-alpha',
       openai_model: 'gpt-4o-mini',
+      english_model: 'thedrummer/cydonia-24b-v4.1',  // Cydonia 24B for English
+      swedish_model: 'x-ai/grok-4-fast',  // Grok-4-Fast for Swedish
       max_tokens_per_request: 2000,
       temperature: 0.7,
       story_generation_prompt: 'Create an engaging children\'s story segment...',
@@ -281,9 +285,64 @@ const SystemSettings = () => {
               <CardTitle>AI Configuration</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Language-Specific Models</h3>
+                  <p className="text-sm text-text-secondary mb-4">
+                    Configure different AI models for different languages to optimize quality and cost.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="english-model">English Model</Label>
+                    <Select
+                      value={config.ai_settings.english_model || 'thedrummer/cydonia-24b-v4.1'}
+                      onValueChange={(value) => updateConfig('ai_settings', 'english_model', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="thedrummer/cydonia-24b-v4.1">Cydonia 24B (Fast, Cheap)</SelectItem>
+                        <SelectItem value="x-ai/grok-4-fast">Grok-4-Fast (Paid, Better Quality)</SelectItem>
+                        <SelectItem value="gpt-4o-mini">GPT-4o Mini (OpenAI)</SelectItem>
+                        <SelectItem value="gpt-4o">GPT-4o (OpenAI, Premium)</SelectItem>
+                        <SelectItem value="Meta-Llama-3_3-70B-Instruct">Llama 3.3 70B</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-text-secondary mt-1">
+                      Used for all English story generation
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="swedish-model">Swedish Model</Label>
+                    <Select
+                      value={config.ai_settings.swedish_model || 'x-ai/grok-4-fast'}
+                      onValueChange={(value) => updateConfig('ai_settings', 'swedish_model', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="x-ai/grok-4-fast">Grok-4-Fast (Recommended for Swedish)</SelectItem>
+                        <SelectItem value="thedrummer/cydonia-24b-v4.1">Cydonia 24B (Cheaper, Lower Quality)</SelectItem>
+                        <SelectItem value="gpt-4o-mini">GPT-4o Mini (OpenAI)</SelectItem>
+                        <SelectItem value="gpt-4o">GPT-4o (OpenAI, Premium)</SelectItem>
+                        <SelectItem value="Meta-Llama-3_3-70B-Instruct">Llama 3.3 70B</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-text-secondary mt-1">
+                      Used for all Swedish story generation
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="primary-model">Primary AI Model</Label>
+                  <Label htmlFor="primary-model">Legacy Primary Model</Label>
                   <Select
                     value={config.ai_settings.primary_model || 'openrouter/sonoma-dusk-alpha'}
                     onValueChange={(value) => updateConfig('ai_settings', 'primary_model', value)}
@@ -301,6 +360,9 @@ const SystemSettings = () => {
                       <SelectItem value="claude-3-opus">Claude 3 Opus</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-text-secondary mt-1">
+                    Deprecated - use language-specific models above
+                  </p>
                 </div>
 
                 <div>

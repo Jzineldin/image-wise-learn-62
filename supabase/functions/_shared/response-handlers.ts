@@ -356,10 +356,41 @@ export class StorySegmentValidator extends ResponseValidator<{
       resp?.narrative,
       resp?.segment,
       resp?.text,
-      resp?.body
+      resp?.body,
+      resp?.opening  // Add 'opening' field for Cydonia model
     ];
-    const c = candidates.find(v => typeof v === 'string' && v.trim().length > 0);
-    return c ? String(c) : undefined;
+
+    // First, try to find a direct string value
+    let c = candidates.find(v => typeof v === 'string' && v.trim().length > 0);
+    if (c) return String(c);
+
+    // If not found, check if any candidate is an object with nested text fields
+    for (const candidate of candidates) {
+      if (candidate && typeof candidate === 'object') {
+        // Try common nested text fields
+        const nestedCandidates = [
+          candidate.opening,  // Cydonia model uses 'opening' field
+          candidate.text,
+          candidate.content,
+          candidate.story,
+          candidate.narrative,
+          candidate.value,
+          candidate.body
+        ];
+        const nested = nestedCandidates.find(v => typeof v === 'string' && v.trim().length > 0);
+        if (nested) return String(nested);
+
+        // If it's an array, try to join it
+        if (Array.isArray(candidate)) {
+          const joined = candidate
+            .filter(item => typeof item === 'string')
+            .join('\n\n');
+          if (joined.trim().length > 0) return joined;
+        }
+      }
+    }
+
+    return undefined;
   }
 
   private extractChoiceText(choice: any): string | undefined {
@@ -433,9 +464,31 @@ export class StorySegmentValidator extends ResponseValidator<{
     let content = this.coerceContent(response) || '';
     const choicesArr = Array.isArray(response?.choices) ? response.choices : [];
 
+    // Safety check: if content is still an object, try to extract text from it
+    if (typeof content === 'object' && content !== null) {
+      logger.warn('[CONTENT-FIX] Content is still an object after coercion, attempting deep extraction', {
+        contentType: typeof content,
+        contentKeys: Object.keys(content),
+        operation: 'content-normalization'
+      });
+
+      // Try to extract text from the object
+      const textValue = content.text || content.content || content.story || content.narrative || content.value;
+      if (typeof textValue === 'string') {
+        content = textValue;
+      } else {
+        // Last resort: stringify the object and log a warning
+        logger.error('[CONTENT-FIX] Failed to extract text from object, using JSON.stringify', {
+          contentSample: JSON.stringify(content).substring(0, 200),
+          operation: 'content-normalization'
+        });
+        content = JSON.stringify(content);
+      }
+    }
+
     // Auto-correct character references in content
-    content = content
-      .replace(/\b([A-Z][a-z]+)\s+(cat|dog|bear|bird|rabbit|fox|mouse|wolf|butterfly|owl)\b/gi, 
+    content = String(content)
+      .replace(/\b([A-Z][a-z]+)\s+(cat|dog|bear|bird|rabbit|fox|mouse|wolf|butterfly|owl)\b/gi,
                (match, adjective, animal) => `the ${adjective.toLowerCase()} ${animal.toLowerCase()}`)
       .replace(/\b(Curious|Brave|Wise|Friendly|Clever|Bold|Gentle|Swift|Playful|Kind)\s+(Cat|Dog|Bear|Bird|Rabbit|Fox|Mouse|Wolf|Butterfly|Owl)\b/g,
                (match, adjective, animal) => `the ${adjective.toLowerCase()} ${animal.toLowerCase()}`);
@@ -454,8 +507,18 @@ export class StorySegmentValidator extends ResponseValidator<{
     const isEndingRaw = response?.is_ending ?? response?.isEnding ?? response?.ending ?? response?.final;
     const is_ending = Boolean(isEndingRaw);
 
+    // Final safety check: ensure content is never "[object Object]"
+    const finalContent = String(content).trim();
+    if (finalContent === '[object Object]' || finalContent === '') {
+      logger.error('[CONTENT-FIX] Content is "[object Object]" or empty after normalization', {
+        originalResponse: JSON.stringify(response).substring(0, 500),
+        operation: 'content-normalization'
+      });
+      throw new Error('Failed to extract valid content from AI response');
+    }
+
     return {
-      content: String(content).trim(),
+      content: finalContent,
       choices: normalizedChoices,
       is_ending
     };

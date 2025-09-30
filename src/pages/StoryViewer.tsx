@@ -101,6 +101,9 @@ const StoryViewer = () => {
   const [retryAttempts, setRetryAttempts] = useState<{[key: string]: number}>({});
   const [selectedVoice, setSelectedVoice] = useState('9BWtsMINqrJLrRacOk9x'); // Default Aria
 
+  // Track segments we've already attempted to auto-generate images for (per session)
+  const attemptedImagesRef = useRef<Record<string, boolean>>({});
+
   // Ensure we stop audio playback when this page unmounts or when the audio element changes
   useEffect(() => {
     return () => {
@@ -190,6 +193,84 @@ const StoryViewer = () => {
     }
   }, [searchParams, story, user]);
 
+  // Clear the optimistic image spinner as soon as the target segment receives an image URL
+  useEffect(() => {
+    if (!generatingImage) return;
+    const seg = segments.find(s => s.id === generatingImage);
+    if (seg && seg.image_url) {
+      setGeneratingImage(null);
+      // Clean the hint param once image appears
+      if (searchParams.get('imgPending') === '1') {
+        searchParams.delete('imgPending');
+        setSearchParams(searchParams);
+      }
+    }
+  }, [segments, generatingImage]);
+
+  // Poll for image_url when we know an image is being generated (e.g., after creation flow)
+  useEffect(() => {
+    const isImgPending = searchParams.get('imgPending') === '1';
+
+    // Only start polling if spinner is shown or imgPending hint is set
+    if (!isImgPending && !generatingImage) return;
+
+    let cancelled = false;
+    const startedAt = Date.now();
+    console.info('[DIAG:image-poll] start', {
+      isImgPending,
+      generatingImage,
+      ts: new Date().toISOString()
+    });
+
+    const poll = async () => {
+      if (cancelled) return;
+      const elapsed = Date.now() - startedAt;
+      console.info('[DIAG:image-poll] tick', { elapsedMs: elapsed });
+      try {
+        const segs = await reloadSegments();
+        const firstSeg = segs.find(s => s.segment_number === 1);
+        if (firstSeg?.image_url) {
+          console.info('[DIAG:image-poll] image_url detected', {
+            segmentId: firstSeg.id,
+            elapsedMs: Date.now() - startedAt,
+          });
+          // Mark as attempted so auto-generation won't re-fire on subsequent reloads
+          attemptedImagesRef.current[firstSeg.id] = true;
+          // Image is ready - clear spinner and URL hint
+          setGeneratingImage(null);
+          if (searchParams.get('imgPending') === '1') {
+            searchParams.delete('imgPending');
+            setSearchParams(searchParams);
+          }
+          return; // stop polling
+        }
+      } catch (e) {
+        console.warn('[DIAG:image-poll] error', {
+          message: (e && ((e as any).message || e.toString())) || 'unknown'
+        });
+      }
+
+      // Stop after 30s max
+      if (Date.now() - startedAt > 30_000) {
+        console.warn('[DIAG:image-poll] timeout', { elapsedMs: Date.now() - startedAt });
+        setGeneratingImage(null);
+        return;
+      }
+
+      // Schedule next poll
+      setTimeout(poll, 2_000);
+    };
+
+    // Kick off immediately
+    poll();
+
+    return () => {
+      console.info('[DIAG:image-poll] cancelled');
+      cancelled = true;
+    };
+  }, [generatingImage, searchParams]);
+
+
   const loadStory = async () => {
     try {
       setLoading(true);
@@ -233,53 +314,90 @@ const StoryViewer = () => {
       if (segmentsError) throw segmentsError;
 
       // Transform Supabase data to match our interface
-      const transformedSegments: StorySegment[] = (segmentsData || []).map(segment => ({
-        id: segment.id,
-        segment_number: segment.segment_number,
-        content: segment.content || '',
-        image_url: segment.image_url,
-        audio_url: segment.audio_url,
-        choices: (() => {
-          try {
-            // Handle both string (legacy) and array formats
-            const rawChoices = segment.choices;
-            if (Array.isArray(rawChoices)) {
-              return rawChoices.map((choice: any) => ({
-                id: choice?.id ?? 0,
-                text: choice?.text ?? '',
-                impact: choice?.impact
-              }));
-            } else if (typeof rawChoices === 'string') {
-              const parsed = JSON.parse(rawChoices);
-              return Array.isArray(parsed) ? parsed.map((choice: any) => ({
-                id: choice?.id ?? 0,
-                text: choice?.text ?? '',
-                impact: choice?.impact
-              })) : [];
-            }
-            return [];
-          } catch {
-            return [];
+      const transformedSegments: StorySegment[] = (segmentsData || []).map(segment => {
+        // Normalize content to a plain string for rendering
+        const raw = (segment as any).content;
+        let contentStr = '';
+        try {
+          if (typeof raw === 'string') contentStr = raw;
+          else if (raw && typeof raw === 'object') {
+            if (typeof (raw as any).text === 'string') contentStr = (raw as any).text;
+            else if (typeof (raw as any).content === 'string') contentStr = (raw as any).content;
+            else if (Array.isArray((raw as any).paragraphs)) contentStr = (raw as any).paragraphs.join('\n\n');
+            else contentStr = JSON.stringify(raw);
+          } else if (raw != null) {
+            contentStr = String(raw);
           }
-        })(),
-        is_ending: !!segment.is_ending
-      }));
+        } catch {}
+
+        return {
+          id: segment.id,
+          segment_number: segment.segment_number,
+          content: contentStr,
+          image_url: segment.image_url,
+          audio_url: segment.audio_url,
+          choices: (() => {
+            try {
+              // Handle both string (legacy) and array formats
+              const rawChoices = segment.choices;
+              if (Array.isArray(rawChoices)) {
+                return rawChoices.map((choice: any) => ({
+                  id: choice?.id ?? 0,
+                  text: choice?.text ?? '',
+                  impact: choice?.impact
+                }));
+              } else if (typeof rawChoices === 'string') {
+                const parsed = JSON.parse(rawChoices);
+                return Array.isArray(parsed) ? parsed.map((choice: any) => ({
+                  id: choice?.id ?? 0,
+                  text: choice?.text ?? '',
+                  impact: choice?.impact
+                })) : [];
+              }
+              return [];
+            } catch {
+              return [];
+            }
+          })(),
+          is_ending: !!segment.is_ending
+        };
+      });
 
       setSegments(transformedSegments);
 
+      // If we navigated here with an image-pending hint from creation flow, show a spinner for segment 1
+      const isImgPending = searchParams.get('imgPending') === '1';
+      if (isImgPending) {
+        const firstSeg = transformedSegments.find(s => s.segment_number === 1);
+        if (firstSeg && !firstSeg.image_url) {
+          setGeneratingImage(firstSeg.id);
+        }
+      }
+
       // Auto-generate images for segments that need them (prioritize segment 1, then latest/ending) if not credit locked
-      if (transformedSegments.length > 0 && !creditLock.current) {
+      // Skip if we already have an imgPending hint to avoid duplicate generation
+      if (transformedSegments.length > 0 && !creditLock.current && !isImgPending) {
         // First, check if segment 1 needs an image (critical for first-time story viewing)
         const firstSegment = transformedSegments.find(s => s.segment_number === 1);
         if (firstSegment && !firstSegment.image_url && firstSegment.content) {
-          logger.info('🖼️ Auto-generating image for first segment on load', { segmentId: firstSegment.id });
-          generateSegmentImage(firstSegment);
+          if (!attemptedImagesRef.current[firstSegment.id]) {
+            attemptedImagesRef.current[firstSegment.id] = true;
+            logger.info('🖼️ Auto-generating image for first segment on load', { segmentId: firstSegment.id });
+            generateSegmentImage(firstSegment);
+          } else {
+            debugLogger.debug('Skip auto-image: already attempted for first segment', { segmentId: firstSegment.id });
+          }
         } else {
           // If segment 1 has an image, check the latest/ending segment
           const endingCandidate = [...transformedSegments].reverse().find(s => s.is_ending) || transformedSegments[transformedSegments.length - 1];
           if (endingCandidate && !endingCandidate.image_url && endingCandidate.content && endingCandidate.segment_number !== 1) {
-            logger.info('🖼️ Auto-generating image for latest/ending segment on load', { segmentId: endingCandidate.id });
-            generateSegmentImage(endingCandidate);
+            if (!attemptedImagesRef.current[endingCandidate.id]) {
+              attemptedImagesRef.current[endingCandidate.id] = true;
+              logger.info('🖼️ Auto-generating image for latest/ending segment on load', { segmentId: endingCandidate.id });
+              generateSegmentImage(endingCandidate);
+            } else {
+              debugLogger.debug('Skip auto-image: already attempted for ending/latest', { segmentId: endingCandidate.id });
+            }
           }
         }
       }
@@ -402,31 +520,36 @@ const StoryViewer = () => {
         // Automatically generate image for the new segment
         const newSegment = updatedSegments[updatedSegments.length - 1];
         if (newSegment && !newSegment.image_url) {
-          debugLogger.debug('Auto-generating image for new segment', {
-            requestId,
-            segmentId: newSegment.id
-          });
-          logger.imageGeneration(newSegment.id, { requestId });
-
-          // Wait for credit lock to be released then generate image
-          const autoGenerateImage = async () => {
-            // Wait a bit for credit system to update
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Ensure credit lock is released
-            creditLock.current = false;
-
-            // Now generate the image
-            await generateSegmentImage(newSegment);
-          };
-
-          // Execute in background
-          autoGenerateImage().catch(error => {
-            debugLogger.error('Auto-image generation failed', error, {
+          if (!attemptedImagesRef.current[newSegment.id]) {
+            attemptedImagesRef.current[newSegment.id] = true;
+            debugLogger.debug('Auto-generating image for new segment', {
               requestId,
               segmentId: newSegment.id
             });
-          });
+            logger.imageGeneration(newSegment.id, { requestId });
+
+            // Wait for credit lock to be released then generate image
+            const autoGenerateImage = async () => {
+              // Wait a bit for credit system to update
+              await new Promise(resolve => setTimeout(resolve, 500));
+
+              // Ensure credit lock is released
+              creditLock.current = false;
+
+              // Now generate the image
+              await generateSegmentImage(newSegment);
+            };
+
+            // Execute in background
+            autoGenerateImage().catch(error => {
+              debugLogger.error('Auto-image generation failed', error, {
+                requestId,
+                segmentId: newSegment.id
+              });
+            });
+          } else {
+            debugLogger.debug('Skip auto-image: already attempted for new segment', { segmentId: newSegment.id });
+          }
         }
       }
 
@@ -484,10 +607,10 @@ const StoryViewer = () => {
     const currentRetries = retryAttempts[retryKey] || 0;
 
     if (currentRetries >= 3) {
-      logger.warn('Max image generation retries reached', { 
+      logger.warn('Max image generation retries reached', {
         requestId,
         segmentId: segment.id,
-        attempts: currentRetries 
+        attempts: currentRetries
       });
       toast({
         title: "Image generation failed",

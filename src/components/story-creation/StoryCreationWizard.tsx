@@ -58,10 +58,8 @@ export const StoryCreationWizard = ({
   };
 
   const handleGenreToggle = (genre: string) => {
-    const newGenres = flow.genres.includes(genre)
-      ? flow.genres.filter(g => g !== genre)
-      : [...flow.genres, genre];
-    updateFlow({ genres: newGenres });
+    // Limit to a single primary genre
+    updateFlow({ genres: [genre] });
   };
 
   const canProceedFromStep = (step: number): boolean => {
@@ -109,24 +107,53 @@ export const StoryCreationWizard = ({
   const progress = (flow.step / STEPS.length) * 100;
 
   const handleStepClick = (targetStep: number) => {
+    // TEMP DIAGNOSTIC LOG
+    // eslint-disable-next-line no-console
+    console.log('[Wizard.handleStepClick] invoked', { targetStep, currentStep: flow.step, ts: Date.now() });
     // Allow backward navigation to any previous step; forward remains via Next
     if (targetStep < flow.step) {
       updateFlow({ step: targetStep });
     }
   };
 
+  const handleIndicatorRowClick = (e: any) => {
+    const el = (e.target as HTMLElement).closest('[data-step-id]') as HTMLElement | null;
+    if (!el) return;
+    const target = Number(el.getAttribute('data-step-id'));
+    // eslint-disable-next-line no-console
+    console.log('[Wizard.handleIndicatorRowClick]', { target, currentStep: flow.step, ts: Date.now() });
+    if (!Number.isNaN(target)) {
+      handleStepClick(target);
+    }
+  };
+
+
+  // TEMP DIAGNOSTIC LOG OF RENDERED STEP
+  // eslint-disable-next-line no-console
+  console.log('[Wizard.render] step', flow.step, 'ts', Date.now());
+
   return (
     <div className="space-y-8">
       {/* Progress Bar */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium">{tr('ui.step')} {flow.step} {tr('ui.of')} {STEPS.length}</span>
+          <span
+            data-testid="wizard-current-step"
+            data-step={flow.step}
+            className="text-sm font-medium"
+          >
+            {tr('ui.step')} {flow.step} {tr('ui.of')} {STEPS.length}
+          </span>
           <span className="text-sm text-muted-foreground">{Math.round(progress)}% {tr('ui.completeLabel')}</span>
         </div>
         <Progress value={progress} className="h-2" />
 
         {/* Step Indicators (click to go back) */}
-        <div className="flex justify-between mt-4">
+        <div
+          className="relative z-20 flex justify-between mt-4 pointer-events-auto"
+          data-testid="wizard-indicator-row"
+          onClickCapture={handleIndicatorRowClick}
+        >
           {STEPS.map((step) => {
             const Icon = step.icon;
             const isActive = flow.step === step.id;
@@ -138,23 +165,31 @@ export const StoryCreationWizard = ({
                 key={step.id}
                 type="button"
                 data-testid={`wizard-step-indicator-${step.id}`}
+                data-step-id={step.id}
+                data-active={isActive ? 'true' : 'false'}
+                onMouseDown={() => handleStepClick(step.id)}
                 onClick={() => handleStepClick(step.id)}
-                disabled={!canClick}
-                className={`flex flex-col items-center focus:outline-none ${canClick ? 'cursor-pointer' : 'cursor-default'}`}
+                className={`flex flex-col items-center focus:outline-none pointer-events-auto ${canClick ? 'cursor-pointer' : 'cursor-default'}`}
                 aria-current={isActive ? 'step' : undefined}
                 aria-disabled={!canClick}
                 title={canClick ? `Go to ${step.title}` : step.title}
               >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
-                  isActive
-                    ? 'bg-primary border-primary text-primary-foreground'
-                    : isCompleted
-                      ? 'bg-primary/10 border-primary text-primary'
-                      : 'bg-background border-muted text-muted-foreground'
-                }`}>
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
+                    isActive
+                      ? 'bg-primary border-primary text-primary-foreground'
+                      : isCompleted
+                        ? 'bg-primary/10 border-primary text-primary'
+                        : 'bg-background border-muted text-muted-foreground'
+                  }`}
+                  data-step-id={step.id}
+                >
                   <Icon className="h-4 w-4" />
                 </div>
-                <span className={`text-xs mt-1 ${isActive ? 'font-medium' : 'text-muted-foreground'}`}>
+                <span
+                  className={`text-xs mt-1 ${isActive ? 'font-medium' : 'text-muted-foreground'}`}
+                  data-step-id={step.id}
+                >
                   {step.title}
                 </span>
               </button>

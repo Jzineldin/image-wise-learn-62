@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
       responseFormat: 'json',
       schema: tmpl.schema,
       temperature: 0.6
-    });
+    }, story.language_code);  // Pass language code for model selection
 
     let parsed: any = aiResponse.content;
     let segmentContent = '';

@@ -7,16 +7,29 @@ import { logger } from "./lib/production-logger";
 
 // Global error handlers for better debugging
 window.addEventListener('error', (event) => {
-  logger.error('Global error caught', event.error, {
-    filename: event.filename,
-    lineno: event.lineno,
-    colno: event.colno,
+  const err: any = (event as ErrorEvent)?.error;
+  const message = (event as ErrorEvent)?.message;
+  const actionable = (
+    err && (err.message || err.stack)
+  ) || (
+    typeof message === 'string' && message.trim() && message !== 'Script error.'
+  );
+
+  // Suppress null/empty/no-signal global errors
+  if (!actionable) return;
+
+  logger.error('Global error caught', err ?? message, {
+    filename: (event as ErrorEvent).filename,
+    lineno: (event as ErrorEvent).lineno,
+    colno: (event as ErrorEvent).colno,
     operation: 'global-error'
   });
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  logger.error('Unhandled promise rejection', event.reason, {
+  const reason: any = (event as PromiseRejectionEvent).reason;
+  if (!reason) return; // Suppress empty reasons
+  logger.error('Unhandled promise rejection', reason, {
     operation: 'unhandled-rejection'
   });
 });

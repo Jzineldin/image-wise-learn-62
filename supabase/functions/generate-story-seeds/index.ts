@@ -3,14 +3,13 @@ import { createAIService } from '../_shared/ai-service.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 import { CreditService } from '../_shared/credit-system.ts';
 import { logger } from '../_shared/logger.ts';
-
-
+import { PromptTemplateManager } from '../_shared/prompt-templates.ts';
 
 interface SeedsRequest {
   genre?: string;
   ageGroup?: string;
   language?: string;
-  count?: number;
+  count?: number; // Currently the template returns exactly 3; we normalize to that for now
 }
 
 Deno.serve(async (req) => {
@@ -38,45 +37,38 @@ Deno.serve(async (req) => {
     }
 
     const {
-      genre = 'fantasy',
+      genre = 'Fantasy',
       ageGroup = '7-9',
       language = 'en',
       count = 3
     } = requestBody;
 
+    // Build centralized prompt using PromptTemplateManager
+    const tmpl = PromptTemplateManager.generateStorySeeds({
+      ageGroup,
+      genre,
+      language
+    });
+
     // Generate story seeds using AI service with timing
     const { result: aiResponse, duration } = await withTiming(async () => {
       const aiService = createAIService();
-
-      const systemPrompt = `You are a creative children's story idea generator. Generate structured story concepts as JSON.`;
-
-      const userPrompt = `Generate exactly ${count} creative story ideas for children's books with these parameters:
-Genre: ${genre}
-Age Group: ${ageGroup} year olds
-Language: ${language}
-
-Requirements:
-- Age-appropriate and engaging
-- Diverse characters and settings
-- Themes of friendship, adventure, learning
-
-Return as JSON: {"seeds": [{"id": "1", "title": "Story Title", "description": "1-2 sentence description"}]}`;
-
       return await aiService.generate('story-seeds', {
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
+          { role: 'system', content: tmpl.system },
+          { role: 'user', content: tmpl.user }
         ],
         responseFormat: 'json',
-        temperature: 0.9
-      });
+        schema: tmpl.schema,
+        temperature: 0.6
+      }, language);  // Pass language code for model selection
     });
 
-    logger.info('Story seeds generated successfully', { 
-      provider: aiResponse.provider, 
-      model: aiResponse.model, 
-      duration, 
-      operation: 'ai-generation' 
+    logger.info('Story seeds generated successfully', {
+      provider: aiResponse.provider,
+      model: aiResponse.model,
+      duration,
+      operation: 'ai-generation'
     });
 
     // Validate and normalize AI response
@@ -84,10 +76,10 @@ Return as JSON: {"seeds": [{"id": "1", "title": "Story Title", "description": "1
       aiResponse.content,
       Validators.storySeeds,
       () => ({
-        seeds: Array.from({ length: count }, (_, i) => ({
-          id: `${i + 1}`,
+        seeds: Array.from({ length: 3 }, (_, i) => ({
+          id: `seed-${i + 1}`,
           title: `${genre} Adventure ${i + 1}`,
-          description: `An exciting ${genre} adventure perfect for ${ageGroup} year olds.`
+          description: `An exciting ${genre} adventure perfect for ${ageGroup}.`
         }))
       })
     );

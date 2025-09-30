@@ -51,7 +51,7 @@ export const AI_PROVIDERS: Record<string, AIProvider> = {
   openrouter: {
     name: 'OpenRouter',
     baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
-    defaultModel: 'x-ai/grok-4-fast:free',
+    defaultModel: 'thedrummer/cydonia-24b-v4.1',  // Updated to Cydonia 24B for better performance
     supportedFeatures: ['json', 'text'],
     priority: 1
   },
@@ -71,36 +71,37 @@ export const AI_PROVIDERS: Record<string, AIProvider> = {
   }
 };
 
-export const MODEL_CONFIGS: Record<string, ModelConfig> = {
-  'story-generation': {
+// Helper function to get model configuration for a language and operation type
+// This is called dynamically on each request to support environment variable overrides
+function getModelConfig(language: string, operationType: string): ModelConfig {
+  // Default models by language
+  const defaultModels: Record<string, string> = {
+    'en': 'thedrummer/cydonia-24b-v4.1',  // Cydonia 24B for English - excellent performance
+    'sv': 'anthropic/claude-3.5-sonnet',  // Claude 3.5 Sonnet (paid) - excellent multilingual, reliable
+  };
+
+  // Check for environment variable override
+  const envKey = `AI_MODEL_${language.toUpperCase()}`;
+  const model = Deno.env.get(envKey) || defaultModels[language] || defaultModels['en'];
+
+  // Token limits and temperatures by operation type
+  const operationConfigs: Record<string, { maxTokens: number; temperature: number }> = {
+    'story-generation': { maxTokens: 2000, temperature: 0.7 },
+    'story-seeds': { maxTokens: 700, temperature: 0.6 },
+    'story-segments': { maxTokens: 900, temperature: 0.7 },
+    'story-titles': { maxTokens: 250, temperature: 0.8 },
+  };
+
+  const opConfig = operationConfigs[operationType] || { maxTokens: 2000, temperature: 0.7 };
+
+  return {
     provider: 'openrouter',
-    model: 'x-ai/grok-4-fast:free',
-    maxTokens: 2000,
-    temperature: 0.7,
+    model,
+    maxTokens: opConfig.maxTokens,
+    temperature: opConfig.temperature,
     supportedFeatures: ['json']
-  },
-  'story-seeds': {
-    provider: 'openrouter',
-    model: 'x-ai/grok-4-fast:free',
-    maxTokens: 1000,
-    temperature: 0.7,
-    supportedFeatures: ['json']
-  },
-  'story-segments': {
-    provider: 'openrouter',
-    model: 'x-ai/grok-4-fast:free',
-    maxTokens: 1000,
-    temperature: 0.8,
-    supportedFeatures: ['json']
-  },
-  'story-titles': {
-    provider: 'openrouter',
-    model: 'x-ai/grok-4-fast:free',
-    maxTokens: 300,
-    temperature: 0.9,
-    supportedFeatures: ['json']
-  }
-};
+  };
+}
 
 // ============= CORE AI SERVICE CLASS =============
 
@@ -115,44 +116,68 @@ export class AIServiceManager {
 
   /**
    * Generate content using the specified configuration
+   * @param operationType - Type of operation (e.g., 'story-generation', 'story-seeds')
+   * @param request - AI request with messages, format, etc.
+   * @param language - Optional language code (e.g., 'en', 'sv') for language-specific model selection
    */
   async generate<T = any>(
     operationType: string,
-    request: AIRequest
+    request: AIRequest,
+    language?: string
   ): Promise<AIResponse<T>> {
-    const config = MODEL_CONFIGS[operationType];
-    if (!config) {
-      throw new Error(`Unknown operation type: ${operationType}`);
+    // Select model config based on language (default to English)
+    const languageCode = language || 'en';
+    const config = getModelConfig(languageCode, operationType);
+
+    logger.info('AI model selection', {
+      operationType,
+      language: languageCode,
+      model: config.model,
+      provider: config.provider,
+      operation: 'model-selection'
+    });
+
+    // Use the provider specified in the config (no fallback chain)
+    const providerKey = config.provider.toLowerCase();
+    const provider = this.providers.get(providerKey);
+
+    if (!provider) {
+      throw new Error(`Provider '${config.provider}' not found`);
     }
 
-    // Try providers in priority order
-    const sortedProviders = Array.from(this.providers.values())
-      .sort((a, b) => a.priority - b.priority);
+    try {
+      logger.info('AI provider attempt', {
+        provider: provider.name,
+        model: config.model,
+        operationType,
+        operation: 'ai-generation'
+      });
 
-    let lastError: Error | null = null;
+      const result = await this.callProvider(provider, config, request);
 
-    for (const provider of sortedProviders) {
-      try {
-        logger.info('AI provider attempt', { provider: provider.name, operationType, operation: 'ai-generation' });
-        
-        const result = await this.callProvider(provider, config, request);
-        
-        logger.info('AI provider succeeded', { provider: provider.name, operationType, operation: 'ai-generation' });
-        return {
-          content: result.content,
-          model: result.model,
-          provider: provider.name,
-          tokensUsed: result.tokensUsed || 0,
-          success: true
-        };
-      } catch (error) {
-        logger.error('AI provider failed', error, { provider: provider.name, operationType, operation: 'ai-generation' });
-        lastError = error as Error;
-        continue;
-      }
+      logger.info('AI provider succeeded', {
+        provider: provider.name,
+        model: result.model,
+        operationType,
+        operation: 'ai-generation'
+      });
+
+      return {
+        content: result.content,
+        model: result.model,
+        provider: provider.name,
+        tokensUsed: result.tokensUsed || 0,
+        success: true
+      };
+    } catch (error) {
+      logger.error('AI provider failed', error, {
+        provider: provider.name,
+        model: config.model,
+        operationType,
+        operation: 'ai-generation'
+      });
+      throw error;
     }
-
-    throw new Error(`All AI providers failed. Last error: ${lastError?.message}`);
   }
 
   /**
@@ -171,19 +196,91 @@ export class AIServiceManager {
     const headers = this.buildHeaders(provider, apiKey);
     const body = this.buildRequestBody(provider, config, request);
 
-    const response = await fetch(provider.baseUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body)
-    });
+    // Add 120-second timeout using AbortController (increased for slower models like Grok)
+    const controller = new AbortController();
+    const timeoutMs = 120000; // 120 seconds
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`${provider.name} API error: ${response.status} ${errorText}`);
+    const startTime = Date.now();
+
+    try {
+      logger.info('[PERF-AI] API request starting', {
+        provider: provider.name,
+        model: config.model,
+        timeout: `${timeoutMs}ms`,
+        requestBodySize: JSON.stringify(body).length,
+        operation: 'ai-api-call-start'
+      });
+
+      const fetchStartTime = Date.now();
+      const response = await fetch(provider.baseUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+      const fetchDuration = Date.now() - fetchStartTime;
+
+      clearTimeout(timeoutId);
+
+      logger.info('[PERF-AI] Fetch completed, parsing response', {
+        provider: provider.name,
+        model: config.model,
+        status: response.status,
+        fetchDuration: `${fetchDuration}ms`,
+        operation: 'ai-api-fetch-complete'
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`${provider.name} API error: ${response.status} ${errorText}`);
+      }
+
+      const jsonParseStartTime = Date.now();
+      const data = await response.json();
+      const jsonParseDuration = Date.now() - jsonParseStartTime;
+
+      const totalDuration = Date.now() - startTime;
+
+      logger.info('[PERF-AI] Response parsed, processing', {
+        provider: provider.name,
+        model: config.model,
+        fetchDuration: `${fetchDuration}ms`,
+        jsonParseDuration: `${jsonParseDuration}ms`,
+        totalDuration: `${totalDuration}ms`,
+        responseSize: JSON.stringify(data).length,
+        operation: 'ai-api-response-parsed'
+      });
+
+      const parseResponseStartTime = Date.now();
+      const result = this.parseResponse(provider, data, request.responseFormat);
+      const parseResponseDuration = Date.now() - parseResponseStartTime;
+
+      logger.info('[PERF-AI] Response processing complete', {
+        provider: provider.name,
+        model: config.model,
+        parseResponseDuration: `${parseResponseDuration}ms`,
+        totalDuration: `${Date.now() - startTime}ms`,
+        operation: 'ai-api-complete'
+      });
+
+      return result;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      const duration = Date.now() - startTime;
+
+      if (error.name === 'AbortError') {
+        logger.error('AI API timeout', error, {
+          provider: provider.name,
+          model: config.model,
+          duration: `${duration}ms`,
+          timeout: `${timeoutMs}ms`,
+          operation: 'ai-api-call'
+        });
+        throw new Error(`${provider.name} request timeout after ${timeoutMs}ms`);
+      }
+      throw error;
     }
-
-    const data = await response.json();
-    return this.parseResponse(provider, data, request.responseFormat);
   }
 
   /**
@@ -217,6 +314,13 @@ export class AIServiceManager {
     const modelForProvider = (provider.name === 'OpenRouter')
       ? config.model
       : provider.defaultModel || config.model;
+
+    logger.info('[PERF-AI] Building request body', {
+      provider: provider.name,
+      configModel: config.model,
+      modelForProvider,
+      operation: 'ai-request-body-build'
+    });
 
     const body: any = {
       model: modelForProvider,

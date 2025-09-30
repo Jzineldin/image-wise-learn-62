@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.2';
 import { CreditService, validateCredits, deductCreditsAfterSuccess } from '../_shared/credit-system.ts';
 import { createAIService } from '../_shared/ai-service.ts';
-import { ResponseHandler, parseWordRange, countWords, trimToMaxWords } from '../_shared/response-handlers.ts';
+import { ResponseHandler, parseWordRange, countWords, trimToMaxWords, withTiming, Validators } from '../_shared/response-handlers.ts';
 import { PromptTemplateManager, AGE_GUIDELINES } from '../_shared/prompt-templates.ts';
 import { logger } from '../_shared/logger.ts';
 import { InputValidator, InputSanitizer, RateLimiter, SecurityAuditor } from '../_shared/validation.ts';
@@ -126,142 +126,251 @@ Deno.serve(async (req) => {
     }
 
     // Generate story using AI service
+    const timings: Record<string, number> = {};
+    const startTotal = Date.now();
+
+    logger.info('[PERF] Story generation started', {
+      requestId,
+      userId,
+      languageCode,
+      genre,
+      ageGroup,
+      operation: 'perf-tracking'
+    });
+
     const aiService = createAIService();
-    
-    // Process character references and build strict protagonist instructions
+
+    // Feature flag to guard JSON opening rollout
+    // Feature flag can be overridden via header for dev/test
+    const headerOverride = (req.headers.get('x-feature-json-opening') || '').toLowerCase() === 'true';
+    const USE_JSON_OPENING = headerOverride || (Deno.env.get('FEATURE_JSON_OPENING') || '').toLowerCase() === 'true';
+
+    // Process character references and build concise protagonist instructions
     const processedCharacters = (characters || []).map(c => ({
       ...c,
       reference: PromptTemplateManager.getCharacterReference({ name: c.name, description: c.description })
     }));
 
     const protagonistsList = processedCharacters.length > 0
-      ? processedCharacters.map(c => `- ${c.reference}: ${c.description} (personality: ${c.personality || ''})`).join('\n')
+      ? processedCharacters.map(c => `- ${c.reference}: ${c.description}${c.personality ? ` (personality: ${c.personality})` : ''}`).join('\n')
       : '';
 
-    const languageInstructions = languageCode === 'sv' ? `
-🚨 LANGUAGE REQUIREMENT: Generate ALL content in Swedish (Svenska). Use natural, fluent Swedish appropriate for ${ageGroup}.
-` : (languageCode && languageCode !== 'en') ? `
-🚨 LANGUAGE REQUIREMENT: Generate ALL content in ${languageCode}. Use natural, fluent language appropriate for ${ageGroup}.
-` : '';
-
-    const characterRules = processedCharacters.length > 0 ? `
-🚨 CRITICAL CHARACTER RULES (MANDATORY):
-- The MAIN PROTAGONISTS are:
-${protagonistsList}
-- ALWAYS feature these protagonists centrally in the opening segment.
-- Use EXACT references like "${processedCharacters[0].reference}" (never capitalize descriptive references like "Curious Cat").
-- NEVER use the original capitalized names if they are descriptive types.
-- Use natural flow: first mention → pronoun → descriptive reference → pronoun.
-` : '';
-
     const ageGuide = AGE_GUIDELINES[ageGroup as keyof typeof AGE_GUIDELINES] || AGE_GUIDELINES['10-12'];
-    const systemPrompt = `You are a skilled children's story writer creating interactive stories for ${ageGroup} readers in the ${genre} genre. Create engaging opening segments that set up the story world and present meaningful choices for the reader to continue the adventure.
-${languageInstructions}${characterRules}
 
-STYLE & LENGTH REQUIREMENTS:
-- Vocabulary: ${ageGuide.vocabulary}
-- Sentence structure: ${ageGuide.sentence}
-- Themes: ${ageGuide.themes}; Complexity: ${ageGuide.complexity}
-- Length: between ${ageGuide.wordCount} (aim for the midpoint)`;
+    // Additional guardrails
+    const safetyRule = 'Safety: no violence beyond mild peril; always kind and inclusive.';
+    const kidsFluencyRule = ageGroup === '7-9'
+      ? 'Fluency (7-9): use simple, concrete words; short sentences (≈8–12 words); avoid archaic phrasing.'
+      : undefined;
 
-    const userPrompt = `Create an opening segment for an interactive ${existingStory.story_type || 'short'} story.
+    // Short, consolidated instructions
+    const systemPrompt = [
+      `You write engaging openings for ${ageGroup} readers in ${genre}.`,
+      processedCharacters.length > 0 ? `Protagonists: ${processedCharacters.map(c => c.reference).join(', ')} (use exact references; if descriptive, keep lowercase).` : undefined,
+      `Language: ${languageCode}.` ,
+      `Style: vocab ${ageGuide.vocabulary}; sentences ${ageGuide.sentence}; themes ${ageGuide.themes}; complexity ${ageGuide.complexity}.`,
+      `Length: ${ageGuide.wordCount} (aim midpoint).`,
+      safetyRule,
+      kidsFluencyRule
+    ].filter(Boolean).join('\n- ');
 
-Story prompt/context: ${prompt}
-${processedCharacters.length > 0 ? `Use these MAIN PROTAGONISTS (MANDATORY): ${processedCharacters.map(c => c.reference).join(', ')}` : ''}
+    const userPrompt = [
+      `Create an opening for an interactive ${existingStory.story_type || 'short'} story.`,
+      `Context: ${prompt}`,
+      processedCharacters.length > 0 ? `Make these the clear focus: ${processedCharacters.map(c => c.reference).join(', ')}` : undefined,
+      USE_JSON_OPENING
+        ? `CRITICAL: Return ONLY valid JSON with this EXACT structure:\n{\n  "content": "story narrative text WITHOUT any choices mentioned",\n  "choices": [\n    {"id": 1, "text": "choice 1 text", "impact": "what happens if chosen"},\n    {"id": 2, "text": "choice 2 text", "impact": "what happens if chosen"}\n  ],\n  "is_ending": false\n}\n\nThe "content" field must contain ONLY the story narrative. Do NOT include choice text in the content field. Choices go ONLY in the "choices" array.`
+        : `End with 2–3 meaningful choices; each choice includes a brief, concrete consequence (impact). Impacts must be short, distinct, and non-duplicative.`,
+      languageCode === 'sv' ? `🚨 CRITICAL SWEDISH LANGUAGE REQUIREMENTS - MANDATORY:
+1. Write EVERYTHING in Swedish (Svenska) - story content, choices, and impacts
+2. Use natural, fluent Swedish that sounds like a native Swedish children's book author wrote it
+3. Translate ALL character descriptions to Swedish (e.g., "the friendly dragon" → "den vänliga draken")
+4. Use Swedish idioms, expressions, and sentence structures
+5. NO English words mixed into Swedish sentences - this is absolutely forbidden
+6. Character names/descriptions must be in Swedish: "the brave knight" → "den modiga riddaren", "the curious cat" → "den nyfikna katten"
+7. Double-check: Every single word must be Swedish, including character references
 
-Requirements:
-- Age-appropriate content for ${ageGroup}
-- Introduce the setting and make the listed protagonists the clear focus
-- End with a cliffhanger or decision point that leads to 2-3 meaningful choices, each with a specific consequence (impact)
-- Length: between ${ageGuide.wordCount} (aim for the midpoint) for the opening segment
-- The story should continue based on reader choices, not end immediately
-- Output language: ${languageCode}
+EXAMPLES OF CORRECT SWEDISH:
+✅ "Den vänliga draken leker hemma."
+✅ "De hittar en skattkarta tillsammans."
+❌ "När the friendly dragon leker hemma." ← NEVER MIX LANGUAGES LIKE THIS` : undefined
+    ].filter(Boolean).join('\n');
 
-Format your response as:
-CONTENT: [story opening content]
-CHOICES:
-1. [choice 1 text] — Impact: [specific consequence]
-2. [choice 2 text] — Impact: [specific consequence]
-3. [choice 3 text] — Impact: [specific consequence]`;
+    timings.promptBuilding = Date.now() - startTotal;
 
-    logger.info('Generating story with AI service', { 
-      requestId, 
-      storyId, 
+    logger.info('[PERF] Prompt built', {
+      requestId,
+      storyId,
       charactersCount: processedCharacters.length,
-      operation: 'ai-generation'
-    });
-    const aiResponse = await aiService.generate('story-generation', {
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      responseFormat: 'text',
-      temperature: 0.7
+      promptBuildingMs: timings.promptBuilding,
+      operation: 'perf-tracking'
     });
 
-    const rawContent = aiResponse.content;
-    logger.info('Story generated successfully', { 
-      requestId, 
-      provider: aiResponse.provider, 
+    // Prepare JSON schema if feature flag is enabled
+    const jsonSchema = {
+      type: 'object',
+      properties: {
+        content: { type: 'string' },
+        choices: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              text: { type: 'string' },
+              impact: { type: 'string' }
+            },
+            required: ['text']
+          },
+          minItems: 2,
+          maxItems: 3
+        },
+        is_ending: { type: 'boolean' }
+      },
+      required: ['content', 'choices']
+    };
+
+    const aiStartTime = Date.now();
+    const { result: aiResponse, duration } = await withTiming(async () => {
+      return await aiService.generate('story-generation', {
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        responseFormat: USE_JSON_OPENING ? 'json' : 'text',
+        ...(USE_JSON_OPENING ? { schema: jsonSchema } : {}),
+        temperature: 0.7
+      }, languageCode);  // Pass language code for model selection
+    });
+    timings.aiGeneration = Date.now() - aiStartTime;
+
+    logger.info('[PERF] AI generation completed', {
+      requestId,
+      provider: aiResponse.provider,
       model: aiResponse.model,
-      operation: 'ai-generation-complete'
+      aiGenerationMs: timings.aiGeneration,
+      withTimingDuration: duration,
+      tokensUsed: aiResponse.tokensUsed,
+      operation: 'perf-tracking'
     });
 
-    // Parse content and choices
-    const contentMatch = rawContent.match(/CONTENT:\s*([\s\S]*?)(?=CHOICES:|$)/);
-    const choicesMatch = rawContent.match(/CHOICES:\s*([\s\S]*)/);
-    
-    let storyContent = contentMatch?.[1]?.trim() || rawContent;
+    // [DEBUG] Log raw AI response to diagnose content format issue
+    logger.info('[DEBUG] Raw AI response', {
+      requestId,
+      contentType: typeof aiResponse.content,
+      contentKeys: typeof aiResponse.content === 'object' ? Object.keys(aiResponse.content) : undefined,
+      contentSample: typeof aiResponse.content === 'string'
+        ? aiResponse.content.substring(0, 200)
+        : JSON.stringify(aiResponse.content).substring(0, 500),
+      operation: 'debug-ai-response'
+    });
+
+    const parseStartTime = Date.now();
+    let storyContent = '';
+    let choices: any[] = [];
+
+    if (USE_JSON_OPENING) {
+      // Normalize AI response: some models return {opening: "...", choices: [...]} instead of {content: "...", choices: [...]}
+      let normalizedResponse = aiResponse.content;
+      if (normalizedResponse && typeof normalizedResponse === 'object') {
+        if (normalizedResponse.opening && !normalizedResponse.content) {
+          normalizedResponse = {
+            content: normalizedResponse.opening,
+            choices: normalizedResponse.choices || [],
+            is_ending: normalizedResponse.is_ending || false
+          };
+          logger.info('[NORMALIZE] Converted "opening" field to "content"', {
+            requestId,
+            choicesCount: normalizedResponse.choices?.length,
+            operation: 'response-normalization'
+          });
+        }
+      }
+
+      // Validate/normalize JSON response
+      const validated = ResponseHandler.validateAndNormalize(
+        normalizedResponse,
+        Validators.storySegment,
+        () => {
+          // Fallback: try to extract content from the raw response
+          let fallbackContent = '';
+          if (typeof normalizedResponse === 'string') {
+            fallbackContent = normalizedResponse;
+          } else if (normalizedResponse && typeof normalizedResponse === 'object') {
+            // Try to extract text from common fields
+            fallbackContent = normalizedResponse.content ||
+                            normalizedResponse.opening ||
+                            normalizedResponse.text ||
+                            normalizedResponse.story ||
+                            normalizedResponse.narrative ||
+                            JSON.stringify(normalizedResponse);
+          }
+          return { content: String(fallbackContent || ''), choices: [] };
+        }
+      );
+
+      // [DEBUG] Log validated content
+      logger.info('[DEBUG] Validated content', {
+        requestId,
+        contentType: typeof validated.content,
+        contentLength: validated.content?.length,
+        contentSample: validated.content?.substring(0, 200),
+        choicesCount: validated.choices?.length,
+        operation: 'debug-validated-content'
+      });
+
+      storyContent = validated.content;
+      choices = validated.choices || [];
+    } else {
+      // Legacy text parsing fallback
+      const rawContent = aiResponse.content;
+      const contentMatch = rawContent.match(/CONTENT:\s*([\s\S]*?)(?=CHOICES:|$)/);
+      const choicesMatch = rawContent.match(/CHOICES:\s*([\s\S]*)/);
+      storyContent = contentMatch?.[1]?.trim() || rawContent;
+
+      if (choicesMatch) {
+        const choiceLines = choicesMatch[1].split('\n').filter((line: string) => line.trim());
+        choices = choiceLines.map((line: string, index: number) => {
+          const cleaned = line.replace(/^\d+\.\s*/, '').trim();
+          const match = cleaned.match(/^(.*?)(?:\s*[—\-–]\s*Impact:\s*(.*))?$/i);
+          const text = (match?.[1] || '').trim();
+          const impact = (match?.[2] || '').trim();
+          return { id: index + 1, text, impact: impact || undefined };
+        }).filter((choice: any) => choice.text);
+      }
+
+      if (choices.length === 0) {
+        choices = [
+          { id: 1, text: 'Continue the adventure', consequences: null },
+          { id: 2, text: 'Explore a different path', consequences: null },
+          { id: 3, text: 'Take a moment to think', consequences: null }
+        ];
+      }
+    }
 
     // Enforce word range for opening CONTENT portion (choices handled separately)
     {
       const { min, max } = parseWordRange(AGE_GUIDELINES[ageGroup as keyof typeof AGE_GUIDELINES].wordCount);
       const wc = countWords(storyContent);
       if (wc > max) {
-        logger.warn('Opening exceeds max words, trimming', { 
-          requestId, 
-          wordCount: wc, 
-          maxWords: max, 
-          operation: 'word-count-validation' 
-        });
+        logger.warn('Opening exceeds max words, trimming', { requestId, wordCount: wc, maxWords: max, operation: 'word-count-validation' });
         storyContent = trimToMaxWords(storyContent, max);
       }
-      logger.info('Opening segment word count validated', { 
-        requestId, 
-        wordCount: wc, 
-        targetRange: `${min}-${max}`, 
-        ageGroup 
-      });
+      logger.info('Opening segment word count validated', { requestId, wordCount: wc, targetRange: `${min}-${max}`, ageGroup });
     }
 
-    let choices = [];
+    timings.responseParsing = Date.now() - parseStartTime;
 
-    if (choicesMatch) {
-      const choiceLines = choicesMatch[1].split('\n').filter((line: string) => line.trim());
-      choices = choiceLines.map((line: string, index: number) => {
-        const cleaned = line.replace(/^\d+\.\s*/, '').trim();
-        // Extract optional impact after a dash-like separator and 'Impact:' label
-        const match = cleaned.match(/^(.*?)(?:\s*[—\-–]\s*Impact:\s*(.*))?$/i);
-        const text = (match?.[1] || '').trim();
-        const impact = (match?.[2] || '').trim();
-        return {
-          id: index + 1,
-          text,
-          impact: impact || undefined
-        };
-      }).filter((choice: any) => choice.text);
-    }
-
-    // If no choices were parsed, create default ones
-    if (choices.length === 0) {
-      choices = [
-        { id: 1, text: "Continue the adventure", consequences: null },
-        { id: 2, text: "Explore a different path", consequences: null },
-        { id: 3, text: "Take a moment to think", consequences: null }
-      ];
-    }
+    logger.info('[PERF] Response parsed and validated', {
+      requestId,
+      responseParsingMs: timings.responseParsing,
+      contentLength: storyContent.length,
+      choicesCount: choices.length,
+      operation: 'perf-tracking'
+    });
 
     // Update story status (in progress, not completed yet)
+    const dbStartTime = Date.now();
     const { data: updatedStory, error: updateError } = await supabase
       .from('stories')
       .update({
@@ -277,7 +386,32 @@ CHOICES:
       throw new Error('Failed to update story');
     }
 
+    timings.dbUpdateStory = Date.now() - dbStartTime;
+
+    // [DEBUG] Log content before saving to database
+    logger.info('[DEBUG] Content before DB save', {
+      requestId,
+      contentType: typeof storyContent,
+      contentLength: storyContent?.length,
+      contentSample: typeof storyContent === 'string' ? storyContent.substring(0, 200) : JSON.stringify(storyContent).substring(0, 200),
+      isObjectObject: storyContent === '[object Object]',
+      operation: 'debug-db-save'
+    });
+
+    // Safety check: prevent saving "[object Object]"
+    if (storyContent === '[object Object]' || !storyContent || storyContent.trim() === '') {
+      logger.error('[CRITICAL] Story content is invalid', {
+        requestId,
+        storyContent,
+        aiResponseType: typeof aiResponse.content,
+        aiResponseSample: JSON.stringify(aiResponse.content).substring(0, 500),
+        operation: 'content-validation'
+      });
+      throw new Error('Failed to extract valid story content from AI response');
+    }
+
     // Create or replace opening segment (segment_number=1) with content and choices
+    const segmentStartTime = Date.now();
     const { error: segmentError } = await supabase
       .from('story_segments')
       .upsert({
@@ -294,6 +428,15 @@ CHOICES:
       throw new Error('Failed to save story content');
     }
 
+    timings.dbSaveSegment = Date.now() - segmentStartTime;
+
+    logger.info('[PERF] Database operations completed', {
+      requestId,
+      dbUpdateStoryMs: timings.dbUpdateStory,
+      dbSaveSegmentMs: timings.dbSaveSegment,
+      operation: 'perf-tracking'
+    });
+
     // Deduct credits AFTER successful generation and persistence
     const creditResult = await deductCreditsAfterSuccess(
       creditService,
@@ -309,14 +452,60 @@ CHOICES:
       newBalance: creditResult.newBalance 
     });
 
-    logger.info('Story generation completed successfully', { requestId, storyId, operation: 'story-generation-complete' });
+    timings.total = Date.now() - startTotal;
+
+    logger.info('[PERF] Story generation completed - FULL BREAKDOWN', {
+      requestId,
+      storyId,
+      language: languageCode,
+      model: aiResponse.model,
+      provider: aiResponse.provider,
+      timings: {
+        promptBuilding: timings.promptBuilding,
+        aiGeneration: timings.aiGeneration,
+        responseParsing: timings.responseParsing,
+        dbUpdateStory: timings.dbUpdateStory,
+        dbSaveSegment: timings.dbSaveSegment,
+        total: timings.total
+      },
+      percentages: {
+        promptBuilding: `${((timings.promptBuilding / timings.total) * 100).toFixed(1)}%`,
+        aiGeneration: `${((timings.aiGeneration / timings.total) * 100).toFixed(1)}%`,
+        responseParsing: `${((timings.responseParsing / timings.total) * 100).toFixed(1)}%`,
+        dbOperations: `${(((timings.dbUpdateStory + timings.dbSaveSegment) / timings.total) * 100).toFixed(1)}%`
+      },
+      operation: 'perf-summary'
+    });
+
+    // Construct segments array for frontend compatibility
+    // Frontend expects data.segments array to avoid fallback DB fetch
+    const segments = [];
+
+    // Validate segment data before constructing response
+    if (storyContent && storyContent.trim().length > 0) {
+      segments.push({
+        segment_number: 1,
+        content: storyContent,
+        choices: Array.isArray(choices) ? choices : [],
+        is_ending: !choices || choices.length === 0
+      });
+      logger.info('Segment constructed for response', {
+        requestId,
+        segmentNumber: 1,
+        contentLength: storyContent.length,
+        choicesCount: choices.length
+      });
+    } else {
+      logger.warn('Story content is empty, returning empty segments array', { requestId });
+    }
 
     return ResponseHandler.success({
       story_id: storyId,
       content: storyContent,
+      segments: segments,  // Add segments array for frontend compatibility
       credits_used: creditValidation.creditsRequired,
       credits_remaining: creditResult.newBalance,
-    }, aiResponse.model, { requestId });
+    }, aiResponse.model, { requestId, processingTime: duration });
 
   } catch (error) {
     logger.error('Story generation failed', error, { requestId, operation: 'story-generation' });

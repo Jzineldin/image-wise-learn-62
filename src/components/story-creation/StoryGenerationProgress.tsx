@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -137,6 +137,9 @@ export const StoryGenerationProgress = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg" hideCloseButton>
+        <DialogHeader>
+          <DialogTitle>Story Generation Status</DialogTitle>
+        </DialogHeader>
         <div className="space-y-6 p-6">
           {/* Header */}
           <div className="text-center space-y-2">
@@ -144,8 +147,8 @@ export const StoryGenerationProgress = ({
               {error ? 'Generation Failed' : isGenerating ? 'Creating Your Story' : 'Story Ready!'}
             </h2>
             <p className="text-muted-foreground">
-              {error ? 'Something went wrong during story creation' : 
-               isGenerating ? 'Please wait while we craft your personalized story...' : 
+              {error ? 'Something went wrong during story creation' :
+               isGenerating ? 'Please wait while we craft your personalized story...' :
                'Your story has been successfully created!'}
             </p>
           </div>

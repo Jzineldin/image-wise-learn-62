@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { StorySeed, UserCharacter } from '@/types/character';
 import { logger, generateRequestId } from '@/lib/debug';
+import { AIClient } from '@/lib/ai-client';
 
 export const useStorySeeds = () => {
   const [seeds, setSeeds] = useState<StorySeed[]>([]);
@@ -23,27 +23,20 @@ export const useStorySeeds = () => {
     try {
       logger.edgeFunction('generate-story-seeds', requestId, { ageGroup, genres, charactersCount: characters.length, language });
       
-      const { data, error } = await supabase.functions.invoke('generate-story-seeds', {
-        body: {
-          ageGroup,
-          genres,
-          language,
-          characters: characters.map(char => ({
-            id: char.id,
-            name: char.name,
-            description: char.description,
-            character_type: char.character_type,
-            personality_traits: char.personality_traits
-          }))
-        }
+      const { success, data } = await AIClient.generateStorySeeds({
+        ageGroup,
+        genre: genres?.[0],
+        language,
+        count: 3
       });
 
-      if (error) throw error;
+      if (!success) {
+        throw new Error('Failed to generate story seeds');
+      }
 
-      // Handle both raw and enveloped response formats
-      const payload = data?.data ?? data;
+      const payload = (data as any) ?? {};
       const seeds = payload?.seeds ?? payload;
-      
+
       if (seeds && Array.isArray(seeds)) {
         // Only update if this is still the latest request
         if (latestRequestIdRef.current === requestId) {
