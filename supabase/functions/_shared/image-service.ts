@@ -43,7 +43,18 @@ export const IMAGE_PROVIDERS: Record<string, ImageProvider> = {
     name: 'OVH',
     baseUrl: 'https://stable-diffusion-xl.endpoints.kepler.ai.cloud.ovh.net/api/text2image',
     defaultModel: 'stable-diffusion-xl-base-v10',
-    supportedStyles: ['magical', 'surreal', 'children_book', 'realistic', 'cartoon', 'watercolor'],
+    supportedStyles: [
+      'digital_storybook',      // PRIMARY: High quality, colorful, NOT photorealistic
+      'watercolor_fantasy',     // Soft, dreamy, artistic
+      'gouache',                // Vibrant, modern, matte
+      'soft_painting',          // Gentle digital painting
+      'flat_illustration',      // Modern, graphic, simplified
+      'magical',                // Legacy: enchanted illustrated art
+      'children_book',          // Legacy: traditional storybook
+      'cartoon',                // Bold, expressive
+      'watercolor',             // Traditional watercolor
+      'surreal'                 // Dreamlike illustration
+    ],
     priority: 1,
     costPerImage: 0 // Free on OVH
   },
@@ -51,7 +62,10 @@ export const IMAGE_PROVIDERS: Record<string, ImageProvider> = {
     name: 'Replicate',
     baseUrl: 'https://api.replicate.com/v1/predictions',
     defaultModel: 'stability-ai/sdxl:7762fd07cf82c948538e41f63f77d685e02b063e37e496e96eefd46c929f9bdc',
-    supportedStyles: ['magical', 'surreal', 'children_book', 'realistic', 'cartoon', 'watercolor'],
+    supportedStyles: [
+      'digital_storybook', 'watercolor_fantasy', 'gouache', 'soft_painting',
+      'flat_illustration', 'magical', 'children_book', 'cartoon', 'watercolor', 'surreal'
+    ],
     priority: 2,
     costPerImage: 1
   },
@@ -59,7 +73,10 @@ export const IMAGE_PROVIDERS: Record<string, ImageProvider> = {
     name: 'HuggingFace',
     baseUrl: 'https://api-inference.huggingface.co/models',
     defaultModel: 'stabilityai/stable-diffusion-xl-base-1.0',
-    supportedStyles: ['magical', 'surreal', 'children_book', 'realistic', 'artistic'],
+    supportedStyles: [
+      'digital_storybook', 'watercolor_fantasy', 'gouache', 'soft_painting',
+      'flat_illustration', 'magical', 'children_book', 'watercolor', 'surreal'
+    ],
     priority: 3,
     costPerImage: 1
   }
@@ -349,36 +366,90 @@ export class ImageService {
 
   /**
    * Enhance prompt based on style
+   *
+   * Updated to provide better non-photorealistic styles for children's stories
    */
   private enhancePromptForStyle(prompt: string, style: string): string {
     const stylePrompts: Record<string, string> = {
-      magical: "magical, surreal, ethereal, dreamlike, fantasy art, mystical atmosphere, enchanted, whimsical, beautiful lighting, vibrant magical colors, masterpiece, highly detailed, cinematic composition, award-winning digital art",
-      children_book: "illustrated story art, clean and colorful, friendly",
-      realistic: "photorealistic, detailed, high quality, cinematic lighting",
-      cartoon: "cartoon style, bold colors, expressive, clean lines",
-      watercolor: "watercolor painting style, soft textures, artistic",
-      surreal: "surreal, dreamlike, fantastical, otherworldly, magical realism, ethereal beauty, mystical, enchanted atmosphere, vibrant colors, masterpiece digital art"
+      // PRIMARY RECOMMENDED STYLE: Digital Storybook Illustration
+      // High quality, colorful, NOT photorealistic, NOT overly cartoonish
+      digital_storybook: "digital storybook illustration, painterly style, soft brush strokes, vibrant children's book art, warm color palette, gentle lighting, whimsical but sophisticated, picture book quality, hand-painted feel, storybook aesthetic, charming illustration, professional children's book art, colorful and inviting, safe for children, age-appropriate",
+
+      // ALTERNATIVE STYLES
+
+      // Soft Watercolor Fantasy - dreamy, gentle, artistic
+      watercolor_fantasy: "soft watercolor illustration, gentle watercolor painting, delicate brush work, pastel fantasy colors, dreamy watercolor art, light washes, ethereal watercolor style, children's watercolor book, flowing colors, artistic watercolor, storybook watercolor, safe for children",
+
+      // Gouache Illustration - vibrant, modern, matte finish
+      gouache: "gouache illustration style, opaque paint aesthetic, matte finish illustration, vibrant gouache colors, textured illustration, modern storybook art, flat color illustration, contemporary children's book style, hand-painted gouache feel, colorful and inviting",
+
+      // Soft Digital Painting - gentle realism, warm and inviting
+      soft_painting: "soft digital painting, gentle brush work, painted illustration, warm digital art, blended colors, soft edges, illustrated painting style, storybook painting, artistic digital illustration, hand-painted digital art, safe for children",
+
+      // Flat Illustration - modern, graphic, simplified
+      flat_illustration: "flat illustration style, textured flat colors, modern children's illustration, simplified shapes, graphic storybook art, contemporary flat design, bold illustration, clean geometric style, textured digital illustration, colorful and friendly",
+
+      // LEGACY STYLES (kept for backward compatibility)
+
+      // Magical - updated to be less photorealistic
+      magical: "magical illustrated art, enchanted storybook style, whimsical fantasy illustration, vibrant magical colors, dreamy atmosphere, painterly fantasy art, illustrated magic, storybook magic aesthetic, colorful and mystical, safe for children",
+
+      // Children's Book - enhanced with more keywords
+      children_book: "children's book illustration, storybook art style, illustrated story, colorful picture book, friendly illustration, warm children's art, picture book aesthetic, hand-drawn feel, safe for children, age-appropriate",
+
+      // Cartoon - bold and expressive
+      cartoon: "cartoon illustration style, bold cartoon colors, expressive cartoon art, clean cartoon lines, friendly cartoon style, animated storybook feel, playful illustration",
+
+      // Watercolor - traditional style
+      watercolor: "watercolor painting style, soft watercolor textures, artistic watercolor, gentle brush strokes, flowing watercolor colors, traditional watercolor illustration",
+
+      // Surreal - dreamlike but illustrated
+      surreal: "surreal illustration, dreamlike storybook art, fantastical illustrated scene, otherworldly picture book style, magical realism illustration, ethereal storybook aesthetic, mystical illustrated art, vibrant fantasy colors",
+
+      // Realistic - DEPRECATED (too photorealistic for children's stories)
+      realistic: "illustrated scene, detailed artwork, high quality illustration, artistic rendering"
     };
 
-    const styleAddition = stylePrompts[style] || stylePrompts.magical;
+    const styleAddition = stylePrompts[style] || stylePrompts.digital_storybook;
     return `${prompt}, ${styleAddition}`;
   }
   /**
    * Default negative prompt tuned for SDXL and child-friendly outputs
+   *
+   * Updated to strongly prevent photorealism and enforce illustrated styles
    */
   private getDefaultNegativePrompt(style?: string): string {
     const base = [
+      // Quality issues
       'low quality', 'worst quality', 'blurry', 'pixelated', 'jpeg artifacts', 'noise',
+      'grainy', 'overexposed', 'underexposed', 'compression artifacts',
+
+      // Anatomical issues
       'deformed', 'distorted', 'extra limbs', 'mutated hands', 'bad anatomy', 'crooked eyes',
-      'text', 'caption', 'logo', 'watermark', 'signature', 'nsfw', 'gore', 'scary', 'horror',
-      'violent', 'blood', 'weapons', 'nudity', 'disfigured', 'grainy', 'overexposed', 'underexposed'
+      'disfigured', 'malformed', 'extra fingers', 'missing limbs',
+
+      // Unwanted elements
+      'text', 'caption', 'logo', 'watermark', 'signature', 'username', 'artist name',
+
+      // Child safety
+      'nsfw', 'gore', 'scary', 'horror', 'violent', 'blood', 'weapons', 'nudity',
+      'disturbing', 'creepy', 'nightmare', 'terrifying',
+
+      // ANTI-PHOTOREALISM (key addition to prevent realistic images)
+      'photorealistic', 'photo', 'photograph', 'realistic photography', '3d render',
+      'CGI', 'hyperrealistic', 'camera', 'lens', 'depth of field', 'bokeh',
+      'film grain', 'cinematic photography', 'DSLR', 'photographic'
     ];
 
     // Style-specific exclusions
-    if (style === 'children_book') {
-      base.push('dark horror', 'realistic gore', 'hyperreal violence');
+    if (style === 'children_book' || style === 'digital_storybook') {
+      base.push('dark atmosphere', 'gritty', 'harsh shadows', 'overly detailed', 'complex background');
     } else if (style === 'magical' || style === 'surreal') {
-      base.push('ugly', 'boring', 'plain', 'simple', 'dull colors');
+      base.push('ugly', 'boring', 'plain', 'dull colors', 'monochrome');
+    } else if (style === 'watercolor' || style === 'watercolor_fantasy') {
+      base.push('sharp edges', 'hard lines', 'digital', 'vector art');
+    } else if (style === 'flat_illustration') {
+      base.push('3d', 'shadows', 'gradients', 'realistic lighting');
     }
 
     return base.join(', ');

@@ -89,7 +89,7 @@ serve(async (req) => {
       characters,
       story_id,
       segment_id,
-      style = 'magical'
+      style = 'digital_storybook'  // Updated default: high quality, colorful, NOT photorealistic
     } = body;
 
     const prompt = rawPrompt ? InputSanitizer.sanitizeText(rawPrompt) : undefined;
@@ -167,8 +167,8 @@ serve(async (req) => {
       style,
       width: 1024,
       height: 1024,
-      steps: 40,            // SDXL: better detail at 35-50 steps
-      guidance: 6.5,        // SDXL sweet spot to avoid oversaturation
+      steps: 35,            // SDXL: 35 steps for softer, more illustrated look (vs 40 for hyperdetail)
+      guidance: 7.0,        // Higher guidance (7.0 vs 6.5) to enforce illustrated style more strongly
       seed,
       negativePrompt
     });

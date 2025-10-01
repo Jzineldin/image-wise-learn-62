@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { TRANSLATIONS, t } from '@/constants/translations';
 import { logger } from '@/lib/production-logger';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface Language {
   code: string;
@@ -13,10 +14,17 @@ interface Language {
 }
 
 export const useLanguage = () => {
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
-  const [availableLanguages, setAvailableLanguages] = useState<Language[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+
+  // Use global language store instead of local state
+  const {
+    selectedLanguage,
+    availableLanguages,
+    loading,
+    setSelectedLanguage,
+    setAvailableLanguages,
+    setLoading
+  } = useLanguageStore();
 
   useEffect(() => {
     initializeLanguage();
@@ -76,6 +84,7 @@ export const useLanguage = () => {
   };
 
   const changeLanguage = async (languageCode: string) => {
+    // Update global store immediately for instant UI updates
     setSelectedLanguage(languageCode);
 
     try {
@@ -89,6 +98,12 @@ export const useLanguage = () => {
         // Store in localStorage
         localStorage.setItem('preferred_language', languageCode);
       }
+
+      logger.info('Language changed successfully', {
+        operation: 'language-change',
+        languageCode,
+        userId: user?.id
+      });
     } catch (error) {
       logger.error('Error saving language preference', error, {
         operation: 'language-save',
