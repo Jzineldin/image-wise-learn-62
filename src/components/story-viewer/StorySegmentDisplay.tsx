@@ -1,8 +1,15 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, RotateCcw } from 'lucide-react';
+import { Sparkles, RotateCcw, Lock, ArrowRight } from 'lucide-react';
 import { AudioControls } from './AudioControls';
 import { OptimizedImage } from '@/components/ui/optimized-image';
+import { isStoryCompleted } from '@/lib/helpers/story-helpers';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface StorySegment {
   id: string;
@@ -71,7 +78,7 @@ export const StorySegmentDisplay = ({
   selectedVoice,
   onVoiceChange
 }: StorySegmentDisplayProps) => {
-  const isCompleted = story.status === 'completed' || story.is_completed || story.is_complete;
+  const isCompleted = isStoryCompleted(story);
 
   return (
     <div className="space-y-8">
@@ -88,8 +95,7 @@ export const StorySegmentDisplay = ({
           <div className="w-full h-full flex items-center justify-center">
             <div className="text-center space-y-3">
               {generatingImage === segment.id ? (
-                <div className="flex flex-col items-center space-y-2">
-                  <div className="loading-spinner h-8 w-8"></div>
+                <div className="flex items-center justify-center">
                   <p className="text-sm text-muted-foreground">Generating image...</p>
                 </div>
               ) : (
@@ -153,26 +159,66 @@ export const StorySegmentDisplay = ({
           {segment.segment_number === 1 && (
             <div className="text-center text-sm text-muted-foreground -mt-1">Each choice shows an Impact preview to help you decide.</div>
           )}
-          <div className="grid gap-4">
-            {segment.choices.map((choice) => (
-              <Button
-                key={choice.id}
-                variant="outline"
-                className="p-6 h-auto text-left justify-start hover:bg-primary/5 rounded-xl border-2 hover:border-primary/20 transition-all duration-200"
-                onClick={() => onChoice(choice.id, choice.text)}
-                disabled={generatingSegment || isCompleted}
-              >
-                <div className="space-y-2">
-                  <div className="font-medium text-base">{choice.text}</div>
-                  {choice.impact && (
-                    <div className="text-sm text-muted-foreground">
-                      Impact: {choice.impact}
+          <TooltipProvider>
+            <div className="grid gap-4">
+              {segment.choices.map((choice) => {
+                const choiceButton = (
+                  <Button
+                    key={choice.id}
+                    variant="outline"
+                    className={`group p-6 h-auto text-left justify-start rounded-xl border-2 transition-all duration-300 ${
+                      isCompleted
+                        ? 'opacity-60 cursor-not-allowed bg-muted/50 border-muted'
+                        : 'hover:bg-card/80 hover:border-primary hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/20'
+                    }`}
+                    onClick={() => !isCompleted && onChoice(choice.id, choice.text)}
+                    disabled={generatingSegment || isCompleted}
+                  >
+                    <div className="flex items-start gap-4 w-full">
+                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg transition-transform ${
+                        isCompleted
+                          ? 'bg-muted'
+                          : 'bg-gradient-to-r from-primary to-secondary group-hover:scale-110'
+                      }`}>
+                        {isCompleted ? <Lock className="h-5 w-5 text-muted-foreground" /> : choice.id}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <div className={`font-semibold text-lg transition-colors ${
+                          isCompleted ? 'text-muted-foreground' : 'group-hover:text-primary'
+                        }`}>
+                          {choice.text}
+                        </div>
+                        {choice.impact && (
+                          <div className="text-sm text-muted-foreground italic leading-relaxed">
+                            💭 {choice.impact}
+                          </div>
+                        )}
+                      </div>
+                      {!isCompleted && (
+                        <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" />
+                      )}
                     </div>
-                  )}
-                </div>
-              </Button>
-            ))}
-          </div>
+                  </Button>
+                );
+
+                // Wrap with tooltip if story is completed
+                if (isCompleted) {
+                  return (
+                    <Tooltip key={choice.id}>
+                      <TooltipTrigger asChild>
+                        {choiceButton}
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>This story is completed. Choices are no longer available.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                }
+
+                return choiceButton;
+              })}
+            </div>
+          </TooltipProvider>
 
           {generatingSegment && (
             <div className="flex items-center justify-center space-x-3 p-6 bg-muted/50 rounded-xl">

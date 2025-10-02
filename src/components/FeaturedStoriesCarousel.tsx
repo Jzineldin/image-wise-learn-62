@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useFeaturedStories } from '@/hooks/useDataFetching';
 import { logger } from '@/lib/logger';
+import { ANIMATION_DELAYS } from '@/lib/constants/query-constants';
 
 interface FeaturedStory {
   story_id: string;
@@ -37,8 +38,8 @@ const FeaturedStoriesCarousel = () => {
       timeoutId = setTimeout(() => {
         setCurrentIndex((prev) => (prev + 1) % featuredStories.length);
         setIsTransitioning(false);
-      }, 150);
-    }, 5000);
+      }, ANIMATION_DELAYS.transition);
+    }, ANIMATION_DELAYS.carouselInterval);
 
     return () => {
       clearInterval(intervalId);
@@ -169,6 +170,9 @@ const FeaturedStoriesCarousel = () => {
 
   return (
     <div
+      role="region"
+      aria-label="Featured stories carousel"
+      aria-live="polite"
       className="relative max-w-md w-full rounded-2xl overflow-hidden min-h-[400px] shadow-2xl hover:shadow-[0_20px_50px_rgba(255,255,255,0.1)] transition-all duration-500 hover:scale-[1.02] group"
       style={backgroundStyle}
       onMouseEnter={handleMouseEnter}
@@ -230,34 +234,38 @@ const FeaturedStoriesCarousel = () => {
               variant="ghost"
               size="sm"
               onClick={prevStory}
+              aria-label="Previous featured story"
+              aria-controls="featured-stories-carousel"
               className="text-foreground/70 hover:text-foreground hover:bg-white/20 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-110 transition-all duration-300 shadow-lg"
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
             
-            <div className="flex gap-2">
-              {featuredStories.map((_, index) => (
+            <div className="flex gap-2" role="group" aria-label="Story indicators">
+              {featuredStories.map((story, index) => (
                 <button
                   key={index}
                   onClick={() => {
                     setIsTransitioning(true);
                     setIsAutoPlaying(false);
-                    
+
                     const transitionTimeout = setTimeout(() => {
                       setCurrentIndex(index);
                       setIsTransitioning(false);
-                      
+
                       const resumeTimeout = setTimeout(() => setIsAutoPlaying(true), 1000);
-                      
+
                       return () => {
                         clearTimeout(transitionTimeout);
                         clearTimeout(resumeTimeout);
                       };
                     }, 150);
                   }}
+                  aria-label={`Go to story ${index + 1}: ${story.title}`}
+                  aria-current={index === currentIndex ? 'true' : 'false'}
                   className={`w-3 h-3 rounded-full transition-all duration-300 shadow-md hover:scale-125 ${
-                    index === currentIndex 
-                      ? 'bg-foreground shadow-lg' 
+                    index === currentIndex
+                      ? 'bg-foreground shadow-lg'
                       : 'bg-foreground/30 hover:bg-foreground/60'
                   }`}
                 />
@@ -268,6 +276,8 @@ const FeaturedStoriesCarousel = () => {
               variant="ghost"
               size="sm"
               onClick={nextStory}
+              aria-label="Next featured story"
+              aria-controls="featured-stories-carousel"
               className="text-foreground/70 hover:text-foreground hover:bg-white/20 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-110 transition-all duration-300 shadow-lg"
             >
               <ChevronRight className="w-4 h-4" />

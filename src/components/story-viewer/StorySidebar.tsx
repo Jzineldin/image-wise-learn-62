@@ -1,8 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { VoiceSelector } from '@/components/VoiceSelector';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   Music,
   Image,
@@ -12,7 +24,8 @@ import {
   Sparkles,
   RotateCw,
   Download,
-  Wand2
+  Wand2,
+  Coins
 } from 'lucide-react';
 import { logger } from '@/lib/logger';
 
@@ -37,6 +50,7 @@ interface StorySidebarProps {
   generatingAudio: boolean;
   generatingImage: boolean;
   generatingEnding: boolean;
+  generatingSegment?: boolean;
   selectedVoice: string;
   onVoiceChange: (voiceId: string) => void;
   onGenerateAudio: () => void;
@@ -62,6 +76,7 @@ export const StorySidebar = ({
   generatingAudio,
   generatingImage,
   generatingEnding,
+  generatingSegment = false,
   selectedVoice,
   onVoiceChange,
   onGenerateAudio,
@@ -84,9 +99,12 @@ export const StorySidebar = ({
   const timerRef = useRef<number | null>(null);
   const startRef = useRef<number>(0);
 
+  // End story confirmation dialog state
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+
   useEffect(() => {
     // Determine ETA when generation starts
-    if (generatingAudio || generatingImage || generatingEnding) {
+    if (generatingAudio || generatingImage || generatingEnding || generatingSegment) {
       let eta = 20; // default for ending
       if (generatingAudio) {
         const words = (currentSegment?.content?.split(/\s+/).length || 0);
@@ -95,6 +113,8 @@ export const StorySidebar = ({
         eta = 30;
       } else if (generatingEnding) {
         eta = 20;
+      } else if (generatingSegment) {
+        eta = 15;
       }
       setEtaSec(eta);
       setGenProgress(0);
@@ -125,7 +145,7 @@ export const StorySidebar = ({
         timerRef.current = null;
       }
     };
-  }, [generatingAudio, generatingImage, generatingEnding, currentSegment?.id]);
+  }, [generatingAudio, generatingImage, generatingEnding, generatingSegment, currentSegment?.id]);
   return (
     <div className="space-y-4">
       {/* Audio Generation Card */}
@@ -144,32 +164,21 @@ export const StorySidebar = ({
 
             {!hasAudio && (
               <Button
-                onClick={() => { 
+                onClick={() => {
                   logger.userAction('Generate audio clicked', {
                     segmentId: currentSegment?.id,
                     component: 'StorySidebar'
                   });
-                  onGenerateAudio(); 
+                  onGenerateAudio();
                 }}
                 disabled={generatingAudio || creditLocked || isCompleted || !currentSegment?.content}
                 variant="outline"
                 className="w-full"
               >
-                {generatingAudio ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                    Generating...
-                  </>
-                ) : !currentSegment?.content ? (
-                  <>
-                    <Wand2 className="h-4 w-4 mr-2" />
-                    No Content Available
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-4 w-4 mr-2" />
-                    Generate Audio (2 credits)
-                  </>
+                <Wand2 className="h-4 w-4 mr-2" />
+                {!currentSegment?.content ? 'No Content Available' : 'Add Voice Narration'}
+                {currentSegment?.content && !generatingAudio && (
+                  <Badge variant="secondary" className="ml-2">2 credits</Badge>
                 )}
               </Button>
             )}
@@ -217,16 +226,10 @@ export const StorySidebar = ({
               variant="outline"
               className="w-full"
             >
-              {generatingImage ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  {hasImage ? 'Generate New Image' : 'Generate Image'} (1 credit)
-                </>
+              <Sparkles className="h-4 w-4 mr-2" />
+              {hasImage ? 'Regenerate Image' : 'Add Illustration'}
+              {!hasImage && !generatingImage && (
+                <Badge variant="secondary" className="ml-2">1 credit</Badge>
               )}
             </Button>
 
@@ -287,34 +290,54 @@ export const StorySidebar = ({
 
       {/* End Story Card */}
       {isOwner && !isCompleted && (
-        <Card className="bg-gradient-to-br from-destructive to-destructive/80 text-white border-0 shadow-lg rounded-xl overflow-hidden">
+        <Card className="bg-gradient-to-br from-primary to-secondary text-white border-0 shadow-lg rounded-xl overflow-hidden">
           <CardContent className="p-5 text-center">
             <h3 className="text-base font-semibold mb-2">{hasEnding ? 'Finalize Story' : 'Ready to End?'}</h3>
             <p className="text-sm opacity-90 mb-3">{hasEnding ? 'Review your ending and complete the story' : 'Create a magical ending for your story'}</p>
-            <Button
-              onClick={onEndStory}
-              disabled={generatingEnding || creditLocked}
-              variant="secondary"
-              className="bg-white/10 text-white hover:bg-white/20"
-            >
-              {generatingEnding ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                  Generating...
-                </>
-              ) : (
-                <>
+
+            <AlertDialog open={showEndConfirm} onOpenChange={setShowEndConfirm}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  disabled={generatingEnding || creditLocked}
+                  variant="secondary"
+                  className="bg-white/10 text-white hover:bg-white/20 w-full"
+                >
                   <Sparkles className="h-4 w-4 mr-2" />
-                  {endActionLabel || (hasEnding ? 'Finalize Story' : 'Generate Ending')}
-                </>
-              )}
-            </Button>
+                  {endActionLabel || (hasEnding ? 'Finalize Story' : 'Create Ending')}
+                  {!hasEnding && !generatingEnding && (
+                    <Badge variant="secondary" className="ml-2 bg-white/20">1 credit</Badge>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Create Story Ending?</AlertDialogTitle>
+                  <AlertDialogDescription className="space-y-2">
+                    <p>This will generate a satisfying conclusion to your story.</p>
+                    <p className="font-semibold text-foreground">After creating an ending, you won't be able to add more chapters.</p>
+                    <div className="flex items-center gap-2 mt-4 p-3 bg-muted rounded-lg">
+                      <Coins className="w-4 h-4 text-primary" />
+                      <span className="text-sm text-foreground">Cost: 1 credit</span>
+                    </div>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep Writing</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => {
+                    setShowEndConfirm(false);
+                    onEndStory();
+                  }}>
+                    Create Ending
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
       )}
 
       {/* Generation Status */}
-      {(generatingAudio || generatingImage || generatingEnding) && (
+      {(generatingAudio || generatingImage || generatingEnding || generatingSegment) && (
         <Card className="bg-warning/10 border-warning/20 shadow-lg rounded-xl overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -322,7 +345,8 @@ export const StorySidebar = ({
               <span className="text-sm font-medium text-warning">
                 {generatingAudio ? `Generating audio narration... ~${Math.max(8, Math.ceil(((currentSegment?.content?.split(/\s+/).length || 0) / 100)) * 15)}s remaining` :
                  generatingImage ? 'Generating scene image... ~30s remaining' :
-                 'Generating story ending...' }
+                 generatingEnding ? 'Generating story ending...' :
+                 'Generating next chapter...' }
               </span>
             </div>
             <Progress value={genProgress} className="h-2 mt-3" />

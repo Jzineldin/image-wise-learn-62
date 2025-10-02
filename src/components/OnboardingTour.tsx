@@ -35,56 +35,34 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     id: 'welcome',
-    title: 'Welcome to Tale Forge!',
-    description: 'Create magical, interactive stories with AI. Let\'s take a quick tour to get you started.',
-    icon: <Sparkles className="w-8 h-8 text-primary" />
+    title: '✨ Welcome to Tale Forge!',
+    description: 'Create magical, AI-powered interactive stories in minutes. Choose your genre, add characters, and watch the magic happen!',
+    icon: <Sparkles className="w-12 h-12 text-primary" />
   },
   {
     id: 'create',
-    title: 'Create Your First Story',
-    description: 'Choose age groups, genres, and characters to generate personalized interactive stories.',
-    icon: <BookOpen className="w-8 h-8 text-primary" />,
+    title: '🚀 Create Your First Story',
+    description: 'Click "Create Story", choose an age group and genre, then let AI generate a unique interactive adventure. Each choice shapes the story!',
+    icon: <BookOpen className="w-12 h-12 text-primary" />,
     action: {
-      label: 'Try Creating',
+      label: 'Start Creating',
       path: '/create'
     }
   },
   {
-    id: 'characters',
-    title: 'Build Character Library',
-    description: 'Create and manage custom characters to star in your stories.',
-    icon: <Users className="w-8 h-8 text-primary" />,
-    action: {
-      label: 'View Characters',
-      path: '/characters'
-    }
-  },
-  {
-    id: 'watch-mode',
-    title: 'Watch Mode',
-    description: 'Experience stories with automatic narration and smooth transitions between scenes.',
-    icon: <Eye className="w-8 h-8 text-primary" />
-  },
-  {
-    id: 'voice',
-    title: 'Voice Narration',
-    description: 'Premium feature: Add AI-generated voice narration to bring stories to life.',
-    icon: <Volume2 className="w-8 h-8 text-primary" />
-  },
-  {
     id: 'credits',
-    title: 'Credits System',
-    description: 'Each story generation uses credits. Start with 10 free credits, then upgrade for more.',
-    icon: <Zap className="w-8 h-8 text-primary" />
+    title: '⚡ You Have 10 Free Credits',
+    description: 'Each story chapter costs 1 credit. You start with 10 free credits - enough for your first stories! Add voice narration and images for extra magic.',
+    icon: <Zap className="w-12 h-12 text-primary" />
   },
   {
-    id: 'upgrade',
-    title: 'Unlock Premium Features',
-    description: 'Upgrade to get more credits, priority generation, voice narration, and advanced features.',
-    icon: <Crown className="w-8 h-8 text-primary" />,
+    id: 'ready',
+    title: '🎉 You\'re All Set!',
+    description: 'Ready to create your first magical story? Click below to get started, or explore the dashboard to see what\'s possible.',
+    icon: <Crown className="w-12 h-12 text-primary" />,
     action: {
-      label: 'View Pricing',
-      path: '/pricing'
+      label: 'Create My First Story',
+      path: '/create'
     }
   }
 ];
@@ -127,6 +105,13 @@ const OnboardingTour = ({ isOpen, onClose }: OnboardingTourProps) => {
 
   const handleSkip = () => {
     handleFinish();
+  };
+
+  const handleRemindLater = () => {
+    // Don't mark as completed, just close
+    onClose();
+    // Optional: Show a toast notification
+    logger.info('User chose to be reminded later about onboarding');
   };
 
   const handleFinish = () => {
@@ -208,9 +193,14 @@ const OnboardingTour = ({ isOpen, onClose }: OnboardingTourProps) => {
 
             <div className="flex space-x-2">
               {currentStep < TOUR_STEPS.length - 1 && (
-                <Button variant="ghost" size="sm" onClick={handleSkip}>
-                  Skip Tour
-                </Button>
+                <>
+                  <Button variant="ghost" size="sm" onClick={handleRemindLater}>
+                    Remind Me Later
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleSkip}>
+                    Skip Tour
+                  </Button>
+                </>
               )}
               <Button onClick={handleNext}>
                 {currentStep === TOUR_STEPS.length - 1 ? 'Get Started' : 'Next'}
@@ -241,7 +231,7 @@ export const useOnboarding = () => {
 
     const hasCompleted = onboardingCompleted || local;
     if (!hasCompleted) {
-      const timer = setTimeout(() => setShowTour(true), 1000);
+      const timer = setTimeout(() => setShowTour(true), 3000); // 3 seconds delay
       return () => clearTimeout(timer);
     }
   }, [user, onboardingCompleted, setOnboardingCompleted]);

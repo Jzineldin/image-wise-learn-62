@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useStoryCredits } from '@/hooks/useStoryCredits';
 import { VOICE_LANGUAGE_MAP } from '@/constants/translations';
 import { VoiceSelector } from '@/components/VoiceSelector';
 import { ReadingModeControls } from '@/components/ReadingModeControls';
@@ -22,6 +23,8 @@ import { AIClient, InsufficientCreditsError, AIClientError } from '@/lib/api/ai-
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import { calculateTTSCredits } from '@/lib/api/credit-api';
 import { generateAudio as generateAudioAPI } from '@/lib/api/story-api';
+import { isStoryCompleted } from '@/lib/helpers/story-helpers';
+import { CheckCircle2, BookOpen } from 'lucide-react';
 
 type ViewMode = 'creation' | 'experience';
 
@@ -103,6 +106,9 @@ const StoryViewer = () => {
 
   // Track segments we've already attempted to auto-generate images for (per session)
   const attemptedImagesRef = useRef<Record<string, boolean>>({});
+
+  // Calculate real credit usage for this story
+  const { totalCredits, creditsUsed, breakdown, isLoading: creditsLoading } = useStoryCredits(id, segments);
 
   // Ensure we stop audio playback when this page unmounts or when the audio element changes
   useEffect(() => {
@@ -188,7 +194,7 @@ const StoryViewer = () => {
         authorId: story.author_id,
         storyUserId: story.user_id,
         viewMode,
-        isCompleted: story.status === 'completed' || story.is_completed || story.is_complete
+        isCompleted: isStoryCompleted(story)
       });
     }
   }, [searchParams, story, user]);
@@ -419,7 +425,7 @@ const StoryViewer = () => {
     if (!story || !user) return;
 
     // Block choices if story is completed
-    if (story.status === 'completed' || story.is_completed || story.is_complete) {
+    if (isStoryCompleted(story)) {
       toast({
         title: "Story Completed",
         description: "This story has already been completed. You can only read it now.",
@@ -1113,7 +1119,7 @@ const StoryViewer = () => {
   }
 
   const currentSegment = segments[currentSegmentIndex];
-  const isCompletedStory = story?.status === 'completed' || story?.is_completed;
+  const isCompletedStory = isStoryCompleted(story);
   const hasEnding = segments.some(s => s.is_ending);
 
   const endingSeg = segments.find(s => s.is_ending);
@@ -1148,6 +1154,24 @@ const StoryViewer = () => {
 
       <div className="container mx-auto px-4 py-6">
         <div className="max-w-6xl mx-auto">
+          {/* Completed Story Banner */}
+          {isCompletedStory && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border-2 border-emerald-500/30 rounded-xl shadow-lg">
+              <div className="flex items-center justify-center gap-3">
+                <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
+                    Story Completed
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    This story is finished and in read-only mode. {isOwner ? 'You can view and share it, but cannot make changes.' : 'Enjoy reading this completed adventure!'}
+                  </p>
+                </div>
+                <BookOpen className="h-6 w-6 text-blue-500" />
+              </div>
+            </div>
+          )}
+
           {/* Story Progress Tracker */}
           {viewMode === 'creation' && segments.length > 0 && (
             <StoryProgressTracker
@@ -1257,12 +1281,13 @@ const StoryViewer = () => {
                 currentSegment={currentSegment}
                 segmentNumber={currentSegmentIndex + 1}
                 totalSegments={segments.length}
-                creditsUsed={8} // TODO: Calculate from actual usage
-                totalCredits={23} // TODO: Get from user credits
+                creditsUsed={creditsUsed}
+                totalCredits={totalCredits}
                 isPlaying={isPlaying}
                 generatingAudio={generatingAudio}
                 generatingImage={generatingImage === currentSegment.id}
                 generatingEnding={generatingEnding}
+                generatingSegment={generatingSegment}
                 selectedVoice={selectedVoice}
                 onVoiceChange={setSelectedVoice}
                 onGenerateAudio={() => {

@@ -17,6 +17,7 @@ import { logger } from '@/lib/logger';
 import { useLanguage } from '@/hooks/useLanguage';
 import { ThemeSelect, ThemeStatus } from '@/components/ThemeToggle';
 import { usePageThemeClasses } from '@/components/ThemeProvider';
+import { SkeletonText, SkeletonAvatar, SkeletonButton } from '@/components/ui/loading-states';
 
 interface Profile {
   id: string;
@@ -181,8 +182,42 @@ const Settings = () => {
       <div className="min-h-screen">
         <Navigation />
         <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="loading-spinner h-8 w-8" />
+          {/* Header skeleton */}
+          <div className="mb-8">
+            <div className="h-10 bg-muted rounded w-48 mb-2 animate-pulse" />
+            <div className="h-4 bg-muted rounded w-96 animate-pulse" />
+          </div>
+
+          {/* Settings cards skeleton */}
+          <div className="grid gap-6 max-w-4xl">
+            {/* Profile card skeleton */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-4">
+                  <SkeletonAvatar size="lg" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-6 bg-muted rounded w-48 animate-pulse" />
+                    <div className="h-4 bg-muted rounded w-64 animate-pulse" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <SkeletonText lines={4} />
+                <SkeletonButton className="w-32" />
+              </CardContent>
+            </Card>
+
+            {/* Additional settings cards skeleton */}
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <div className="h-6 bg-muted rounded w-48 animate-pulse" />
+                </CardHeader>
+                <CardContent>
+                  <SkeletonText lines={3} />
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
         <Footer />

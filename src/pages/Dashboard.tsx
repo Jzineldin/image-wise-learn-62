@@ -14,6 +14,7 @@ import SubscriptionStatus from '@/components/SubscriptionStatus';
 import UsageAnalytics from '@/components/UsageAnalytics';
 import OnboardingTour, { useOnboarding } from '@/components/OnboardingTour';
 import StoryCard from '@/components/StoryCard';
+import { SkeletonCard } from '@/components/ui/loading-states';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -183,8 +184,8 @@ const Dashboard = () => {
           </div>
 
           {loading || storiesLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="loading-spinner h-8 w-8" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <SkeletonCard count={3} />
             </div>
           ) : recentStories.length === 0 ? (
             <div className="text-center py-12">

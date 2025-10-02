@@ -9,6 +9,7 @@ import { useCharacters } from '@/hooks/useCharacters';
 import { CreateCharacterDialog } from '@/components/story-creation/CreateCharacterDialog';
 import { UserCharacter } from '@/types/character';
 import { useToast } from '@/hooks/use-toast';
+import { SkeletonCard } from '@/components/ui/loading-states';
 
 const Characters = () => {
   const { characters, loading, error, deleteCharacter, refetch } = useCharacters();
@@ -49,8 +50,18 @@ const Characters = () => {
       <div className="min-h-screen">
         <Navigation />
         <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="loading-spinner h-8 w-8" />
+          {/* Header skeleton */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12">
+            <div className="flex-1">
+              <div className="h-10 bg-muted rounded w-64 mb-2 animate-pulse" />
+              <div className="h-4 bg-muted rounded w-96 animate-pulse" />
+            </div>
+            <div className="h-10 bg-muted rounded w-40 mt-4 md:mt-0 animate-pulse" />
+          </div>
+
+          {/* Character cards skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <SkeletonCard count={6} />
           </div>
         </div>
         <Footer />

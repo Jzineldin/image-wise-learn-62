@@ -110,6 +110,7 @@ const StoryCard = memo(({
         <div
           role="button"
           tabIndex={0}
+          aria-label={`Read story: ${story.title} - ${story.genre} for ${story.age_group}`}
           className="relative h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] group cursor-pointer"
           style={{
             backgroundImage: `url(${imageUrl})`,
@@ -189,7 +190,10 @@ const StoryCard = memo(({
 
   if (variant === 'discover') {
     return (
-      <Link to={`/story/${story.id}?mode=experience`}>
+      <Link
+        to={`/story/${story.id}?mode=experience`}
+        aria-label={`Read story: ${story.title} by ${story.author_name || 'Anonymous'} - ${story.genre} for ${story.age_group}`}
+      >
         <div className="glass-card-interactive group cursor-pointer">
           {/* Cover Image */}
           <div className="relative overflow-hidden rounded-t-lg">

@@ -29,6 +29,7 @@ export const queryKeys = {
   // User-related queries
   profile: ['profile'] as const,
   credits: ['credits'] as const,
+  userCredits: ['user-credits'] as const,
   subscription: ['subscription'] as const,
   
   // Story-related queries  
@@ -64,6 +65,7 @@ export const queryKeys = {
 export const invalidateQueries = {
   profile: () => queryClient.invalidateQueries({ queryKey: queryKeys.profile }),
   credits: () => queryClient.invalidateQueries({ queryKey: queryKeys.credits }),
+  userCredits: () => queryClient.invalidateQueries({ queryKey: queryKeys.userCredits }),
   stories: () => queryClient.invalidateQueries({ queryKey: queryKeys.stories }),
   story: (id: string) => queryClient.invalidateQueries({ queryKey: queryKeys.story(id) }),
   all: () => queryClient.invalidateQueries(),

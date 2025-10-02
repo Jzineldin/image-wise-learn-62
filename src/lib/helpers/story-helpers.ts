@@ -4,6 +4,62 @@
 
 import { formatStoryWithPreview } from '@/lib/story-preview-utils';
 
+interface Story {
+  status?: string;
+  is_completed?: boolean;
+  is_complete?: boolean;
+}
+
+/**
+ * Check if a story is completed
+ *
+ * Standardizes the completion check across the codebase.
+ * A story is considered completed if ANY of these conditions are true:
+ * - status field is 'completed'
+ * - is_completed boolean is true
+ * - is_complete boolean is true
+ *
+ * @param story - Story object with completion fields
+ * @returns true if story is completed, false otherwise
+ */
+export const isStoryCompleted = (story: Story | null | undefined): boolean => {
+  if (!story) return false;
+
+  return (
+    story.status === 'completed' ||
+    story.is_completed === true ||
+    story.is_complete === true
+  );
+};
+
+/**
+ * Check if a story is in progress (not completed, not failed)
+ *
+ * @param story - Story object with status field
+ * @returns true if story is in progress, false otherwise
+ */
+export const isStoryInProgress = (story: Story | null | undefined): boolean => {
+  if (!story) return false;
+
+  return (
+    story.status === 'in_progress' ||
+    story.status === 'generating' ||
+    story.status === 'draft'
+  ) && !isStoryCompleted(story);
+};
+
+/**
+ * Check if a story has failed
+ *
+ * @param story - Story object with status field
+ * @returns true if story has failed, false otherwise
+ */
+export const isStoryFailed = (story: Story | null | undefined): boolean => {
+  if (!story) return false;
+
+  return story.status === 'failed';
+};
+
 /**
  * Get story preview for display in lists/cards
  */

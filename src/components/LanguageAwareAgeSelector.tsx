@@ -61,8 +61,10 @@ const LanguageAwareAgeSelector: React.FC<LanguageAwareAgeSelectorProps> = ({
                 src={AGE_GROUP_IMAGES[ageGroup as AgeGroup]}
                 alt={`Age group ${ageGroup}`}
                 className="absolute inset-0 w-full h-full object-cover"
+                loading="lazy"
+                decoding="async"
                 onError={(e) => {
-                  logger.warn('Failed to load age group image', { 
+                  logger.warn('Failed to load age group image', {
                     imageUrl: AGE_GROUP_IMAGES[ageGroup as AgeGroup],
                     ageGroup,
                     component: 'LanguageAwareAgeSelector'

@@ -17,6 +17,60 @@ interface SegmentRequest {
   segmentNumber?: number;
 }
 
+/**
+ * Text validation and correction function
+ * Fixes common grammar errors in AI-generated text
+ * OPTIMIZED: Eliminates duplicate regex execution
+ */
+function validateAndCorrectText(text: string, ageGroup?: string): string {
+  if (!text) return text;
+
+  let corrected = text;
+
+  // Pre-check for issues (single pass)
+  const duplicatePattern = /\b(\w+)\s+\1\b/gi;
+  const capitalizationPattern = /(^|[.!?]\s+)([a-z])/;
+  const hadDuplicates = duplicatePattern.test(text);
+  const hadCapitalizationIssues = capitalizationPattern.test(text);
+
+  // 1. Fix duplicate words (e.g., "the the" → "the")
+  if (hadDuplicates) {
+    corrected = corrected.replace(/\b(\w+)\s+\1\b/gi, '$1');
+  }
+
+  // 2. Fix sentence capitalization
+  if (hadCapitalizationIssues) {
+    corrected = corrected.replace(/(^|[.!?]\s+)([a-z])/g, (match, separator, letter) => {
+      return separator + letter.toUpperCase();
+    });
+  }
+
+  // 3. Fix multiple spaces
+  corrected = corrected.replace(/\s{2,}/g, ' ');
+
+  // 4. Fix space before punctuation
+  corrected = corrected.replace(/\s+([.!?,;:])/g, '$1');
+
+  // 5. Ensure space after punctuation (except at end)
+  corrected = corrected.replace(/([.!?,;:])([A-Za-z])/g, '$1 $2');
+
+  // 6. Trim whitespace
+  corrected = corrected.trim();
+
+  // Log if corrections were made (reuse pre-check results)
+  if (corrected !== text) {
+    logger.info('Text corrections applied', {
+      operation: 'text-validation',
+      originalLength: text.length,
+      correctedLength: corrected.length,
+      hadDuplicates,
+      hadCapitalizationIssues
+    });
+  }
+
+  return corrected;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return ResponseHandler.corsOptions();
@@ -183,6 +237,15 @@ Deno.serve(async (req) => {
       const contentMatch = fallbackText.match(/CONTENT:\s*([\s\S]*?)(?=CHOICES:|$)/i);
       if (contentMatch) segmentContent = contentMatch[1].trim();
     }
+
+    // ========== TEXT VALIDATION & CORRECTION ==========
+    // Apply post-processing to fix common grammar errors
+    segmentContent = validateAndCorrectText(segmentContent, story.age_group);
+    choices = choices.map(choice => ({
+      ...choice,
+      text: validateAndCorrectText(choice.text, story.age_group),
+      impact: choice.impact ? validateAndCorrectText(choice.impact, story.age_group) : undefined
+    }));
 
     logger.info('Story segment generated successfully', { 
       requestId, 

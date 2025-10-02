@@ -295,37 +295,36 @@ Generate ALL content in ${context.language}:
 
 ` : '';
 
-    const systemPrompt = `You are an expert children's story writer specializing in ${context.ageGroup} stories. Create an engaging story segment that continues from the user's choice.
+    const systemPrompt = `You are an expert children's story writer for ${context.ageGroup}. Create an engaging story segment.
 
-${languageInstructions}🚨 CRITICAL CHARACTER REFERENCE RULES - FOLLOW EXACTLY:
-${characterReferences}
+${languageInstructions}🚨 CRITICAL RULES:
 
-DO NOT use capitalized character names like "Curious Cat" or "Brave Dog". 
-ALWAYS use lowercase references like "the curious cat" or "the brave dog".
-This is MANDATORY and responses with capitalized character names will be REJECTED.
+1. GRAMMAR: Start every sentence with a capital letter. Never repeat words ("the the" ❌).
+2. PRONOUNS: Use "he/she" for animals, not "it". Example: "She wants to explore" ✅
+3. SENSORY DETAILS: Include 2-3 per segment (colors, sounds, textures, feelings).
+4. ENGAGEMENT: Add emotion, dialogue, and varied sentences
+
+CHARACTER REFERENCES: ${characterReferences} (use lowercase: "the curious cat" not "Curious Cat")
 
 STORY REQUIREMENTS:
 - Write between ${wordCount} (aim for the midpoint) for ${context.ageGroup} reading level
 - Use vocabulary appropriate for ${context.ageGroup}: ${guidelines.vocabulary}
-- Sentence structure: ${guidelines.sentences}  
+- Sentence structure: ${guidelines.sentences}
 - Themes: ${guidelines.themes}
 - Complexity: ${guidelines.complexity}
 - Genre: ${context.genre} - Use relevant vocabulary: ${genreWords}
 
-🚨 CHOICE GENERATION REQUIREMENTS - MANDATORY:
-- Create exactly 2 meaningful choices
-- Each choice should be 8-12 words
-- Choices must be appropriate for ${context.ageGroup}
-- Each choice MUST include a specific "impact" field describing the consequence
-- Impact descriptions must be specific and engaging, never "Unknown consequence"
-- Example: {"id": 1, "text": "Follow the glowing path deeper into the forest", "impact": "Leads to a magical clearing with friendly woodland spirits"}
+🚨 CHOICES: Create 2 choices (5-10 words, start with action verb). Each "impact" MUST include ALL 3 elements (2-3 sentences):
+1. Action consequence (what happens)
+2. Emotional response (how character feels)
+3. Anticipation (hint of what's next)
 
 REQUIRED JSON STRUCTURE:
 {
   "content": "story text using lowercase character references",
   "choices": [
-    {"id": 1, "text": "choice text", "impact": "specific description of what this choice leads to"},
-    {"id": 2, "text": "choice text", "impact": "specific description of what this choice leads to"}
+    {"id": 1, "text": "choice text", "impact": "Action: what happens. Emotion: how they feel. Anticipation: what's next?"},
+    {"id": 2, "text": "choice text", "impact": "Action: what happens. Emotion: how they feel. Anticipation: what's next?"}
   ],
   "is_ending": ${context.shouldBeEnding || false}
 }
@@ -339,14 +338,12 @@ ${context.previousContent}
 
 USER'S CHOICE: "${context.choiceText}"
 
-CHARACTER REFERENCES TO USE:
-${characterReferences}
+CHARACTER REFERENCES: ${characterReferences}
 
-EXAMPLE OF CORRECT CHARACTER USAGE:
-❌ WRONG: "Curious Cat smiled and waved."
-✅ CORRECT: "the curious cat smiled and waved."
+Write segment #${context.segmentNumber} (${wordCount} words) that flows naturally from this choice.
 
-Write segment #${context.segmentNumber} (${wordCount} words) that flows naturally from this choice. 
+CHECKLIST: □ Capitals □ No duplicates □ "he/she" not "it" □ 2-3 sensory details □ Emotion
+
 Remember: Use lowercase character references and provide specific impact descriptions for each choice.`;
 
     return {

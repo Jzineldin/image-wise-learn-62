@@ -20,6 +20,60 @@ interface StoryRequest {
   }>;
 }
 
+/**
+ * Text validation and correction function
+ * Fixes common grammar errors in AI-generated text
+ * OPTIMIZED: Eliminates duplicate regex execution
+ */
+function validateAndCorrectText(text: string, ageGroup?: string): string {
+  if (!text) return text;
+
+  let corrected = text;
+
+  // Pre-check for issues (single pass)
+  const duplicatePattern = /\b(\w+)\s+\1\b/gi;
+  const capitalizationPattern = /(^|[.!?]\s+)([a-z])/;
+  const hadDuplicates = duplicatePattern.test(text);
+  const hadCapitalizationIssues = capitalizationPattern.test(text);
+
+  // 1. Fix duplicate words (e.g., "the the" → "the")
+  if (hadDuplicates) {
+    corrected = corrected.replace(/\b(\w+)\s+\1\b/gi, '$1');
+  }
+
+  // 2. Fix sentence capitalization
+  if (hadCapitalizationIssues) {
+    corrected = corrected.replace(/(^|[.!?]\s+)([a-z])/g, (match, separator, letter) => {
+      return separator + letter.toUpperCase();
+    });
+  }
+
+  // 3. Fix multiple spaces
+  corrected = corrected.replace(/\s{2,}/g, ' ');
+
+  // 4. Fix space before punctuation
+  corrected = corrected.replace(/\s+([.!?,;:])/g, '$1');
+
+  // 5. Ensure space after punctuation (except at end)
+  corrected = corrected.replace(/([.!?,;:])([A-Za-z])/g, '$1 $2');
+
+  // 6. Trim whitespace
+  corrected = corrected.trim();
+
+  // Log if corrections were made (reuse pre-check results)
+  if (corrected !== text) {
+    logger.info('Text corrections applied', {
+      operation: 'text-validation',
+      originalLength: text.length,
+      correctedLength: corrected.length,
+      hadDuplicates,
+      hadCapitalizationIssues
+    });
+  }
+
+  return corrected;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -347,6 +401,15 @@ EXAMPLES OF CORRECT SWEDISH:
         ];
       }
     }
+
+    // ========== TEXT VALIDATION & CORRECTION ==========
+    // Apply post-processing to fix common grammar errors
+    storyContent = validateAndCorrectText(storyContent, ageGroup);
+    choices = choices.map((choice: any) => ({
+      ...choice,
+      text: validateAndCorrectText(choice.text, ageGroup),
+      impact: choice.impact ? validateAndCorrectText(choice.impact, ageGroup) : undefined
+    }));
 
     // Enforce word range for opening CONTENT portion (choices handled separately)
     {

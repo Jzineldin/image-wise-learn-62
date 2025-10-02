@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useStories } from '@/hooks/useDataFetching';
 import { logger } from '@/lib/logger';
+import { SkeletonCard } from '@/components/ui/loading-states';
 
 interface Story {
   id: string;
@@ -91,8 +92,24 @@ const MyStories = () => {
       <div className="min-h-screen">
         <Navigation />
         <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center h-64">
-            <div className="loading-spinner h-8 w-8" />
+          {/* Header skeleton */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12">
+            <div className="flex-1">
+              <div className="h-10 bg-muted rounded w-48 mb-2 animate-pulse" />
+              <div className="h-4 bg-muted rounded w-64 animate-pulse" />
+            </div>
+            <div className="h-10 bg-muted rounded w-32 mt-4 md:mt-0 animate-pulse" />
+          </div>
+
+          {/* Search and filter skeleton */}
+          <div className="flex flex-col md:flex-row gap-4 mb-8">
+            <div className="flex-1 h-10 bg-muted rounded animate-pulse" />
+            <div className="h-10 bg-muted rounded w-32 animate-pulse" />
+          </div>
+
+          {/* Story cards skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <SkeletonCard count={6} />
           </div>
         </div>
         <Footer />

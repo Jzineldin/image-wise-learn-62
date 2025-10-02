@@ -14,7 +14,7 @@ export interface CreditCosts {
 // Credit cost configuration
 export const CREDIT_COSTS: CreditCosts = {
   storyGeneration: 2,     // 2 credits for initial story generation
-  storySegment: 2,        // 2 credits per story segment (1 text + 1 image)
+  storySegment: 1,        // 1 credit per story segment (text only - images charged separately)
   audioGeneration: 1,     // 1 credit per 100 words of audio
   imageGeneration: 1,     // 1 credit per image
   storyTitle: 0           // Free

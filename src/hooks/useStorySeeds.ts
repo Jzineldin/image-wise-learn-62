@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { StorySeed, UserCharacter } from '@/types/character';
 import { logger, generateRequestId } from '@/lib/debug';
-import { AIClient } from '@/lib/ai-client';
+import { AIClient } from '@/lib/api/ai-client';
 
 export const useStorySeeds = () => {
   const [seeds, setSeeds] = useState<StorySeed[]>([]);

@@ -3,6 +3,7 @@ import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { logger } from '@/lib/production-logger';
+import { isStoryCompleted } from '@/lib/helpers/story-helpers';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -144,9 +145,7 @@ const ProtectedRoute = ({
       }
 
       // Allow access to completed stories in both modes
-      const isCompleted = storyData.status === 'completed' || 
-                         storyData.is_completed || 
-                         storyData.is_complete;
+      const isCompleted = isStoryCompleted(storyData);
 
       // Check access permissions
       const isOwner = user && (storyData.author_id === user.id || storyData.user_id === user.id);

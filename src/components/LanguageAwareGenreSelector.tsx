@@ -69,6 +69,8 @@ const LanguageAwareGenreSelector: React.FC<LanguageAwareGenreSelectorProps> = ({
                 src={GENRE_IMAGES[genre as GenreKey]}
                 alt={`Genre ${genre}`}
                 className="absolute inset-0 w-full h-full object-cover"
+                loading="lazy"
+                decoding="async"
                 onError={(e) => {
                   logger.warn('Failed to load genre image', {
                     imageUrl: GENRE_IMAGES[genre as GenreKey],

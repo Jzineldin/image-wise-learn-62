@@ -45,7 +45,7 @@ const App = () => {
   useEffect(() => {
     performanceMonitor.trackPageLoad('App');
     performanceMonitor.trackBundleMetrics();
-    
+
     // Log memory usage in development
     if (import.meta.env.DEV) {
       const memoryUsage = performanceMonitor.getMemoryUsage();
@@ -53,6 +53,41 @@ const App = () => {
         logger.debug('Initial memory usage', memoryUsage);
       }
     }
+  }, []);
+
+  // Global error handlers with proper cleanup
+  useEffect(() => {
+    const errorHandler = (event: ErrorEvent) => {
+      const err = event.error;
+      const message = event.message;
+      const actionable = (err && (err.message || err.stack)) ||
+                         (typeof message === 'string' && message.trim() && message !== 'Script error.');
+
+      if (!actionable) return;
+
+      logger.error('Global error caught', err ?? message, {
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        operation: 'global-error'
+      });
+    };
+
+    const rejectionHandler = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      if (!reason) return;
+      logger.error('Unhandled promise rejection', reason, {
+        operation: 'unhandled-rejection'
+      });
+    };
+
+    window.addEventListener('error', errorHandler);
+    window.addEventListener('unhandledrejection', rejectionHandler);
+
+    return () => {
+      window.removeEventListener('error', errorHandler);
+      window.removeEventListener('unhandledrejection', rejectionHandler);
+    };
   }, []);
 
   return (
@@ -71,9 +106,18 @@ const App = () => {
                 <Sonner />
                 {/* Context7 Pattern: Enhanced Suspense boundary with proper loading state */}
                 <Suspense fallback={<PageLoadingSpinner text="Loading application..." />}>
-                  <Routes>
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/" element={<Index />} />
+                  <main id="main-content" role="main" tabIndex={-1}>
+                    <Routes>
+                    <Route path="/auth" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Authentication" />}>
+                        <Auth />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Home" />}>
+                        <Index />
+                      </ErrorBoundary>
+                    } />
 
                     <Route path="/create" element={
                       <ErrorBoundary fallback={(error) => <RouteErrorFallback error={error} context="Create" />}>
@@ -151,15 +195,48 @@ const App = () => {
                       </ErrorBoundary>
                     } />
 
-                    <Route path="/about" element={<About />} />
-                    <Route path="/pricing" element={<Pricing />} />
-                    <Route path="/success" element={<Success />} />
-                    <Route path="/contact" element={<Contact />} />
-                    <Route path="/privacy" element={<Privacy />} />
-                    <Route path="/terms" element={<Terms />} />
-                    <Route path="/testimonials" element={<TestimonialsPage />} />
-                     <Route path="*" element={<NotFoundPage />} />
+                    <Route path="/about" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="About" />}>
+                        <About />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/pricing" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Pricing" />}>
+                        <Pricing />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/success" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Success" />}>
+                        <Success />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/contact" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Contact" />}>
+                        <Contact />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/privacy" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Privacy Policy" />}>
+                        <Privacy />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/terms" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Terms of Service" />}>
+                        <Terms />
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/testimonials" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Testimonials" />}>
+                        <TestimonialsPage />
+                      </ErrorBoundary>
+                    } />
+                     <Route path="*" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Page Not Found" />}>
+                        <NotFoundPage />
+                      </ErrorBoundary>
+                    } />
                    </Routes>
+                  </main>
                    {/* React Query Devtools - only shows in development */}
                    <ReactQueryDevtools initialIsOpen={false} />
                </Suspense>

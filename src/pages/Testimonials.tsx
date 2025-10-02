@@ -200,7 +200,7 @@ The journey from clueless student to global runner-up taught me that sometimes t
         {/* Header */}
         <section className="py-12">
           <div className="container mx-auto px-4 text-center">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Our Story & Community
             </h1>
             <p className="text-muted-foreground text-lg md:text-xl max-w-3xl mx-auto">
@@ -215,7 +215,7 @@ The journey from clueless student to global runner-up taught me that sometimes t
             <Card className="max-w-4xl mx-auto glass-card">
               <CardContent className="p-8">
                 <div className="text-center mb-8">
-                  <div className="w-20 h-20 bg-gradient-to-r from-primary to-primary-glow rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-20 h-20 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center mx-auto mb-4">
                     <Sparkles className="w-10 h-10 text-white" />
                   </div>
                   <h2 className="text-2xl md:text-3xl font-bold mb-2">{creatorStory.name}</h2>

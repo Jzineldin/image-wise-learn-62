@@ -45,10 +45,21 @@ const Navigation = ({ className = "" }: NavigationProps) => {
   };
 
   return (
-    <nav className={`glass-card border-b border-primary/10 sticky top-0 z-50 ${className}`}>
+    <nav aria-label="Main navigation" className={`glass-card border-b border-primary/10 sticky top-0 z-50 ${className}`}>
+      {/* Skip to main content link for accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+      >
+        Skip to main content
+      </a>
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+          <Link
+            to="/"
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+            aria-label="Tale Forge home"
+          >
             <picture>
               <source srcSet={taleForgeLogoImage} type="image/webp" />
               <img
@@ -100,6 +111,9 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                     variant="ghost"
                     onClick={() => setShowUserMenu(!showUserMenu)}
                     className="flex items-center gap-2"
+                    aria-label="User menu"
+                    aria-expanded={showUserMenu}
+                    aria-haspopup="true"
                   >
                     <User className="w-4 h-4" />
                     {user.email?.split('@')[0]}
@@ -139,6 +153,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                         <button
                           onClick={handleSignOut}
                           className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted/50 transition-colors w-full text-left"
+                          aria-label="Sign out of your account"
                         >
                           <LogOut className="w-4 h-4" />
                           Sign Out

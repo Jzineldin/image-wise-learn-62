@@ -68,7 +68,7 @@ export class AIClient {
     body: any,
     options: { timeout?: number; retries?: number } = {}
   ): Promise<AIClientResponse<T>> {
-    const { timeout = 30000, retries = 1 } = options; // Reduced default retries
+    const { timeout = 30000, retries = 0 } = options; // No retries for credit operations to prevent double charges
     
     // Check circuit breaker
     const failures = this.failureCount.get(functionName) || 0;

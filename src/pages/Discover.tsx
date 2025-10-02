@@ -1,15 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, ThumbsUp, Eye, Filter, Book } from 'lucide-react';
+import { Search, ThumbsUp, Eye, Filter, Book, Loader2 } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import StoryCard from '@/components/StoryCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { logger } from '@/lib/production-logger';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
+import { PAGINATION } from '@/lib/constants/query-constants';
+import { SkeletonCard } from '@/components/ui/loading-states';
+import { isStoryCompleted } from '@/lib/helpers/story-helpers';
 
 const Discover = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,14 +20,20 @@ const Discover = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Fetch public stories with React Query for better caching and performance
+  // Fetch public stories with infinite scroll using React Query
   const {
-    data: publicStories = [],
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
     isLoading: loading,
     error
-  } = useQuery({
-    queryKey: [...queryKeys.featuredStories, selectedGenre, searchQuery],
-    queryFn: async () => {
+  } = useInfiniteQuery({
+    queryKey: ['discover-stories', selectedGenre, searchQuery],
+    queryFn: async ({ pageParam = 0 }) => {
+      const startRange = pageParam;
+      const endRange = pageParam + PAGINATION.pageSize - 1;
+
       let query = supabase
         .from('stories')
         .select(`
@@ -43,7 +52,7 @@ const Discover = () => {
         .eq('visibility', 'public')
         .or('status.eq.completed,is_completed.eq.true,is_complete.eq.true')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .range(startRange, endRange);
 
       if (selectedGenre !== 'all') {
         query = query.eq('genre', selectedGenre);
@@ -54,21 +63,36 @@ const Discover = () => {
       }
 
       const { data, error } = await query;
-      
+
       if (error) {
         logger.error('Error loading public stories', error, {
           operation: 'discover-load-stories',
           selectedGenre,
-          searchQuery
+          searchQuery,
+          pageParam
         });
         throw error;
       }
-      
+
       return data || [];
     },
+    getNextPageParam: (lastPage, allPages) => {
+      // If the last page has fewer items than pageSize, we've reached the end
+      if (lastPage.length < PAGINATION.pageSize) {
+        return undefined;
+      }
+      // Return the next page offset
+      return allPages.length * PAGINATION.pageSize;
+    },
+    initialPageParam: 0,
     staleTime: 2 * 60 * 1000, // 2 minutes for public content
     gcTime: 5 * 60 * 1000, // 5 minutes cache
   });
+
+  // Flatten all pages into a single array
+  const publicStories = useMemo(() => {
+    return data?.pages.flatMap(page => page) || [];
+  }, [data]);
 
   useEffect(() => {
     supabase.auth.getUser()
@@ -137,8 +161,8 @@ const Discover = () => {
           </h2>
           
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="loading-spinner h-8 w-8" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <SkeletonCard count={6} />
             </div>
           ) : publicStories.length === 0 ? (
             <div className="text-center py-12">
@@ -149,16 +173,49 @@ const Discover = () => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {publicStories.map((story) => (
-                <StoryCard
-                  key={story.id}
-                  story={story}
-                  variant="discover"
-                  currentUserId={currentUserId}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {publicStories.map((story) => (
+                  <StoryCard
+                    key={story.id}
+                    story={story}
+                    variant="discover"
+                    currentUserId={currentUserId}
+                  />
+                ))}
+              </div>
+
+              {/* Load More Button */}
+              {hasNextPage && (
+                <div className="flex justify-center mt-8">
+                  <Button
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetchingNextPage}
+                    className="btn-primary px-8 py-3"
+                    aria-label="Load more stories"
+                  >
+                    {isFetchingNextPage ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Loading more stories...
+                      </>
+                    ) : (
+                      <>
+                        <Book className="w-4 h-4 mr-2" />
+                        Load More Stories
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* End of results message */}
+              {!hasNextPage && publicStories.length > 0 && (
+                <div className="text-center mt-8 text-text-secondary">
+                  <p>You've reached the end of the stories. Check back later for more!</p>
+                </div>
+              )}
+            </>
           )}
         </section>
 
