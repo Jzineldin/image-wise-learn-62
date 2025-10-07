@@ -1146,6 +1146,25 @@ export type Database = {
           title: string
         }[]
       }
+      get_feedback_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          feedback_by_type: Json
+          in_progress_feedback: number
+          new_feedback: number
+          resolved_feedback: number
+          total_feedback: number
+        }[]
+      }
+      get_live_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          completed_stories: number
+          founder_count: number
+          total_stories: number
+          total_users: number
+        }[]
+      }
       get_prompt_template: {
         Args: { language_code?: string; template_key: string }
         Returns: string

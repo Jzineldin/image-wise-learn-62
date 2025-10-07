@@ -2,23 +2,11 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Crown, X, Sparkles, Clock, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useLiveStats } from '@/hooks/useLiveStats';
 
 const BetaAnnouncementBanner = () => {
   const [isVisible, setIsVisible] = useState(true);
-  const [userCount, setUserCount] = useState(47); // Start at 47 to create urgency
-
-  // Simulate user count increasing (creates FOMO)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setUserCount(prev => {
-        // Randomly increase by 1-3 every 30 seconds
-        const increase = Math.floor(Math.random() * 3) + 1;
-        return prev + increase;
-      });
-    }, 30000); // Every 30 seconds
-
-    return () => clearInterval(interval);
-  }, []);
+  const { stats, isLoading } = useLiveStats();
 
   // Check if user has dismissed the banner
   useEffect(() => {
@@ -59,12 +47,12 @@ const BetaAnnouncementBanner = () => {
                 {' • '}
                 <span className="inline-flex items-center gap-1">
                   <Users className="w-3 h-3" />
-                  <strong>{userCount}</strong> founders joined
+                  <strong>{isLoading ? '...' : stats.founderCount}</strong> founders joined
                 </span>
                 {' • '}
                 <span className="inline-flex items-center gap-1 text-red-500 dark:text-red-400">
                   <Clock className="w-3 h-3 animate-pulse" />
-                  <strong>{1000 - userCount} spots left</strong>
+                  <strong>{1000 - (isLoading ? 8 : stats.founderCount)} spots left</strong>
                 </span>
               </p>
             </div>

@@ -13,9 +13,11 @@ import heroBookImage from '@/assets/hero-book.jpg';
 import childrenStoriesImage from '@/assets/children-stories.jpg';
 import aiStorytellingImage from '@/assets/ai-storytelling.jpg';
 import { useEffect, useState } from 'react';
+import { useLiveStats } from '@/hooks/useLiveStats';
 
 const Index = () => {
   const [sampleDataAdded, setSampleDataAdded] = useState(false);
+  const { stats, isLoading } = useLiveStats();
 
   // Add sample featured stories on first visit (development aid)
   useEffect(() => {
@@ -92,11 +94,11 @@ const Index = () => {
     }
   ];
 
-  const stats = [
-    { number: "10,000+", label: "Stories Created", icon: <BookOpen className="w-5 h-5" /> },
-    { number: "5,000+", label: "Active Users", icon: <Users className="w-5 h-5" /> },
+  const displayStats = [
+    { number: "5,000+", label: "Stories Created", icon: <BookOpen className="w-5 h-5" /> },
     { number: "50+", label: "Countries", icon: <Globe className="w-5 h-5" /> },
-    { number: "98%", label: "Satisfaction Rate", icon: <Star className="w-5 h-5" /> }
+    { number: "Swedish & English", label: "AI Storytelling", icon: <Sparkles className="w-5 h-5" /> },
+    { number: "100%", label: "5-Star Rated", icon: <Star className="w-5 h-5" /> }
   ];
 
   const howItWorks = [
@@ -177,11 +179,15 @@ const Index = () => {
               <div className="flex items-center gap-6 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-primary" />
-                  <span><strong className="text-foreground">47+</strong> founders joined</span>
+                  <span>
+                    <strong className="text-foreground">
+                      {isLoading ? '...' : stats.founderCount}
+                    </strong> founding members
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                  <span><strong className="text-foreground">5.0</strong> rating</span>
+                  <span><strong className="text-foreground">5.0★</strong> from 35+ reviews</span>
                 </div>
               </div>
             </div>
@@ -236,7 +242,7 @@ const Index = () => {
         <div className="container mx-auto max-w-4xl">
           <div className="glass-card-primary p-8">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-              {stats.map((stat, index) => (
+              {displayStats.map((stat, index) => (
                 <div key={index} className="text-center">
                   <div className="flex items-center justify-center mb-2 text-primary">
                     {stat.icon}
