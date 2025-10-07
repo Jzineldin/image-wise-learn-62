@@ -19,6 +19,7 @@ import { ThemeSelect, ThemeStatus } from '@/components/ThemeToggle';
 import { usePageThemeClasses } from '@/components/ThemeProvider';
 import { useSubscription } from '@/hooks/useSubscription';
 import { SkeletonText, SkeletonAvatar, SkeletonButton } from '@/components/ui/loading-states';
+import FounderBadge from '@/components/FounderBadge';
 
 interface Profile {
   id: string;
@@ -46,7 +47,7 @@ const Settings = () => {
     public_profile: false,
     discoverable_stories: true,
   });
-  const { user } = useAuth();
+  const { user, profile: authProfile } = useAuth();
   const { toast } = useToast();
   const { subscribed, tier, openCustomerPortal, checkSubscription, loading: subLoading } = useSubscription();
   const { availableLanguages, translate } = useLanguage();
@@ -336,11 +337,24 @@ const Settings = () => {
             {/* Profile Settings */}
             <Card id="profile" className="glass-card-elevated">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5" />
-                  Profile Information
-                </CardTitle>
-                <p className="text-sm text-text-secondary mt-1">Update your personal details and language.</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="w-5 h-5" />
+                      Profile Information
+                    </CardTitle>
+                    <p className="text-sm text-text-secondary mt-1">Update your personal details and language.</p>
+                  </div>
+                  {authProfile?.is_beta_user && (
+                    <FounderBadge
+                      founderStatus={authProfile.founder_status}
+                      isBetaUser={authProfile.is_beta_user}
+                      betaJoinedAt={authProfile.beta_joined_at}
+                      size="md"
+                      showLabel
+                    />
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

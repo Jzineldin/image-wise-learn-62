@@ -10,6 +10,7 @@ import CreditDisplay from './CreditDisplay';
 import { useOnboarding } from './OnboardingTour';
 import { ThemeToggle } from './ThemeToggle';
 import FeedbackDialog from './FeedbackDialog';
+import FounderBadge from './FounderBadge';
 import { logger } from '@/lib/production-logger';
 
 interface NavigationProps {
@@ -17,7 +18,7 @@ interface NavigationProps {
 }
 
 const Navigation = ({ className = "" }: NavigationProps) => {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { startTour } = useOnboarding();
@@ -134,6 +135,14 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                   >
                     <User className="w-4 h-4" />
                     {user.email?.split('@')[0]}
+                    {profile?.is_beta_user && (
+                      <FounderBadge
+                        founderStatus={profile.founder_status}
+                        isBetaUser={profile.is_beta_user}
+                        betaJoinedAt={profile.beta_joined_at}
+                        size="sm"
+                      />
+                    )}
                   </Button>
                 
                   {showUserMenu && (

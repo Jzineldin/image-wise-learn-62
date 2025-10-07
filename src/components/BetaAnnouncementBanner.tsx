@@ -3,10 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Crown, X, Sparkles, Clock, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLiveStats } from '@/hooks/useLiveStats';
+import { useAuth } from '@/hooks/useAuth';
 
 const BetaAnnouncementBanner = () => {
   const [isVisible, setIsVisible] = useState(true);
   const { stats, isLoading } = useLiveStats();
+  const { profile } = useAuth();
 
   // Check if user has dismissed the banner
   useEffect(() => {
@@ -21,6 +23,9 @@ const BetaAnnouncementBanner = () => {
     localStorage.setItem('beta-banner-dismissed', 'true');
   };
 
+  // Hide banner if user is already a founder
+  if (profile?.is_beta_user) return null;
+  
   if (!isVisible) return null;
 
   return (

@@ -16,6 +16,8 @@ import UsageAnalytics from '@/components/UsageAnalytics';
 import OnboardingTour, { useOnboarding } from '@/components/OnboardingTour';
 import StoryCard from '@/components/StoryCard';
 import { SkeletonCard } from '@/components/ui/loading-states';
+import { useFounderWelcome } from '@/hooks/useFounderWelcome';
+import FounderBadge from '@/components/FounderBadge';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -27,10 +29,13 @@ const Dashboard = () => {
     voiceMinutes: 0
   });
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { tier, subscribed } = useSubscription();
   const { showTour, closeTour } = useOnboarding();
   const { data: stories = [], isLoading: storiesLoading } = useStories();
+  
+  // Show welcome toast for new founders
+  useFounderWelcome();
 
   // Process stories to calculate segment counts
   const recentStories = useMemo(() => {
@@ -82,9 +87,20 @@ const Dashboard = () => {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div className="content-overlay flex-1">
-            <h1 className="text-4xl font-heading font-bold text-gradient mb-2">
-              Welcome Back, Storyteller!
-            </h1>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-4xl font-heading font-bold text-gradient">
+                Welcome Back, Storyteller!
+              </h1>
+              {profile?.is_beta_user && (
+                <FounderBadge
+                  founderStatus={profile.founder_status}
+                  isBetaUser={profile.is_beta_user}
+                  betaJoinedAt={profile.beta_joined_at}
+                  size="lg"
+                  showLabel
+                />
+              )}
+            </div>
             <p className="text-xl text-text-secondary">
               Ready to create your next magical adventure?
             </p>
