@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, ArrowRight, BookOpen, Users, Sparkles, Wand2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Users, Sparkles, Wand2, Save } from 'lucide-react';
 import { t } from '@/constants/translations';
 import { AgeGenreStep } from './AgeGenreStep';
 import { CharacterSelectionStep } from './CharacterSelectionStep';
@@ -9,7 +9,9 @@ import { StoryIdeaStep } from './StoryIdeaStep';
 import { ReviewStep } from './ReviewStep';
 import { useStoryStore } from '@/stores/storyStore';
 import { useStoryValidation, useRateLimit } from '@/hooks/useInputValidation';
+import { useAutoSave } from '@/hooks/use-auto-save';
 import { toast } from 'sonner';
+import { useCallback, useMemo, useEffect } from 'react';
 
 
 interface StoryCreationWizardProps {
@@ -26,13 +28,29 @@ export const StoryCreationWizard = ({
   const { currentFlow: flow, isGenerating: generating, updateFlow } = useStoryStore();
   
   // Input validation and rate limiting
-  const { validate, getFieldError, hasFieldError } = useStoryValidation({ 
-    validateOnChange: true, 
-    sanitizeInputs: true 
+  const { validate, getFieldError, hasFieldError } = useStoryValidation({
+    validateOnChange: true,
+    sanitizeInputs: true
   });
   const { checkRateLimit } = useRateLimit(5, 60000); // 5 story creations per minute
 
-  const tr = (key: string) => t(key, selectedLanguage);
+  // Auto-save hook with 2s debounce
+  const { isSaving, lastSaved } = useAutoSave({
+    ageGroup: flow.ageGroup,
+    genres: flow.genres,
+    selectedCharacters: flow.selectedCharacters,
+    selectedSeed: flow.selectedSeed,
+    customSeed: flow.customSeed,
+    step: flow.step,
+    languageCode: selectedLanguage,
+  }, {
+    debounceMs: 2000,
+    enableLocalStorage: true,
+    enableToasts: false,
+  });
+
+  // Memoized translation function
+  const tr = useCallback((key: string) => t(key, selectedLanguage), [selectedLanguage]);
 
   const STEPS = [
     { id: 1, title: tr('storyCreation.steps.ageAndGenre'), icon: BookOpen },
@@ -41,72 +59,77 @@ export const StoryCreationWizard = ({
     { id: 4, title: tr('storyCreation.steps.review'), icon: Wand2 }
   ];
 
-  const handleNext = () => {
+  // Memoized event handlers to prevent re-renders
+  const handleNext = useCallback(() => {
     if (flow.step < STEPS.length) {
       updateFlow({ step: flow.step + 1 });
     }
-  };
+  }, [flow.step, updateFlow]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (flow.step > 1) {
       updateFlow({ step: flow.step - 1 });
     }
-  };
+  }, [flow.step, updateFlow]);
 
-  const handleAgeGroupSelect = (ageGroup: string) => {
+  const handleAgeGroupSelect = useCallback((ageGroup: string) => {
     updateFlow({ ageGroup });
-  };
+  }, [updateFlow]);
 
-  const handleGenreToggle = (genre: string) => {
+  const handleGenreToggle = useCallback((genre: string) => {
     // Limit to a single primary genre
     updateFlow({ genres: [genre] });
-  };
+  }, [updateFlow]);
 
-  const canProceedFromStep = (step: number): boolean => {
-    switch (step) {
-      case 1:
-        return !!flow.ageGroup && flow.genres.length > 0;
-      case 2:
-        return true; // Characters are optional
-      case 3:
-        const seedText = typeof flow.selectedSeed === 'object' && flow.selectedSeed 
-          ? flow.selectedSeed.title || flow.selectedSeed.description || ''
-          : String(flow.selectedSeed || '');
-        const customText = flow.customSeed?.trim() || '';
-        const finalSeedText = seedText || customText;
-        
-        if (!finalSeedText) return false;
-        
-        // Basic validation for story seed
-        if (finalSeedText.length < 10 || finalSeedText.length > 1000) {
-          return false;
-        }
-        return true;
-      case 4:
-        // Final validation before submission
-        const seedForValidation = typeof flow.selectedSeed === 'object' && flow.selectedSeed
-          ? flow.selectedSeed.title || flow.selectedSeed.description || ''
-          : String(flow.selectedSeed || flow.customSeed || '');
+  // Memoized validation function - expensive operation
+  const canProceedFromStep = useMemo(() => {
+    return (step: number): boolean => {
+      switch (step) {
+        case 1:
+          return !!flow.ageGroup && flow.genres.length > 0;
+        case 2:
+          return true; // Characters are optional
+        case 3:
+          const seedText = typeof flow.selectedSeed === 'object' && flow.selectedSeed
+            ? flow.selectedSeed.title || flow.selectedSeed.description || ''
+            : String(flow.selectedSeed || '');
+          const customText = flow.customSeed?.trim() || '';
+          const finalSeedText = seedText || customText;
           
-        const storyData = {
-          title: 'My Story',
-          prompt: seedForValidation,
-          genre: flow.genres[0], // Use first selected genre
-          ageGroup: flow.ageGroup,
-          languageCode: selectedLanguage,
-          characters: flow.selectedCharacters
-        };
-        
-        const validationResult = validate(storyData);
-        return validationResult.isValid;
-      default:
-        return true;
-    }
-  };
+          if (!finalSeedText) return false;
+          
+          // Basic validation for story seed
+          if (finalSeedText.length < 10 || finalSeedText.length > 1000) {
+            return false;
+          }
+          return true;
+        case 4:
+          // Final validation before submission
+          const seedForValidation = typeof flow.selectedSeed === 'object' && flow.selectedSeed
+            ? flow.selectedSeed.title || flow.selectedSeed.description || ''
+            : String(flow.selectedSeed || flow.customSeed || '');
+            
+          const storyData = {
+            title: 'My Story',
+            prompt: seedForValidation,
+            genre: flow.genres[0], // Use first selected genre
+            ageGroup: flow.ageGroup,
+            languageCode: selectedLanguage,
+            characters: flow.selectedCharacters
+          };
+          
+          const validationResult = validate(storyData);
+          return validationResult.isValid;
+        default:
+          return true;
+      }
+    };
+  }, [flow.ageGroup, flow.genres, flow.selectedSeed, flow.customSeed, flow.selectedCharacters, selectedLanguage, validate]);
 
-  const progress = (flow.step / STEPS.length) * 100;
+  // Memoized progress calculation
+  const progress = useMemo(() => (flow.step / STEPS.length) * 100, [flow.step]);
 
-  const handleStepClick = (targetStep: number) => {
+  const handleStepClick = useCallback((targetStep: number) => {
     // TEMP DIAGNOSTIC LOG
     // eslint-disable-next-line no-console
     console.log('[Wizard.handleStepClick] invoked', { targetStep, currentStep: flow.step, ts: Date.now() });
@@ -114,9 +137,9 @@ export const StoryCreationWizard = ({
     if (targetStep < flow.step) {
       updateFlow({ step: targetStep });
     }
-  };
+  }, [flow.step, updateFlow]);
 
-  const handleIndicatorRowClick = (e: any) => {
+  const handleIndicatorRowClick = useCallback((e: any) => {
     const el = (e.target as HTMLElement).closest('[data-step-id]') as HTMLElement | null;
     if (!el) return;
     const target = Number(el.getAttribute('data-step-id'));
@@ -125,7 +148,7 @@ export const StoryCreationWizard = ({
     if (!Number.isNaN(target)) {
       handleStepClick(target);
     }
-  };
+  }, [handleStepClick]);
 
 
   // TEMP DIAGNOSTIC LOG OF RENDERED STEP
@@ -144,7 +167,20 @@ export const StoryCreationWizard = ({
           >
             {tr('ui.step')} {flow.step} {tr('ui.of')} {STEPS.length}
           </span>
-          <span className="text-sm text-muted-foreground">{Math.round(progress)}% {tr('ui.completeLabel')}</span>
+          <div className="flex items-center gap-2">
+            {isSaving && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Save className="h-3 w-3 animate-pulse" />
+                Saving...
+              </span>
+            )}
+            {!isSaving && lastSaved && (
+              <span className="text-xs text-muted-foreground">
+                Saved {new Date(lastSaved).toLocaleTimeString()}
+              </span>
+            )}
+            <span className="text-sm text-muted-foreground">{Math.round(progress)}% {tr('ui.completeLabel')}</span>
+          </div>
         </div>
         <Progress value={progress} className="h-2" />
 
@@ -175,7 +211,7 @@ export const StoryCreationWizard = ({
                 title={canClick ? `Go to ${step.title}` : step.title}
               >
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
+                  className={`w-12 h-12 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
                     isActive
                       ? 'bg-primary border-primary text-primary-foreground'
                       : isCompleted
@@ -184,10 +220,10 @@ export const StoryCreationWizard = ({
                   }`}
                   data-step-id={step.id}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-5 w-5 sm:h-4 sm:w-4" />
                 </div>
                 <span
-                  className={`text-xs mt-1 ${isActive ? 'font-medium' : 'text-muted-foreground'}`}
+                  className={`text-xs mt-1 text-center max-w-[80px] ${isActive ? 'font-medium' : 'text-muted-foreground'}`}
                   data-step-id={step.id}
                 >
                   {step.title}
@@ -200,7 +236,7 @@ export const StoryCreationWizard = ({
 
       {/* Step Content */}
       <Card>
-        <CardContent className="p-8">
+        <CardContent className="p-4 sm:p-6 md:p-8">
           {flow.step === 1 && (
             <div data-testid="wizard-step-age-genre">
               <AgeGenreStep
@@ -251,25 +287,27 @@ export const StoryCreationWizard = ({
         </CardContent>
       </Card>
 
-      {/* Navigation */}
+      {/* Navigation - Mobile Optimized */}
       {flow.step < 4 && (
-        <div className="flex justify-between">
+        <div className="flex justify-between gap-4">
           <Button
             variant="outline"
             onClick={handleBack}
             disabled={flow.step === 1}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 min-h-[44px] flex-1 sm:flex-initial"
           >
             <ArrowLeft className="h-4 w-4" />
-            {tr('ui.back')}
+            <span className="hidden sm:inline">{tr('ui.back')}</span>
+            <span className="sm:hidden">Back</span>
           </Button>
 
           <Button
             onClick={handleNext}
             disabled={!canProceedFromStep(flow.step)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 min-h-[44px] flex-1 sm:flex-initial"
           >
-            {tr('ui.next')}
+            <span className="hidden sm:inline">{tr('ui.next')}</span>
+            <span className="sm:hidden">Next</span>
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>

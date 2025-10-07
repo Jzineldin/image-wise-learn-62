@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { LazyImage } from '@/components/LazyImage';
 import { useFeaturedStories } from '@/hooks/useDataFetching';
 import { logger } from '@/lib/logger';
 import { ANIMATION_DELAYS } from '@/lib/constants/query-constants';
@@ -112,16 +113,6 @@ const FeaturedStoriesCarousel = () => {
     [featuredStories, currentIndex]
   );
 
-  // Context7 Pattern: Memoize background style to prevent recalculation
-  const backgroundStyle = useMemo(() =>
-    currentStory?.preview_image_url ? {
-      backgroundImage: `url(${currentStory.preview_image_url})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-    } : {},
-    [currentStory?.preview_image_url]
-  );
-
   if (loading) {
     return (
       <div className="relative max-w-md w-full rounded-2xl overflow-hidden min-h-[400px] glass-card-dark">
@@ -174,19 +165,30 @@ const FeaturedStoriesCarousel = () => {
       aria-label="Featured stories carousel"
       aria-live="polite"
       className="relative max-w-md w-full rounded-2xl overflow-hidden min-h-[400px] shadow-2xl hover:shadow-[0_20px_50px_rgba(255,255,255,0.1)] transition-all duration-500 hover:scale-[1.02] group"
-      style={backgroundStyle}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
+      {/* Background Image with Lazy Loading */}
+      {currentStory.preview_image_url ? (
+        <LazyImage
+          src={currentStory.preview_image_url}
+          alt={`${currentStory.title} preview`}
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="eager"
+        />
+      ) : (
+        <div className="absolute inset-0 glass-card-dark" />
+      )}
+      
       {/* Background overlay for text readability */}
-      <div className={`absolute inset-0 transition-all duration-500 ${currentStory.preview_image_url 
-        ? 'bg-gradient-to-t from-black/90 via-black/60 to-black/40 group-hover:from-black/95 group-hover:via-black/70' 
-        : 'glass-card-dark'
+      <div className={`absolute inset-0 transition-all duration-500 ${currentStory.preview_image_url
+        ? 'bg-gradient-to-t from-black/90 via-black/60 to-black/40 group-hover:from-black/95 group-hover:via-black/70'
+        : ''
       }`} />
       
       {/* Fallback icon when no image */}
       {!currentStory.preview_image_url && (
-        <div className="absolute top-8 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-white/10 rounded-full flex items-center justify-center">
+        <div className="absolute top-8 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-white/10 rounded-full flex items-center justify-center z-10">
           <BookOpen className="w-8 h-8 text-foreground" />
         </div>
       )}

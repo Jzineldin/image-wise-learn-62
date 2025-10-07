@@ -1,0 +1,255 @@
+/**
+ * Mobile Optimization Styles for Tale Forge
+ * Ensures proper touch targets (minimum 44x44px) and mobile-friendly interactions
+ */
+
+/* Ensure all buttons meet minimum touch target size on mobile */
+@media (max-width: 768px) {
+  /* Base button touch targets */
+  button:not([class*="min-h-"]),
+  [role="button"]:not([class*="min-h-"]),
+  a[class*="Button"]:not([class*="min-h-"]) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Touch-friendly padding for interactive elements */
+  button,
+  [role="button"],
+  a[class*="Button"] {
+    padding: 12px 16px;
+  }
+
+  /* Icon-only buttons */
+  button[aria-label]:not(:has(span)),
+  [role="button"][aria-label]:not(:has(span)) {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
+  }
+
+  /* Links that act as buttons */
+  a[class*="btn"] {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 12px 16px;
+  }
+
+  /* Form inputs */
+  input,
+  textarea,
+  select {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  /* Card interactive elements */
+  [class*="Card"] button,
+  [class*="card"] button {
+    min-height: 44px;
+  }
+
+  /* Dialog/Modal buttons */
+  [role="dialog"] button {
+    min-height: 44px;
+    padding: 12px 20px;
+  }
+
+  /* Navigation links */
+  nav a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Prevent text zoom on inputs in iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Improve tap area for small icons */
+  button svg,
+  [role="button"] svg {
+    pointer-events: none; /* Ensures the button itself receives the tap */
+  }
+
+  /* Touch-friendly spacing for lists */
+  [role="list"] > *,
+  [role="listitem"] {
+    padding: 12px 8px;
+  }
+
+  /* Improved touch targets for tabs */
+  [role="tab"] {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 16px;
+  }
+
+  /* Slider/Range inputs */
+  input[type="range"] {
+    min-height: 44px;
+  }
+
+  /* Checkbox and radio buttons - larger touch area */
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 24px;
+    min-height: 24px;
+    margin: 10px; /* Adds space around for easier tapping */
+  }
+
+  /* Labels for checkboxes/radios */
+  label:has(input[type="checkbox"]),
+  label:has(input[type="radio"]) {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+}
+
+/* Mobile menu optimizations */
+@media (max-width: 768px) {
+  /* Mobile menu items */
+  nav [role="menu"] a,
+  nav [role="menuitem"] {
+    min-height: 48px;
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+
+  /* Dropdown menu items */
+  [role="menu"] button,
+  [role="menuitem"] {
+    min-height: 44px;
+    width: 100%;
+    text-align: left;
+    padding: 12px 16px;
+  }
+}
+
+/* Improved focus states for accessibility and mobile */
+@media (max-width: 768px) {
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* Remove default outline and use custom */
+  button:focus,
+  [role="button"]:focus,
+  a:focus {
+    outline: none;
+  }
+
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  a:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+  }
+}
+
+/* Prevent double-tap zoom on buttons */
+button,
+[role="button"],
+a[class*="btn"],
+a[class*="Button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scrolling for mobile */
+@media (max-width: 768px) {
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent overscroll bounce on iOS */
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
+/* Mobile-friendly card interactions */
+@media (max-width: 768px) {
+  [class*="Card"]:hover,
+  [class*="card"]:hover {
+    transform: none; /* Disable hover effects on mobile */
+  }
+
+  /* Add active/pressed state instead */
+  [class*="Card"]:active,
+  [class*="card"]:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+}
+
+/* Mobile-optimized modals/dialogs */
+@media (max-width: 768px) {
+  [role="dialog"] {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* Full-width buttons in mobile dialogs */
+  [role="dialog"] [class*="DialogFooter"] button,
+  [role="dialog"] footer button {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .container {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  /* Sticky headers */
+  nav,
+  header {
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+
+  /* Fixed footers */
+  footer {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Loading states - prevent interaction during loading */
+[aria-busy="true"] button,
+[data-loading="true"] button {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Improve touch feedback */
+@media (hover: none) {
+  button:active,
+  [role="button"]:active,
+  a[class*="btn"]:active {
+    transform: scale(0.97);
+    transition: transform 0.1s ease;
+  }
+}

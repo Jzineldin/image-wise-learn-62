@@ -402,11 +402,11 @@ export default function CreateStoryFlow() {
 
   return (
     <div className="min-h-screen">
-      {/* Navigation Header */}
+      {/* Navigation Header - Mobile Optimized */}
       <nav className="glass-card border-b border-primary/10 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link to="/dashboard" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+            <Link to="/dashboard" className="flex items-center space-x-2 sm:space-x-3 hover:opacity-80 transition-opacity">
               <picture>
                 <source srcSet={taleForgeLogoImage} type="image/webp" />
                 <img
@@ -420,31 +420,53 @@ export default function CreateStoryFlow() {
                   style={{ imageRendering: 'crisp-edges' }}
                 />
               </picture>
-              <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
+              <span className="text-xl sm:text-2xl font-heading font-bold text-gradient">Tale Forge</span>
             </Link>
 
-            <div className="hidden md:flex items-center space-x-8">
-              <Link to="/dashboard" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow flex items-center gap-2">
+            {/* Desktop Navigation */}
+            <div className="hidden lg:flex items-center space-x-8">
+              <Link to="/dashboard" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow flex items-center gap-2 min-h-[44px]">
                 <Home className="h-4 w-4" />
                 Dashboard
               </Link>
-              <Link to="/discover" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
+              <Link to="/discover" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow min-h-[44px] flex items-center">
                 Discover
               </Link>
-              <Link to="/characters" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
+              <Link to="/characters" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow min-h-[44px] flex items-center">
                 Characters
               </Link>
-              <Link to="/my-stories" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
+              <Link to="/my-stories" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow min-h-[44px] flex items-center">
                 My Stories
               </Link>
             </div>
 
-            <div className="flex items-center space-x-4">
+            {/* Mobile & Desktop Actions */}
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <CreditDisplay compact />
-              <Link to="/settings">
-                <Button variant="outline" className="btn-secondary flex items-center gap-2">
+              <Link to="/dashboard" className="lg:hidden">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="p-2 min-h-[44px] min-w-[44px]"
+                  aria-label="Back to Dashboard"
+                >
+                  <Home className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Link to="/settings" className="hidden sm:block">
+                <Button variant="outline" className="btn-secondary flex items-center gap-2 min-h-[44px]">
                   <Settings className="h-4 w-4" />
-                  Settings
+                  <span className="hidden md:inline">Settings</span>
+                </Button>
+              </Link>
+              <Link to="/settings" className="sm:hidden">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="p-2 min-h-[44px] min-w-[44px]"
+                  aria-label="Settings"
+                >
+                  <Settings className="h-5 w-5" />
                 </Button>
               </Link>
             </div>
@@ -452,11 +474,11 @@ export default function CreateStoryFlow() {
         </div>
       </nav>
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-6 sm:py-8 max-w-4xl">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-4 mb-6 sm:mb-8">
           <div className="flex-1">
-            <h1 className="text-2xl font-bold">{translate('storyCreation.title')}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">{translate('storyCreation.title')}</h1>
             <p className="text-muted-foreground">
               {selectedLanguage === 'sv' ? 'Låt oss bygga en fantastisk interaktiv berättelse tillsammans!' : 'Let\'s build an amazing interactive story together!'}
             </p>

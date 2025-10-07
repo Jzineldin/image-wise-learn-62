@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
-import { LogOut, Settings, User, Shield, HelpCircle, MessageSquare } from 'lucide-react';
+import { LogOut, Settings, User, Shield, HelpCircle, MessageSquare, Menu, X } from 'lucide-react';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.webp';
 import taleForgeLogoFallback from '@/assets/tale-forge-logo.png';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,6 +21,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
   const { user, profile, signOut } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const { startTour } = useOnboarding();
 
   useEffect(() => {
@@ -44,7 +45,39 @@ const Navigation = ({ className = "" }: NavigationProps) => {
   const handleSignOut = async () => {
     await signOut();
     setShowUserMenu(false);
+    setShowMobileMenu(false);
   };
+
+  const closeMobileMenu = () => {
+    setShowMobileMenu(false);
+  };
+
+  // Close mobile menu on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowMobileMenu(false);
+        setShowUserMenu(false);
+      }
+    };
+    
+    if (showMobileMenu || showUserMenu) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [showMobileMenu, showUserMenu]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (showMobileMenu) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showMobileMenu]);
 
   return (
     <nav aria-label="Main navigation" className={`glass-card border-b border-primary/10 sticky top-0 z-50 ${className}`}>
@@ -103,7 +136,24 @@ const Navigation = ({ className = "" }: NavigationProps) => {
             </Link>
           </div>
 
-          <div className="flex items-center space-x-4">
+          {/* Mobile Menu Button */}
+          <div className="md:hidden flex items-center space-x-2">
+            {user && <CreditDisplay compact showActions={false} />}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="p-2 min-h-[44px] min-w-[44px]"
+              aria-label={showMobileMenu ? "Close menu" : "Open menu"}
+              aria-expanded={showMobileMenu}
+              aria-controls="mobile-menu"
+            >
+              {showMobileMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </Button>
+          </div>
+
+          {/* Desktop Actions */}
+          <div className="hidden md:flex items-center space-x-4">
             <ThemeToggle variant="dropdown" showLabel={false} />
 
             {/* Global Feedback Button */}
@@ -205,6 +255,180 @@ const Navigation = ({ className = "" }: NavigationProps) => {
             )}
           </div>
         </div>
+
+        {/* Mobile Menu Overlay */}
+        {showMobileMenu && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              onClick={closeMobileMenu}
+              aria-hidden="true"
+            />
+            
+            {/* Mobile Menu Panel */}
+            <div
+              id="mobile-menu"
+              className="fixed top-[73px] left-0 right-0 bottom-0 bg-background/95 backdrop-blur-lg z-40 md:hidden overflow-y-auto"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mobile navigation menu"
+            >
+              <div className="container mx-auto px-4 py-6">
+                <nav className="flex flex-col space-y-1">
+                  {/* Main Navigation Links */}
+                  <Link
+                    to="/discover"
+                    className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center"
+                    onClick={closeMobileMenu}
+                  >
+                    Discover
+                  </Link>
+                  
+                  {user && (
+                    <>
+                      <Link
+                        to="/dashboard"
+                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center"
+                        onClick={closeMobileMenu}
+                      >
+                        Dashboard
+                      </Link>
+                      <Link
+                        to="/my-stories"
+                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center"
+                        onClick={closeMobileMenu}
+                      >
+                        My Stories
+                      </Link>
+                    </>
+                  )}
+                  
+                  <Link
+                    to="/about"
+                    className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center"
+                    onClick={closeMobileMenu}
+                  >
+                    About
+                  </Link>
+                  
+                  <Link
+                    to="/testimonials"
+                    className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center"
+                    onClick={closeMobileMenu}
+                  >
+                    Testimonials
+                  </Link>
+                  
+                  <Link
+                    to="/pricing"
+                    className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center"
+                    onClick={closeMobileMenu}
+                  >
+                    Pricing
+                  </Link>
+
+                  <div className="h-px bg-border my-4" />
+
+                  {/* User Actions */}
+                  {user ? (
+                    <>
+                      <div className="px-4 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        {user.email?.split('@')[0]}
+                        {profile?.is_beta_user && (
+                          <FounderBadge
+                            founderStatus={profile.founder_status}
+                            isBetaUser={profile.is_beta_user}
+                            betaJoinedAt={profile.beta_joined_at}
+                            size="sm"
+                          />
+                        )}
+                      </div>
+                      
+                      <Link
+                        to="/settings"
+                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center gap-3"
+                        onClick={closeMobileMenu}
+                      >
+                        <Settings className="w-5 h-5" />
+                        Settings
+                      </Link>
+                      
+                      <button
+                        onClick={() => {
+                          closeMobileMenu();
+                          startTour();
+                        }}
+                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center gap-3 w-full text-left"
+                      >
+                        <HelpCircle className="w-5 h-5" />
+                        Take Tour
+                      </button>
+
+                      <FeedbackDialog
+                        trigger={
+                          <button
+                            className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center gap-3 w-full text-left"
+                          >
+                            <MessageSquare className="w-5 h-5" />
+                            Send Feedback
+                          </button>
+                        }
+                      />
+                      
+                      {isAdmin && (
+                        <Link
+                          to="/admin"
+                          className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center gap-3 text-primary"
+                          onClick={closeMobileMenu}
+                        >
+                          <Shield className="w-5 h-5" />
+                          Admin Panel
+                        </Link>
+                      )}
+                      
+                      <button
+                        onClick={handleSignOut}
+                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center gap-3 w-full text-left text-destructive"
+                      >
+                        <LogOut className="w-5 h-5" />
+                        Sign Out
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to="/auth"
+                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center justify-center"
+                        onClick={closeMobileMenu}
+                      >
+                        <Button variant="outline" className="w-full min-h-[44px]">
+                          Sign In
+                        </Button>
+                      </Link>
+                      <Link
+                        to="/auth"
+                        className="text-lg py-3 px-4 rounded-lg transition-colors min-h-[44px] flex items-center justify-center"
+                        onClick={closeMobileMenu}
+                      >
+                        <Button className="btn-primary w-full min-h-[44px]">
+                          Get Started
+                        </Button>
+                      </Link>
+                    </>
+                  )}
+
+                  {/* Theme Toggle in Mobile Menu */}
+                  <div className="px-4 py-3 flex items-center justify-between min-h-[44px]">
+                    <span className="text-lg">Theme</span>
+                    <ThemeToggle variant="dropdown" showLabel={false} />
+                  </div>
+                </nav>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </nav>
   );
