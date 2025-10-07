@@ -5,7 +5,6 @@ import { Sparkles, BookOpen, Users, ArrowRight, Play, Star, CheckCircle, Zap, Tr
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import FeaturedStoriesCarousel from '@/components/FeaturedStoriesCarousel';
-import BetaAnnouncementBanner from '@/components/BetaAnnouncementBanner';
 import FloatingFeedbackButton from '@/components/FloatingFeedbackButton';
 import { addSampleFeaturedStories } from '@/lib/helpers/sample-data';
 import { OptimizedImage, HeroImage, CardImage } from '@/components/ui/optimized-image';
@@ -129,9 +128,6 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       <Navigation />
-
-      {/* Beta Announcement Banner */}
-      <BetaAnnouncementBanner />
 
       {/* Floating Feedback Button */}
       <FloatingFeedbackButton />
