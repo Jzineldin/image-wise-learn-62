@@ -213,14 +213,17 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          beta_joined_at: string | null
           bio: string | null
           created_at: string | null
           credits: number | null
           display_name: string | null
           email: string | null
+          founder_status: string | null
           full_name: string | null
           id: string
           is_admin: boolean | null
+          is_beta_user: boolean | null
           preferred_language: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -231,14 +234,17 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          beta_joined_at?: string | null
           bio?: string | null
           created_at?: string | null
           credits?: number | null
           display_name?: string | null
           email?: string | null
+          founder_status?: string | null
           full_name?: string | null
           id: string
           is_admin?: boolean | null
+          is_beta_user?: boolean | null
           preferred_language?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -249,14 +255,17 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          beta_joined_at?: string | null
           bio?: string | null
           created_at?: string | null
           credits?: number | null
           display_name?: string | null
           email?: string | null
+          founder_status?: string | null
           full_name?: string | null
           id?: string
           is_admin?: boolean | null
+          is_beta_user?: boolean | null
           preferred_language?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -817,40 +826,46 @@ export type Database = {
       }
       user_feedback: {
         Row: {
+          admin_notes: string | null
           created_at: string | null
-          description: string | null
+          feedback_type: string
           id: string
+          message: string
           metadata: Json | null
-          rating: number | null
+          page_url: string | null
           status: string | null
-          title: string
-          type: string
+          subject: string | null
           updated_at: string | null
-          user_id: string
+          user_agent: string | null
+          user_id: string | null
         }
         Insert: {
+          admin_notes?: string | null
           created_at?: string | null
-          description?: string | null
+          feedback_type: string
           id?: string
+          message: string
           metadata?: Json | null
-          rating?: number | null
+          page_url?: string | null
           status?: string | null
-          title: string
-          type: string
+          subject?: string | null
           updated_at?: string | null
-          user_id: string
+          user_agent?: string | null
+          user_id?: string | null
         }
         Update: {
+          admin_notes?: string | null
           created_at?: string | null
-          description?: string | null
+          feedback_type?: string
           id?: string
+          message?: string
           metadata?: Json | null
-          rating?: number | null
+          page_url?: string | null
           status?: string | null
-          title?: string
-          type?: string
+          subject?: string | null
           updated_at?: string | null
-          user_id?: string
+          user_agent?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }

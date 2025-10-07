@@ -53,8 +53,8 @@ const Footer = () => {
               <Link to="/contact" className="block text-text-secondary hover:text-primary transition-colors story-link">
                 Contact
               </Link>
-              <Link to="/blog" className="block text-text-secondary hover:text-primary transition-colors story-link">
-                Blog
+              <Link to="/testimonials" className="block text-text-secondary hover:text-primary transition-colors story-link">
+                Testimonials
               </Link>
             </nav>
           </div>
@@ -74,7 +74,7 @@ const Footer = () => {
         
         <div className="border-t border-primary/10 mt-8 pt-8 text-center">
           <p className="text-text-tertiary">
-            © 2024 Tale Forge. All rights reserved.
+            © 2025 Tale Forge. All rights reserved.
           </p>
         </div>
       </div>

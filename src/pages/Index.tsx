@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles, BookOpen, Users, ArrowRight, Play, Star, CheckCircle, Zap, TrendingUp, Globe } from 'lucide-react';
+import { Sparkles, BookOpen, Users, ArrowRight, Play, Star, CheckCircle, Zap, TrendingUp, Globe, Crown } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import FeaturedStoriesCarousel from '@/components/FeaturedStoriesCarousel';
+import BetaAnnouncementBanner from '@/components/BetaAnnouncementBanner';
+import FloatingFeedbackButton from '@/components/FloatingFeedbackButton';
 import { addSampleFeaturedStories } from '@/lib/helpers/sample-data';
 import { OptimizedImage, HeroImage, CardImage } from '@/components/ui/optimized-image';
 import heroBookImage from '@/assets/hero-book.jpg';
@@ -126,6 +128,12 @@ const Index = () => {
     <div className="min-h-screen">
       <Navigation />
 
+      {/* Beta Announcement Banner */}
+      <BetaAnnouncementBanner />
+
+      {/* Floating Feedback Button */}
+      <FloatingFeedbackButton />
+
       {/* Hero Section - Split Layout */}
       <section className="relative overflow-hidden min-h-screen flex items-center justify-center pt-16">
         <div className="container mx-auto px-4">
@@ -133,20 +141,29 @@ const Index = () => {
             
             {/* Left Side - Main Content */}
             <div className="space-y-8 lg:space-y-10 flex flex-col justify-center min-h-[500px]">
+              {/* Beta Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20 w-fit">
+                <Crown className="w-4 h-4 text-yellow-500 animate-pulse" />
+                <span className="text-sm font-semibold text-yellow-600 dark:text-yellow-400">
+                  BETA LAUNCH - Get Founder Status + 100 Free Credits!
+                </span>
+              </div>
+
               <div className="space-y-6">
                 <h1 className="text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-heading font-bold text-fire-gradient leading-[0.9] glow-fire">
                   TALE<br />FORGE
                 </h1>
-                
+
                 <p className="text-lg md:text-xl lg:text-2xl text-text-secondary max-w-lg text-with-outline leading-relaxed">
                   Where every story becomes an adventure
                 </p>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row gap-4 max-w-md">
-                <Link to="/create">
-                  <Button className="btn-primary text-lg px-8 py-4 w-full sm:w-auto shadow-xl hover:shadow-2xl">
-                    Start Creating Magic
+                <Link to="/auth">
+                  <Button className="btn-primary text-lg px-8 py-4 w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2">
+                    <Crown className="w-5 h-5" />
+                    Claim Founder Status
                   </Button>
                 </Link>
                 <Link to="/discover">
@@ -154,6 +171,18 @@ const Index = () => {
                     Explore Stories
                   </Button>
                 </Link>
+              </div>
+
+              {/* Social Proof */}
+              <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-primary" />
+                  <span><strong className="text-foreground">47+</strong> founders joined</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                  <span><strong className="text-foreground">5.0</strong> rating</span>
+                </div>
               </div>
             </div>
 

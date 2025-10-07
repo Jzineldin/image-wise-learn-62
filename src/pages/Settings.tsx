@@ -17,6 +17,7 @@ import { logger } from '@/lib/logger';
 import { useLanguage } from '@/hooks/useLanguage';
 import { ThemeSelect, ThemeStatus } from '@/components/ThemeToggle';
 import { usePageThemeClasses } from '@/components/ThemeProvider';
+import { useSubscription } from '@/hooks/useSubscription';
 import { SkeletonText, SkeletonAvatar, SkeletonButton } from '@/components/ui/loading-states';
 
 interface Profile {
@@ -33,6 +34,7 @@ interface Profile {
 
 const Settings = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [userCredits, setUserCredits] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notificationPreferences, setNotificationPreferences] = useState({
@@ -46,6 +48,7 @@ const Settings = () => {
   });
   const { user } = useAuth();
   const { toast } = useToast();
+  const { subscribed, tier, openCustomerPortal, checkSubscription, loading: subLoading } = useSubscription();
   const { availableLanguages, translate } = useLanguage();
   const { pageClassName } = usePageThemeClasses('settings');
 
@@ -95,6 +98,14 @@ const Settings = () => {
 
       if (error) throw error;
       setProfile(data);
+
+      // Load current credits from user_credits
+      const { data: creditsData } = await supabase
+        .from('user_credits')
+        .select('current_balance')
+        .eq('user_id', user.id)
+        .single();
+      if (creditsData) setUserCredits(creditsData.current_balance);
 
       // Load visibility settings
       const { data: visibilityData } = await supabase.rpc('get_visibility_settings');
@@ -300,16 +311,22 @@ const Settings = () => {
               <CardContent className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Plan</span>
-                  <span className="font-medium capitalize">{profile.subscription_tier}</span>
+                  <span className="font-medium capitalize">{subLoading ? 'Loading…' : (subscribed ? tier : 'free')}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Credits</span>
-                  <span className="font-medium">{profile.credits}</span>
+                  <span className="font-medium">{userCredits ?? '—'}</span>
                 </div>
                 <Separator />
-                <Button variant="outline" className="w-full">
-                  Upgrade Plan
-                </Button>
+                {subscribed ? (
+                  <Button variant="outline" className="w-full" onClick={openCustomerPortal}>
+                    Manage Subscription
+                  </Button>
+                ) : (
+                  <Button variant="outline" className="w-full" onClick={() => (window.location.href = '/pricing')}>
+                    Upgrade Plan
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </div>

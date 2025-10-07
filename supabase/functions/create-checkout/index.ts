@@ -74,6 +74,7 @@ serve(async (req) => {
       mode: type === "subscription" ? "subscription" : "payment",
       success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pricing`,
+      allow_promotion_codes: true, // Enable promo codes for all checkout types
       metadata: {
         user_id: user.id,
         type: type,
@@ -82,7 +83,6 @@ serve(async (req) => {
 
     // Add additional config for subscriptions
     if (type === "subscription") {
-      sessionConfig.allow_promotion_codes = true;
       sessionConfig.billing_address_collection = "auto";
     }
 

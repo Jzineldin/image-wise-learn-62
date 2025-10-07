@@ -8,10 +8,17 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/production-logger';
+import FounderBadge from './FounderBadge';
 
 interface CreditDisplayProps {
   compact?: boolean;
   showActions?: boolean;
+}
+
+interface UserProfile {
+  is_beta_user?: boolean;
+  beta_joined_at?: string | null;
+  founder_status?: string | null;
 }
 
 const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayProps) => {
@@ -21,19 +28,32 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
   const { toast } = useToast();
   const [credits, setCredits] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const fetchCredits = useCallback(async () => {
     if (!user?.id) return;
 
     try {
-      const { data, error } = await supabase
+      // Fetch credits
+      const { data: creditsData, error: creditsError } = await supabase
         .from('user_credits')
         .select('current_balance')
         .eq('user_id', user.id)
         .single();
 
-      if (error) throw error;
-      setCredits(data?.current_balance || 0);
+      if (creditsError) throw creditsError;
+      setCredits(creditsData?.current_balance || 0);
+
+      // Fetch user profile for beta status
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('is_beta_user, beta_joined_at, founder_status')
+        .eq('id', user.id)
+        .single();
+
+      if (!profileError && profileData) {
+        setUserProfile(profileData);
+      }
     } catch (error) {
       logger.error('Error fetching credits', error, { component: 'CreditDisplay' });
     } finally {
@@ -72,7 +92,7 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
 
   const handleBuyCredits = async () => {
     // Buy the most popular pack (100 credits for $9)
-    const checkoutUrl = await createCheckout('price_1S6b9OK8ILu7UAIcX0c8eIpW', 'payment');
+    const checkoutUrl = await createCheckout('price_1S0fYYDSKngmC6wH5OSPOwNC', 'payment');
     if (checkoutUrl) {
       window.open(checkoutUrl, '_blank');
     }
@@ -93,6 +113,16 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
   if (compact) {
     return (
       <div className="flex items-center space-x-3">
+        {/* Founder Badge */}
+        {userProfile && (userProfile.is_beta_user || userProfile.founder_status) && (
+          <FounderBadge
+            founderStatus={userProfile.founder_status}
+            isBetaUser={userProfile.is_beta_user}
+            betaJoinedAt={userProfile.beta_joined_at}
+            size="sm"
+          />
+        )}
+
         <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${
           isLowCredits ? 'border-destructive/20 bg-destructive/5' : 'border-border bg-background'
         }`}>
@@ -120,7 +150,18 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
               <Coins className={`w-6 h-6 ${isLowCredits ? 'text-destructive' : 'text-primary'}`} />
             </div>
             <div>
-              <h3 className="font-semibold text-lg">{credits} Credits</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-lg">{credits} Credits</h3>
+                {/* Founder Badge */}
+                {userProfile && (userProfile.is_beta_user || userProfile.founder_status) && (
+                  <FounderBadge
+                    founderStatus={userProfile.founder_status}
+                    isBetaUser={userProfile.is_beta_user}
+                    betaJoinedAt={userProfile.beta_joined_at}
+                    size="sm"
+                  />
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">
                 {isLowCredits ? 'Running low on credits' : 'Ready to create stories'}
               </p>

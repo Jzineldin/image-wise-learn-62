@@ -43,76 +43,92 @@ serve(async (req) => {
     }
     logger.info('User authenticated', { userId: user.id, email: user.email, operation: 'check-subscription' });
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-06-30.basil" });
 
-    // Find customer by email
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    // Prefer stored stripe_customer_id on profile; fallback to email lookup
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('id, stripe_customer_id')
+      .eq('id', user.id)
+      .single();
 
-    if (customers.data.length === 0) {
-      logger.info('No customer found, returning free tier', { operation: 'check-subscription' });
-      return new Response(JSON.stringify({
-        subscribed: false,
-        tier: "free",
-        product_id: null,
-        subscription_end: null,
-        credits_per_month: 10
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+    let customerId = profile?.stripe_customer_id || null;
+
+    if (!customerId) {
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+      if (customers.data.length === 0) {
+        logger.info('No customer found, returning free tier', { operation: 'check-subscription' });
+        return new Response(JSON.stringify({
+          subscribed: false,
+          tier: "free",
+          product_id: null,
+          subscription_end: null,
+          credits_per_month: 10
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+      customerId = customers.data[0].id;
+      // persist for future
+      await supabaseClient.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user.id);
     }
 
-    const customerId = customers.data[0].id;
-    logger.info('Found Stripe customer', { customerId, operation: 'check-subscription' });
+    logger.info('Using Stripe customer', { customerId, operation: 'check-subscription' });
 
-    // Check for active subscriptions
-    const subscriptions = await stripe.subscriptions.list({
+    // Find subscriptions (any status) and pick the most relevant
+    const subsAll = await stripe.subscriptions.list({
       customer: customerId,
-      status: "active",
-      limit: 1,
+      status: 'all',
+      limit: 5,
+      expand: ['data.items.data.price']
     });
 
-    const hasActiveSub = subscriptions.data.length > 0;
-    let tier = "free";
-    let productId = null;
-    let subscriptionEnd = null;
+    const pick = subsAll.data.find(s => ['active','trialing','past_due','unpaid'].includes(s.status))
+      || subsAll.data[0];
+
+    let hasActiveSub = false;
+    let tier: 'free' | 'starter' | 'premium' = 'free';
+    let productId: string | null = null;
+    let subscriptionEnd: string | null = null;
     let creditsPerMonth = 10;
 
-    if (hasActiveSub) {
-      const subscription = subscriptions.data[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-      productId = subscription.items.data[0].price.product;
+    if (pick) {
+      const status = pick.status;
+      hasActiveSub = ['active','trialing','past_due','unpaid'].includes(status);
+      subscriptionEnd = pick.current_period_end ? new Date(pick.current_period_end * 1000).toISOString() : null;
 
-      // Determine tier based on product metadata or price
-      const price = subscription.items.data[0].price;
-      const metadata = price.metadata;
+      const price = pick.items.data[0]?.price;
+      productId = (price?.product as string) ?? null;
+      const metadata = price?.metadata ?? {} as any;
 
-      if (metadata.tier) {
+      // Determine tier
+      if (metadata.tier === 'starter' || metadata.tier === 'premium') {
         tier = metadata.tier;
-      } else if (price.unit_amount === 999) {
-        tier = "starter";
-      } else if (price.unit_amount === 1999) {
-        tier = "premium";
+      } else if (price?.id === 'price_1S0fYXDSKngmC6wHQuhgXK92' || price?.unit_amount === 999) {
+        tier = 'starter';
+      } else if (price?.id === 'price_1S0fYXDSKngmC6wHFADzfnbx' || price?.unit_amount === 1999) {
+        tier = 'premium';
       }
 
-      // Set credits per month based on tier
       if (metadata.credits_per_month) {
-        creditsPerMonth = parseInt(metadata.credits_per_month);
-      } else if (tier === "starter") {
+        creditsPerMonth = parseInt(String(metadata.credits_per_month));
+      } else if (tier === 'starter') {
         creditsPerMonth = 100;
-      } else if (tier === "premium") {
+      } else if (tier === 'premium') {
         creditsPerMonth = 300;
       }
 
-      logger.info('Active subscription found', {
-        subscriptionId: subscription.id,
-        endDate: subscriptionEnd,
+      logger.info('Subscription status evaluated', {
+        status,
+        hasActiveSub,
+        subscriptionId: pick.id,
         tier,
         creditsPerMonth,
         operation: 'check-subscription'
       });
     } else {
-      logger.info('No active subscription found', { operation: 'check-subscription' });
+      logger.info('No subscriptions found for customer', { operation: 'check-subscription' });
     }
 
     return new Response(JSON.stringify({

@@ -1152,7 +1152,7 @@ const StoryViewer = () => {
         endActionLabel={endActionLabel}
       />
 
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6 overflow-x-hidden">
         <div className="max-w-6xl mx-auto">
           {/* Completed Story Banner */}
           {isCompletedStory && (
@@ -1182,9 +1182,9 @@ const StoryViewer = () => {
           )}
 
           {/* Main Content Area */}
-          <div className={viewMode === 'creation' ? 'grid grid-cols-1 lg:grid-cols-[1fr,380px] gap-6' : 'max-w-4xl mx-auto'}>
+          <div className={viewMode === 'creation' ? 'grid grid-cols-1 lg:grid-cols-[1fr,380px] gap-6 items-start' : 'max-w-4xl mx-auto'}>
             {/* Story Main Content */}
-            <div className="space-y-6">
+            <div className="space-y-6 min-w-0">
               {/* Story Metadata */}
               {viewMode === 'experience' && (
                 <StoryMetadata story={story} viewMode={viewMode} />
@@ -1276,7 +1276,8 @@ const StoryViewer = () => {
 
             {/* Sidebar for Creation Mode */}
             {viewMode === 'creation' && currentSegment && (
-              <StorySidebar
+              <div className="lg:sticky lg:top-6 min-w-0">
+                <StorySidebar
                 story={story}
                 currentSegment={currentSegment}
                 segmentNumber={currentSegmentIndex + 1}
@@ -1313,6 +1314,7 @@ const StoryViewer = () => {
                 onMakePictureAndVoice={() => makePictureAndVoice(currentSegment)}
                 endActionLabel={endActionLabel}
               />
+              </div>
             )}
           </div>
         </div>

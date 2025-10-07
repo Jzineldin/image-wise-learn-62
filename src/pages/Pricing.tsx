@@ -41,7 +41,7 @@ const Pricing = () => {
       name: "Starter",
       price: "$9.99",
       period: "per month",
-      priceId: "price_1S6b9MK8ILu7UAIcAr71xgxL", // Actual Stripe price ID
+      priceId: "price_1S0fYXDSKngmC6wHQuhgXK92", // Tale Forge Starter
       icon: <Crown className="w-8 h-8" />,
       description: "Most Popular",
       features: [
@@ -61,7 +61,7 @@ const Pricing = () => {
       name: "Premium",
       price: "$19.99",
       period: "per month",
-      priceId: "price_1S6b9NK8ILu7UAIc7Gn8tI0R", // Actual Stripe price ID
+      priceId: "price_1S0fYXDSKngmC6wHFADzfnbx", // Tale Forge Premium
       icon: <Zap className="w-8 h-8" />,
       description: "Best Value",
       features: [
@@ -84,7 +84,7 @@ const Pricing = () => {
       name: "Small Pack",
       credits: 50,
       price: "$5",
-      priceId: "price_1S6b9NK8ILu7UAIcHuoiCSzd",
+      priceId: "price_1S0fYYDSKngmC6wHpSnSJ9cf",
       perCredit: "$0.10 per credit",
       savings: null,
       icon: <Package className="w-6 h-6" />
@@ -93,7 +93,7 @@ const Pricing = () => {
       name: "Medium Pack",
       credits: 100,
       price: "$9",
-      priceId: "price_1S6b9OK8ILu7UAIcX0c8eIpW",
+      priceId: "price_1S0fYYDSKngmC6wH5OSPOwNC",
       perCredit: "$0.09 per credit",
       savings: "10% savings",
       icon: <Package className="w-6 h-6" />
@@ -102,7 +102,7 @@ const Pricing = () => {
       name: "Large Pack",
       credits: 250,
       price: "$20",
-      priceId: "price_1S6b9OK8ILu7UAIcNXqTxGrm",
+      priceId: "price_1S0fYZDSKngmC6wHrgIBx0Ih",
       perCredit: "$0.08 per credit",
       savings: "20% savings",
       icon: <Package className="w-6 h-6" />
@@ -111,7 +111,7 @@ const Pricing = () => {
       name: "Mega Pack",
       credits: 500,
       price: "$35",
-      priceId: "price_1S6b9PK8ILu7UAIcZkGb9Bt8",
+      priceId: "price_1S0fYaDSKngmC6wHQQd34mgg",
       perCredit: "$0.07 per credit",
       savings: "30% savings",
       icon: <Package className="w-6 h-6" />

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Book, Users, TrendingUp, Zap, Crown } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import FloatingFeedbackButton from '@/components/FloatingFeedbackButton';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -76,6 +77,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen">
       <Navigation />
+      <FloatingFeedbackButton />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">

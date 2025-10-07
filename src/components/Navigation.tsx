@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
-import { LogOut, Settings, User, Shield, HelpCircle } from 'lucide-react';
+import { LogOut, Settings, User, Shield, HelpCircle, MessageSquare } from 'lucide-react';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.webp';
 import taleForgeLogoFallback from '@/assets/tale-forge-logo.png';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import CreditDisplay from './CreditDisplay';
 import { useOnboarding } from './OnboardingTour';
 import { ThemeToggle } from './ThemeToggle';
+import FeedbackDialog from './FeedbackDialog';
 import { logger } from '@/lib/production-logger';
 
 interface NavigationProps {
@@ -103,6 +104,22 @@ const Navigation = ({ className = "" }: NavigationProps) => {
 
           <div className="flex items-center space-x-4">
             <ThemeToggle variant="dropdown" showLabel={false} />
+
+            {/* Global Feedback Button */}
+            <FeedbackDialog
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 hidden sm:flex"
+                  aria-label="Send feedback"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span className="hidden md:inline">Feedback</span>
+                </Button>
+              }
+            />
+
             {user ? (
               <>
                 <CreditDisplay compact showActions={false} />

@@ -48,23 +48,40 @@ serve(async (req) => {
     }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-06-30.basil" });
 
-    // Find customer by email
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    if (customers.data.length === 0) {
-      throw new Error("No Stripe customer found for this user. Please subscribe first.");
+    // Prefer stored stripe_customer_id on profile
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('id, stripe_customer_id, email')
+      .eq('id', user.id)
+      .single();
+
+    let customerId = profile?.stripe_customer_id || null;
+
+    if (!customerId) {
+      // Fallback: look up by email
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+      if (customers.data.length === 0) {
+        throw new Error("No Stripe customer found for this user. Please subscribe first.");
+      }
+      customerId = customers.data[0].id;
+      // Persist for future (best-effort; ignore RLS failures)
+      try {
+        await supabaseClient.from('profiles').update({ stripe_customer_id: customerId }).eq('id', user.id);
+      } catch (persistErr) {
+        logStep("Could not persist stripe_customer_id (ignored)", { error: String(persistErr) });
+      }
     }
 
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
+    logStep("Using Stripe customer", { customerId });
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
 
     // Create customer portal session
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${origin}/dashboard`,
+      return_url: `${origin}/settings#account`,
     });
 
     logStep("Customer portal session created", {

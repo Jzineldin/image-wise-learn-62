@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { logger } from "./lib/production-logger";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Log startup with performance monitoring enabled
 logger.info('Application starting', {
@@ -11,4 +12,9 @@ logger.info('Application starting', {
 });
 
 // Note: Global error handlers moved to App.tsx for proper cleanup
-createRoot(document.getElementById("root")!).render(<App />);
+// Wrap App in ErrorBoundary for production-grade error handling
+createRoot(document.getElementById("root")!).render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);
