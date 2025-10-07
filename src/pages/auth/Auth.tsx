@@ -28,10 +28,78 @@ const Auth = () => {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
+        // Check for Google OAuth signup and send welcome email
+        logger.info('Auth state change', { event, hasSession: !!session, hasUser: !!session?.user });
+
+        // Log auth event type
+        logger.info('Auth event type check', { event });
+
+        // Check condition: event === 'SIGNED_IN' && session?.user
+        const isSignedInEvent = event === 'SIGNED_IN';
+        const hasUser = !!session?.user;
+        logger.info('Auth conditions check', {
+          isSignedInEvent,
+          hasUser,
+          combinedCondition: isSignedInEvent && hasUser
+        });
+
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
+          const user = session.user;
+
+          // Log user provider check
+          const isGoogleOAuth = user.identities?.some(identity => identity.provider === 'google');
+          logger.info('User provider check', {
+            email: user.email,
+            isGoogleOAuth,
+            identities: user.identities?.map(i => ({ provider: i.provider, created_at: i.created_at }))
+          });
+
+          // Log account creation time
+          logger.info('Account creation time', { createdAt: user.created_at });
+
+          if (isGoogleOAuth) {
+            // Check if user was created recently (within last 10 minutes)
+            const createdAt = new Date(user.created_at);
+            const now = new Date();
+            const timeDiff = now.getTime() - createdAt.getTime();
+            const tenMinutes = 10 * 60 * 1000;
+
+            // Log timing condition check
+            const withinTenMinutes = timeDiff < tenMinutes;
+            logger.info('Account creation timing condition check', {
+              createdAt: createdAt.toISOString(),
+              now: now.toISOString(),
+              timeDiffMinutes: timeDiff / (60 * 1000),
+              tenMinutesThreshold: tenMinutes / (60 * 1000),
+              withinTenMinutes
+            });
+
+            if (timeDiff < tenMinutes) {
+              logger.info('Attempting to send welcome email', { email: user.email });
+              try {
+                // Call the send-welcome-email function
+                const { data, error } = await supabase.functions.invoke('send-welcome-email', {
+                  body: { email: user.email }
+                });
+
+                if (error) {
+                  logger.error('Failed to send welcome email', { error, email: user.email });
+                } else {
+                  logger.info('Welcome email sent successfully', { email: user.email, response: data });
+                }
+              } catch (error) {
+                logger.error('Exception calling send-welcome-email function', { error: error.message, email: user.email });
+              }
+            } else {
+              logger.info('User created more than 10 minutes ago, skipping welcome email', { email: user.email });
+            }
+          }
+        }
+
         // Redirect authenticated users to dashboard
         if (session?.user) {
           setTimeout(() => {
@@ -95,7 +163,7 @@ const Auth = () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

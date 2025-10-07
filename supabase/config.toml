@@ -1,5 +1,20 @@
 project_id = "hlrvpuqwurtdbjkramcp"
 
+[auth]
+enabled = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+
+[auth.email.smtp]
+host = "smtp.resend.com"
+port = 587
+user = "resend"
+pass = "env(RESEND_API_KEY)"
+admin_email = "noreply@yourdomain.com"
+sender_name = "Tale Forge"
+
 [functions.generate-story]
 verify_jwt = true
 
@@ -35,3 +50,6 @@ verify_jwt = true
 
 [functions.customer-portal]
 verify_jwt = true
+
+[functions.send-welcome-email]
+verify_jwt = false

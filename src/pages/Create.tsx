@@ -5,7 +5,8 @@ import { Home, Settings } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import taleForgeLogoImage from '@/assets/tale-forge-logo.png';
+import taleForgeLogoImage from '@/assets/tale-forge-logo.webp';
+import taleForgeLogoFallback from '@/assets/tale-forge-logo.png';
 import { logger, generateRequestId } from '@/lib/utils/debug';
 import { AIClient, InsufficientCreditsError } from '@/lib/api/ai-client';
 import CreditDisplay from '@/components/CreditDisplay';
@@ -406,16 +407,19 @@ export default function CreateStoryFlow() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/dashboard" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-              <img
-                src={taleForgeLogoImage}
-                alt="Tale Forge Logo"
-                className="w-10 h-10 object-contain"
-                width="40"
-                height="40"
-                loading="eager"
-                decoding="async"
-                style={{ imageRendering: 'crisp-edges' }}
-              />
+              <picture>
+                <source srcSet={taleForgeLogoImage} type="image/webp" />
+                <img
+                  src={taleForgeLogoFallback}
+                  alt="Tale Forge Logo"
+                  className="w-10 h-10 object-contain"
+                  width="40"
+                  height="40"
+                  loading="eager"
+                  decoding="async"
+                  style={{ imageRendering: 'crisp-edges' }}
+                />
+              </picture>
               <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
             </Link>
 

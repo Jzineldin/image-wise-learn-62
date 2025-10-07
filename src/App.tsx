@@ -113,6 +113,11 @@ const App = () => {
                         <Auth />
                       </ErrorBoundary>
                     } />
+                    <Route path="/auth/callback" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Authentication Callback" />}>
+                        <Auth />
+                      </ErrorBoundary>
+                    } />
                     <Route path="/" element={
                       <ErrorBoundary fallback={<RouteErrorFallback context="Home" />}>
                         <Index />

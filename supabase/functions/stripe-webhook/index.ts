@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { logger } from "../_shared/logger.ts";
+import { EmailService } from "../_shared/email-service.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -194,6 +195,15 @@ serve(async (req) => {
           operation: 'stripe-webhook'
         });
 
+        // Send payment confirmation email
+        try {
+          const emailService = new EmailService();
+          const amount = session.amount_total ? session.amount_total / 100 : 0;
+          await emailService.sendPaymentConfirmationEmail(customerEmail, amount, creditsToAdd);
+        } catch (emailError) {
+          logger.error('Failed to send payment confirmation email', emailError, { userId, email: customerEmail, operation: 'stripe-webhook' });
+        }
+
         break;
       }
 
@@ -302,6 +312,15 @@ serve(async (req) => {
           priceId,
           operation: 'stripe-webhook'
         });
+
+        // Send subscription renewal email
+        try {
+          const emailService = new EmailService();
+          const plan = (priceId === 'price_1S0fYXDSKngmC6wHQuhgXK92') ? 'Starter' : (priceId === 'price_1S0fYXDSKngmC6wHFADzfnbx') ? 'Premium' : 'Subscription';
+          await emailService.sendSubscriptionConfirmationEmail(customerEmail, plan);
+        } catch (emailError) {
+          logger.error('Failed to send subscription renewal email', emailError, { userId, email: customerEmail, operation: 'stripe-webhook' });
+        }
 
         break;
       }
