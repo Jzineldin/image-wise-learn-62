@@ -15,7 +15,7 @@ import SubscriptionStatus from '@/components/SubscriptionStatus';
 import UsageAnalytics from '@/components/UsageAnalytics';
 import OnboardingTour, { useOnboarding } from '@/components/OnboardingTour';
 import StoryCard from '@/components/StoryCard';
-import { SkeletonCard } from '@/components/ui/loading-states';
+import { Loading } from '@/components/ui/loading';
 import { useFounderWelcome } from '@/hooks/useFounderWelcome';
 import FounderBadge from '@/components/FounderBadge';
 
@@ -106,7 +106,7 @@ const Dashboard = () => {
             </p>
           </div>
           <Link to="/create">
-            <Button className="btn-primary text-lg px-8 mt-4 md:mt-0">
+            <Button variant="default" size="lg" className="mt-4 md:mt-0">
               Create New Story
             </Button>
           </Link>
@@ -132,7 +132,7 @@ const Dashboard = () => {
                 </div>
               </div>
               <Link to="/pricing">
-                <Button className="btn-primary">
+                <Button variant="default">
                   <Zap className="w-4 h-4 mr-2" />
                   Upgrade Now
                 </Button>
@@ -195,7 +195,7 @@ const Dashboard = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-heading font-semibold">Your Recent Stories</h2>
             <Link to="/my-stories">
-              <Button variant="outline" className="btn-secondary">
+              <Button variant="outline">
                 View All
               </Button>
             </Link>
@@ -203,7 +203,7 @@ const Dashboard = () => {
 
           {loading || storiesLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <SkeletonCard count={3} />
+              <Loading.Skeleton.Card count={3} />
             </div>
           ) : recentStories.length === 0 ? (
             <div className="text-center py-12">
@@ -213,7 +213,7 @@ const Dashboard = () => {
                 Create your first magical story adventure!
               </p>
               <Link to="/create">
-                <Button className="btn-primary">
+                <Button variant="default" size="lg">
                   Create Your First Story
                 </Button>
               </Link>

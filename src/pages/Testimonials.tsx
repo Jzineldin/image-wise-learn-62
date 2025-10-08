@@ -193,7 +193,7 @@ The journey from clueless student to global runner-up taught me that sometimes t
     : testimonials.filter(t => t.category === selectedCategory);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-secondary/5 to-background">
+    <div className="min-h-screen">
       <Navigation />
       
       <main className="py-8">

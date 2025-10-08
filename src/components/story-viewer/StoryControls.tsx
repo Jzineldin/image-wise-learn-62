@@ -66,7 +66,7 @@ export const StoryControls = ({
             <div className="flex items-center space-x-4">
               <CreditDisplay compact />
               <Link to="/settings">
-                <Button variant="outline" size="sm" className="btn-secondary flex items-center gap-2">
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
                   <Settings className="h-4 w-4" />
                   Settings
                 </Button>

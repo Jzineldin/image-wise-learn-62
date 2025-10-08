@@ -150,7 +150,7 @@ const FeaturedStoriesCarousel = () => {
           </p>
           
           <Link to="/create">
-            <Button className="btn-accent w-full text-lg py-3">
+            <Button variant="default" size="lg" className="w-full bg-gradient-to-r from-accent to-secondary">
               Create Your First Story
             </Button>
           </Link>
@@ -224,7 +224,7 @@ const FeaturedStoriesCarousel = () => {
 
         {/* Read Story Button */}
         <Link to={`/story/${currentStory.story_id}?mode=experience`}>
-          <Button className="btn-accent w-full text-lg py-3 shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300">
+          <Button variant="default" size="lg" className="w-full bg-gradient-to-r from-accent to-secondary shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300">
             Read This Story
           </Button>
         </Link>

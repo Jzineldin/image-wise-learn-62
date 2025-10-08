@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 import { MessageSquare, Bug, Lightbulb, Heart, Send } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/production-logger';
 
 interface FeedbackDialogProps {
@@ -31,6 +31,7 @@ interface FeedbackDialogProps {
 
 const FeedbackDialog = ({ trigger, defaultOpen = false }: FeedbackDialogProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [open, setOpen] = useState(defaultOpen);
   const [loading, setLoading] = useState(false);
   const [feedbackType, setFeedbackType] = useState<string>('general');
@@ -48,7 +49,11 @@ const FeedbackDialog = ({ trigger, defaultOpen = false }: FeedbackDialogProps) =
     e.preventDefault();
     
     if (!message.trim()) {
-      toast.error('Please enter your feedback');
+      toast({
+        title: "Feedback Required",
+        description: "Please enter your feedback",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -73,8 +78,9 @@ const FeedbackDialog = ({ trigger, defaultOpen = false }: FeedbackDialogProps) =
 
       if (error) throw error;
 
-      toast.success('Thank you for your feedback!', {
-        description: 'We\'ll review it and get back to you if needed.',
+      toast({
+        title: "Thank you for your feedback!",
+        description: "We'll review it and get back to you if needed.",
       });
 
       // Reset form
@@ -93,8 +99,10 @@ const FeedbackDialog = ({ trigger, defaultOpen = false }: FeedbackDialogProps) =
         operation: 'submit-feedback',
         userId: user?.id,
       });
-      toast.error('Failed to submit feedback', {
-        description: 'Please try again or email us directly.',
+      toast({
+        title: "Failed to submit feedback",
+        description: "Please try again or email us directly.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -118,7 +126,7 @@ const FeedbackDialog = ({ trigger, defaultOpen = false }: FeedbackDialogProps) =
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-primary" />

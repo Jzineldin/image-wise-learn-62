@@ -1,8 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, RefreshCw, Home, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ErrorCard } from '@/components/ui/error-card';
 
 interface ErrorRecoveryDialogProps {
   open: boolean;
@@ -50,14 +50,11 @@ System Info:
         </DialogHeader>
 
         <div className="space-y-4">
-          <Card className="border-destructive/20">
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground mb-2">Error Details:</p>
-              <p className="text-sm font-mono bg-muted p-2 rounded text-destructive">
-                {error}
-              </p>
-            </CardContent>
-          </Card>
+          <ErrorCard
+            title="Story Generation Failed"
+            error={error}
+            showCode
+          />
 
           <div className="space-y-2">
             <h4 className="font-medium">What you can do:</h4>

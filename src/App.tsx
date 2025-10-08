@@ -10,7 +10,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import RouteErrorFallback from "@/components/RouteErrorFallback";
-import { PageLoadingSpinner } from "@/components/ui/loading-spinner";
+import { Loading } from "@/components/ui/loading";
 
 // Lazy load routes for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -105,7 +105,7 @@ const App = () => {
                 <Toaster />
                 <Sonner />
                 {/* Context7 Pattern: Enhanced Suspense boundary with proper loading state */}
-                <Suspense fallback={<PageLoadingSpinner text="Loading application..." />}>
+                <Suspense fallback={<Loading.Page text="Loading application..." />}>
                   <main id="main-content" role="main" tabIndex={-1}>
                     <Routes>
                     <Route path="/auth" element={
@@ -128,7 +128,7 @@ const App = () => {
                       <ErrorBoundary fallback={(error) => <RouteErrorFallback error={error} context="Create" />}>
                         <ProtectedRoute>
                           {/* Context7 Pattern: Suspense for heavy create component */}
-                          <Suspense fallback={<PageLoadingSpinner text="Loading story creator..." />}>
+                          <Suspense fallback={<Loading.Page text="Loading story creator..." />}>
                             <Create />
                           </Suspense>
                         </ProtectedRoute>
@@ -171,7 +171,7 @@ const App = () => {
                       <ErrorBoundary fallback={(error) => <RouteErrorFallback error={error} context="Admin" />}>
                         <ProtectedRoute requiresAdmin={true}>
                           {/* Context7 Pattern: Suspense for heavy admin component */}
-                          <Suspense fallback={<PageLoadingSpinner text="Loading admin panel..." />}>
+                          <Suspense fallback={<Loading.Page text="Loading admin panel..." />}>
                             <Admin />
                           </Suspense>
                         </ProtectedRoute>

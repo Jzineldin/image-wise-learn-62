@@ -231,7 +231,7 @@ const StoryCard = memo(({
               {story.description}
             </p>
 
-            <Button className="btn-primary w-full">
+            <Button variant="default" size="lg" className="w-full">
               Read Story
             </Button>
           </div>
@@ -281,7 +281,7 @@ const StoryCard = memo(({
         )}
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="pt-0">
         {story.description && (
           <p className="text-text-secondary text-sm mb-4 line-clamp-3">
             {story.description}
@@ -362,7 +362,7 @@ const StoryCard = memo(({
         {showActions && (
           <div className="flex gap-2">
             <Link to={`/story/${story.id}?mode=experience`} className="flex-1">
-              <Button className="w-full btn-secondary">
+              <Button variant="outline" className="w-full">
                 <Eye className="w-4 h-4 mr-2" />
                 View
               </Button>

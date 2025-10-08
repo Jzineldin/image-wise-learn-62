@@ -89,7 +89,7 @@ export const StorySeedGenerator = memo(({
                 <CardHeader className="pb-3">
                   <div className="h-4 bg-muted rounded w-1/2"></div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <div className="space-y-2">
                     <div className="h-3 bg-muted rounded"></div>
                     <div className="h-3 bg-muted rounded w-3/4"></div>
@@ -128,7 +128,7 @@ export const StorySeedGenerator = memo(({
                       )}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-0">
                     <p className="text-sm text-muted-foreground">
                       {seed.description}
                     </p>

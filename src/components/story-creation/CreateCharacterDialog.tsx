@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { X, Plus } from 'lucide-react';
 import { UserCharacter } from '@/types/character';
 import { useCharacters } from '@/hooks/useCharacters';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface CreateCharacterDialogProps {
   open: boolean;
@@ -34,12 +34,13 @@ const COMMON_TRAITS = [
   'patient', 'clever', 'friendly', 'bold', 'caring'
 ];
 
-export const CreateCharacterDialog = ({ 
-  open, 
-  onOpenChange, 
-  onCharacterCreated 
+export const CreateCharacterDialog = ({
+  open,
+  onOpenChange,
+  onCharacterCreated
 }: CreateCharacterDialogProps) => {
   const { createCharacter } = useCharacters();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -55,7 +56,11 @@ export const CreateCharacterDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.description.trim()) {
-      toast.error('Please fill in the character name and description');
+      toast({
+        title: "Required Fields",
+        description: "Please fill in the character name and description",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -69,10 +74,17 @@ export const CreateCharacterDialog = ({
       if (character) {
         onCharacterCreated(character);
         resetForm();
-        toast.success('Character created successfully!');
+        toast({
+          title: "Success!",
+          description: "Character created successfully!",
+        });
       }
     } catch (error) {
-      toast.error('Failed to create character');
+      toast({
+        title: "Error",
+        description: "Failed to create character",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }

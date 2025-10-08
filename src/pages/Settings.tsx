@@ -18,7 +18,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { ThemeSelect, ThemeStatus } from '@/components/ThemeToggle';
 import { usePageThemeClasses } from '@/components/ThemeProvider';
 import { useSubscription } from '@/hooks/useSubscription';
-import { SkeletonText, SkeletonAvatar, SkeletonButton } from '@/components/ui/loading-states';
+import { Loading } from '@/components/ui/loading';
 import FounderBadge from '@/components/FounderBadge';
 
 interface Profile {
@@ -206,16 +206,16 @@ const Settings = () => {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-4">
-                  <SkeletonAvatar size="lg" />
+                  <Loading.Skeleton.Avatar size="lg" />
                   <div className="flex-1 space-y-2">
                     <div className="h-6 bg-muted rounded w-48 animate-pulse" />
                     <div className="h-4 bg-muted rounded w-64 animate-pulse" />
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <SkeletonText lines={4} />
-                <SkeletonButton className="w-32" />
+              <CardContent className="p-6 pt-0 space-y-4">
+                <Loading.Skeleton.Text lines={4} />
+                <Loading.Skeleton.Button className="w-32" />
               </CardContent>
             </Card>
 
@@ -225,8 +225,8 @@ const Settings = () => {
                 <CardHeader>
                   <div className="h-6 bg-muted rounded w-48 animate-pulse" />
                 </CardHeader>
-                <CardContent>
-                  <SkeletonText lines={3} />
+                <CardContent className="pt-0">
+                  <Loading.Skeleton.Text lines={3} />
                 </CardContent>
               </Card>
             ))}
@@ -309,7 +309,7 @@ const Settings = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Account Summary</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="p-6 pt-0 space-y-3">
                 <div className="flex justify-between">
                   <span className="text-text-secondary">Plan</span>
                   <span className="font-medium capitalize">{subLoading ? 'Loading…' : (subscribed ? tier : 'free')}</span>
@@ -356,7 +356,7 @@ const Settings = () => {
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="p-6 pt-0 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
@@ -401,7 +401,7 @@ const Settings = () => {
 
 
                 <Separator />
-                <Button onClick={saveProfile} disabled={saving} className="btn-primary">
+                <Button onClick={saveProfile} disabled={saving} variant="default" size="lg">
                   {saving ? (
                     <>
                       <div className="loading-spinner w-4 h-4 mr-2" />
@@ -423,7 +423,7 @@ const Settings = () => {
                 </CardTitle>
                 <p className="text-sm text-text-secondary mt-1">Choose your preferred theme and see current state.</p>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="p-6 pt-0 space-y-6">
                 <div className="space-y-4">
                   <p className="text-sm text-text-secondary">
                     Choose your preferred theme for the best reading and writing experience.
@@ -450,7 +450,7 @@ const Settings = () => {
                 </CardTitle>
                 <p className="text-sm text-text-secondary mt-1">Control how we notify you about updates.</p>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="p-6 pt-0 space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <Label>Story Updates</Label>
@@ -503,7 +503,7 @@ const Settings = () => {
                 </CardTitle>
                 <p className="text-sm text-text-secondary mt-1">Manage your profile visibility and data.</p>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="p-6 pt-0 space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <Label>Public Profile</Label>

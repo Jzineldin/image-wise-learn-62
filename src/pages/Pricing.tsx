@@ -264,8 +264,10 @@ const Pricing = () => {
                   ))}
                 </ul>
 
-                <Button 
-                  className={`w-full ${plan.popular ? 'btn-primary' : 'btn-secondary'}`}
+                <Button
+                  variant={plan.popular ? 'default' : 'outline'}
+                  size="lg"
+                  className="w-full"
                   onClick={() => handleSubscribe(plan)}
                   disabled={loading || processingPlan === plan.id}
                 >
@@ -308,9 +310,10 @@ const Pricing = () => {
                 <div className="text-xl font-bold mb-1">{pack.price}</div>
                 <div className="text-xs text-text-secondary mb-4">{pack.perCredit}</div>
                 
-                <Button 
-                  size="sm" 
-                  className="w-full btn-secondary"
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
                   onClick={() => handleBuyCredits(pack)}
                   disabled={loading || processingPlan === pack.name}
                 >

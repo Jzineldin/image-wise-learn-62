@@ -111,27 +111,27 @@ const Navigation = ({ className = "" }: NavigationProps) => {
             <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
           </Link>
           
-          <div className="hidden md:flex items-center space-x-8">
-            <Link to="/discover" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
+          <div className="hidden md:flex items-center space-x-2">
+            <Link to="/discover" className="px-3 py-2 rounded-lg text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
               Discover
             </Link>
             {user && (
               <>
-                <Link to="/dashboard" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
+                <Link to="/dashboard" className="px-3 py-2 rounded-lg text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
                   Dashboard
                 </Link>
-                <Link to="/my-stories" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
+                <Link to="/my-stories" className="px-3 py-2 rounded-lg text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
                   My Stories
                 </Link>
               </>
             )}
-            <Link to="/about" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
+            <Link to="/about" className="px-3 py-2 rounded-lg text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
               About
             </Link>
-            <Link to="/testimonials" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
+            <Link to="/testimonials" className="px-3 py-2 rounded-lg text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
               Testimonials
             </Link>
-            <Link to="/pricing" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow">
+            <Link to="/pricing" className="px-3 py-2 rounded-lg text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
               Pricing
             </Link>
           </div>
@@ -200,7 +200,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                       <div className="py-2">
                         <Link
                           to="/settings"
-                          className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted/50 transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200"
                           onClick={() => setShowUserMenu(false)}
                         >
                           <Settings className="w-4 h-4" />
@@ -211,7 +211,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                             setShowUserMenu(false);
                             startTour();
                           }}
-                          className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted/50 transition-colors w-full text-left"
+                          className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 w-full text-left"
                         >
                           <HelpCircle className="w-4 h-4" />
                           Take Tour
@@ -219,7 +219,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                         {isAdmin && (
                           <Link
                             to="/admin"
-                            className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted/50 transition-colors text-primary"
+                            className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200"
                             onClick={() => setShowUserMenu(false)}
                           >
                             <Shield className="w-4 h-4" />
@@ -228,7 +228,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                         )}
                         <button
                           onClick={handleSignOut}
-                          className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted/50 transition-colors w-full text-left"
+                          className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 w-full text-left"
                           aria-label="Sign out of your account"
                         >
                           <LogOut className="w-4 h-4" />
@@ -242,12 +242,12 @@ const Navigation = ({ className = "" }: NavigationProps) => {
             ) : (
               <>
                 <Link to="/auth" className="hidden sm:block">
-                  <Button variant="outline" className="btn-secondary">
+                  <Button variant="outline">
                     Sign In
                   </Button>
                 </Link>
                 <Link to="/auth">
-                  <Button className="btn-primary">
+                  <Button variant="default" size="lg">
                     Get Started
                   </Button>
                 </Link>
@@ -279,50 +279,50 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                   {/* Main Navigation Links */}
                   <Link
                     to="/discover"
-                    className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center"
+                    className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 min-h-[44px] flex items-center"
                     onClick={closeMobileMenu}
                   >
                     Discover
                   </Link>
-                  
+
                   {user && (
                     <>
                       <Link
                         to="/dashboard"
-                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center"
+                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 min-h-[44px] flex items-center"
                         onClick={closeMobileMenu}
                       >
                         Dashboard
                       </Link>
                       <Link
                         to="/my-stories"
-                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center"
+                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 min-h-[44px] flex items-center"
                         onClick={closeMobileMenu}
                       >
                         My Stories
                       </Link>
                     </>
                   )}
-                  
+
                   <Link
                     to="/about"
-                    className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center"
+                    className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 min-h-[44px] flex items-center"
                     onClick={closeMobileMenu}
                   >
                     About
                   </Link>
-                  
+
                   <Link
                     to="/testimonials"
-                    className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center"
+                    className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 min-h-[44px] flex items-center"
                     onClick={closeMobileMenu}
                   >
                     Testimonials
                   </Link>
-                  
+
                   <Link
                     to="/pricing"
-                    className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center"
+                    className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 min-h-[44px] flex items-center"
                     onClick={closeMobileMenu}
                   >
                     Pricing
@@ -348,19 +348,19 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                       
                       <Link
                         to="/settings"
-                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center gap-3"
+                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 min-h-[44px] flex items-center gap-3"
                         onClick={closeMobileMenu}
                       >
                         <Settings className="w-5 h-5" />
                         Settings
                       </Link>
-                      
+
                       <button
                         onClick={() => {
                           closeMobileMenu();
                           startTour();
                         }}
-                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center gap-3 w-full text-left"
+                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 min-h-[44px] flex items-center gap-3 w-full text-left"
                       >
                         <HelpCircle className="w-5 h-5" />
                         Take Tour
@@ -369,28 +369,28 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                       <FeedbackDialog
                         trigger={
                           <button
-                            className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center gap-3 w-full text-left"
+                            className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 min-h-[44px] flex items-center gap-3 w-full text-left"
                           >
                             <MessageSquare className="w-5 h-5" />
                             Send Feedback
                           </button>
                         }
                       />
-                      
+
                       {isAdmin && (
                         <Link
                           to="/admin"
-                          className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center gap-3 text-primary"
+                          className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 min-h-[44px] flex items-center gap-3"
                           onClick={closeMobileMenu}
                         >
                           <Shield className="w-5 h-5" />
                           Admin Panel
                         </Link>
                       )}
-                      
+
                       <button
                         onClick={handleSignOut}
-                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center gap-3 w-full text-left text-destructive"
+                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-destructive transition-all duration-200 min-h-[44px] flex items-center gap-3 w-full text-left"
                       >
                         <LogOut className="w-5 h-5" />
                         Sign Out
@@ -412,7 +412,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                         className="text-lg py-3 px-4 rounded-lg transition-colors min-h-[44px] flex items-center justify-center"
                         onClick={closeMobileMenu}
                       >
-                        <Button className="btn-primary w-full min-h-[44px]">
+                        <Button variant="default" size="lg" className="w-full min-h-[44px]">
                           Get Started
                         </Button>
                       </Link>

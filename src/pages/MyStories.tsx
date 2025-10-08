@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useStories } from '@/hooks/useDataFetching';
 import { logger } from '@/lib/logger';
-import { SkeletonCard } from '@/components/ui/loading-states';
+import { Loading } from '@/components/ui/loading';
 
 interface Story {
   id: string;
@@ -109,7 +109,7 @@ const MyStories = () => {
 
           {/* Story cards skeleton */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <SkeletonCard count={6} />
+            <Loading.Skeleton.Card count={6} />
           </div>
         </div>
         <Footer />
@@ -132,7 +132,7 @@ const MyStories = () => {
             </p>
           </div>
           <Link to="/create">
-            <Button className="btn-primary text-lg px-8 mt-4 md:mt-0">
+            <Button variant="default" size="lg" className="mt-4 md:mt-0">
               Create New Story
             </Button>
           </Link>
@@ -181,7 +181,7 @@ const MyStories = () => {
             </p>
             {!searchTerm && statusFilter === 'all' && (
               <Link to="/create">
-                <Button className="btn-primary text-lg px-8">
+                <Button variant="default" size="lg">
                   Create Your First Story
                 </Button>
               </Link>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { isRouteErrorResponse } from 'react-router-dom';
 import { logger } from '@/lib/debug';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   error?: unknown;
@@ -53,15 +54,18 @@ const RouteErrorFallback: React.FC<Props> = ({ error, context = 'this page', onR
           {message}
         </p>
         <div className="flex gap-3 justify-center">
-          <button
+          <Button
             onClick={() => (onRetry ? onRetry() : window.location.reload())}
-            className="btn-primary"
+            variant="default"
+            size="lg"
           >
             Try again
-          </button>
-          <a href="/dashboard" className="btn-secondary">
-            Go to Dashboard
-          </a>
+          </Button>
+          <Button asChild variant="outline" size="lg">
+            <a href="/dashboard">
+              Go to Dashboard
+            </a>
+          </Button>
         </div>
       </div>
     </div>

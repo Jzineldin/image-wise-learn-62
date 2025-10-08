@@ -165,21 +165,21 @@ const Index = () => {
               <div className="flex flex-col sm:flex-row gap-4 max-w-md">
                 {hasFounderStatus ? (
                   <Link to="/create">
-                    <Button className="btn-primary text-lg px-8 py-4 w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2">
+                    <Button variant="default" size="lg" className="w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2">
                       <BookOpen className="w-5 h-5" />
                       Create Story
                     </Button>
                   </Link>
                 ) : (
                   <Link to="/auth">
-                    <Button className="btn-primary text-lg px-8 py-4 w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2">
+                    <Button variant="default" size="lg" className="w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2">
                       <Crown className="w-5 h-5" />
                       Claim Founder Status
                     </Button>
                   </Link>
                 )}
                 <Link to="/discover">
-                  <Button variant="outline" className="btn-secondary text-lg px-8 py-4 w-full sm:w-auto shadow-lg hover:shadow-xl">
+                  <Button variant="outline" size="lg" className="w-full sm:w-auto shadow-lg hover:shadow-xl">
                     Explore Stories
                   </Button>
                 </Link>
@@ -236,7 +236,7 @@ const Index = () => {
                   </div>
                   <CardTitle className="text-xl text-text-primary">{feature.title}</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <CardDescription className="text-text-secondary text-center">
                     {feature.description}
                   </CardDescription>
@@ -330,7 +330,7 @@ const Index = () => {
                       <CardTitle className="text-lg text-text-primary">{testimonial.name}</CardTitle>
                       <CardDescription className="text-primary text-sm">{testimonial.role}</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex-grow">
+                    <CardContent className="p-6 pt-0 flex-grow">
                       <p className="text-text-secondary italic">"{testimonial.content}"</p>
                     </CardContent>
                   </Card>
@@ -339,7 +339,7 @@ const Index = () => {
               
               <div className="text-center mt-12">
                 <Link to="/testimonials">
-                  <Button variant="outline" size="lg" className="btn-secondary group text-lg px-8 py-4">
+                  <Button variant="outline" size="lg" className="group">
                     Read All Stories & Meet the Creator
                     <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                   </Button>
@@ -372,12 +372,12 @@ const Index = () => {
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/create">
-                <Button className="btn-primary text-lg px-8 py-4">
+                <Button variant="default" size="lg">
                   Try Free Now
                 </Button>
               </Link>
               <Link to="/pricing">
-                <Button variant="outline" className="btn-secondary text-lg px-8 py-4">
+                <Button variant="outline" size="lg">
                   View Pricing
                 </Button>
               </Link>
@@ -408,7 +408,7 @@ const Index = () => {
                 <CardHeader>
                   <CardTitle className="text-xl text-text-primary">{faq.question}</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <p className="text-text-secondary">{faq.answer}</p>
                 </CardContent>
               </Card>
@@ -429,7 +429,7 @@ const Index = () => {
               Join thousands of storytellers and start creating your unique tales today
             </p>
             <Link to="/create">
-              <Button className="btn-primary text-xl px-12 py-4 shadow-xl hover:shadow-2xl">
+              <Button variant="default" size="lg" className="text-xl px-12 py-4 shadow-xl hover:shadow-2xl">
                 <Zap className="w-6 h-6 mr-2" />
                 Start Creating Now
               </Button>

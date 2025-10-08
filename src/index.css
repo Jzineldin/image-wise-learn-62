@@ -160,110 +160,87 @@
     @apply transition-all duration-300 hover:scale-105 hover:shadow-lg;
   }
 
-  /* Enhanced Glass Card Components - Theme Adaptive */
+  /* ============================================================================
+     GLASS CARD SYSTEM - Simplified to 4 Core Variants
+     Use border color classes for semantic variants (e.g., border-primary/30)
+     ============================================================================ */
+
+  /* Base glass card - Default for most use cases */
   .glass-card {
     background: hsl(var(--glass-card-overlay));
     backdrop-filter: blur(var(--glass-backdrop-blur));
-    @apply border border-primary/20 rounded-xl shadow-xl transition-all duration-300;
+    @apply border border-primary/20 rounded-lg shadow-xl transition-all duration-300;
   }
 
+  /* Elevated - More prominent, higher z-index feel */
   .glass-card-elevated {
     background: hsl(var(--glass-dark));
     backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 4px));
-    @apply border border-primary/30 rounded-xl shadow-2xl transition-all duration-300;
+    @apply border border-primary/30 rounded-lg shadow-2xl transition-all duration-300;
   }
 
-  .glass-card-dark {
-    background: hsl(var(--glass-dark));
-    backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 4px));
-    @apply border border-white/10 rounded-2xl shadow-2xl transition-all duration-300;
-  }
-
+  /* Interactive - Hover effects for clickable cards */
   .glass-card-interactive {
     background: hsl(var(--glass-medium));
     backdrop-filter: blur(calc(var(--glass-backdrop-blur) - 4px));
     @apply border border-primary/20 rounded-lg hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 cursor-pointer hover-scale;
   }
 
-  /* Lightweight glass for Dawn theme */
-  .glass-card-light {
+  /* Subtle - Less prominent, background elements */
+  .glass-card-subtle {
     background: hsl(var(--glass-light));
     backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 8px));
-    @apply border border-white/20 rounded-xl shadow-xl transition-all duration-300;
+    @apply border border-white/10 rounded-lg shadow-lg transition-all duration-300;
   }
 
-  /* Color Variations for Glass Cards - Theme Adaptive */
+  /* ============================================================================
+     SEMANTIC COLOR VARIANTS - Use with base glass-card class
+     Example: <div className="glass-card border-primary/30">
+     ============================================================================ */
+
+  /* Legacy support - Map old classes to new system */
   .glass-card-primary {
-    background: linear-gradient(135deg, hsl(var(--glass-medium)), hsl(var(--primary) / 0.1));
-    backdrop-filter: blur(var(--glass-backdrop-blur));
-    @apply border border-primary/30 rounded-xl shadow-xl transition-all duration-300;
+    @apply glass-card border-primary/30;
   }
 
   .glass-card-secondary {
-    background: linear-gradient(135deg, hsl(var(--glass-medium)), hsl(var(--secondary) / 0.1));
-    backdrop-filter: blur(var(--glass-backdrop-blur));
-    @apply border border-secondary/30 rounded-xl shadow-xl transition-all duration-300;
+    @apply glass-card border-secondary/30;
   }
 
   .glass-card-accent {
-    background: linear-gradient(135deg, hsl(var(--glass-medium)), hsl(var(--accent) / 0.1));
-    backdrop-filter: blur(var(--glass-backdrop-blur));
-    @apply border border-accent/30 rounded-xl shadow-xl transition-all duration-300;
+    @apply glass-card border-accent/30;
   }
 
   .glass-card-success {
-    background: linear-gradient(135deg, hsl(var(--glass-medium)), hsl(var(--success) / 0.1));
-    backdrop-filter: blur(var(--glass-backdrop-blur));
-    @apply border border-success/30 rounded-xl shadow-xl transition-all duration-300;
+    @apply glass-card border-success/30;
   }
 
   .glass-card-info {
-    background: linear-gradient(135deg, hsl(var(--glass-medium)), hsl(var(--info) / 0.1));
-    backdrop-filter: blur(var(--glass-backdrop-blur));
-    @apply border border-info/30 rounded-xl shadow-xl transition-all duration-300;
+    @apply glass-card border-info/30;
+  }
+
+  /* Legacy support for specific use cases */
+  .glass-card-light {
+    @apply glass-card-subtle;
+  }
+
+  .glass-card-dark {
+    @apply glass-card-elevated;
+  }
+
+  .glass-card-form {
+    @apply glass-card-elevated;
+  }
+
+  .glass-card-auth {
+    @apply glass-card-elevated;
   }
 
   .glass-card-surface {
-    background: var(--gradient-surface);
-    backdrop-filter: blur(var(--glass-backdrop-blur));
-    @apply border border-primary/20 rounded-xl shadow-xl transition-all duration-300;
+    @apply glass-card;
   }
 
-  /* Form-specific glass cards with better contrast */
-  .glass-card-form {
-    background: hsl(var(--glass-card-overlay));
-    backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 8px));
-    @apply border border-primary/25 rounded-xl shadow-xl transition-all duration-300;
-  }
-
-  /* Auth page specific glass with extra backdrop blur */
-  .glass-card-auth {
-    background: hsl(var(--glass-dark));
-    backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 12px)) saturate(180%);
-    @apply border border-primary/20 rounded-2xl shadow-2xl transition-all duration-300;
-  }
-
-  /* Enhanced Button Components */
-  .btn-primary {
-    @apply px-6 py-3 bg-primary hover:bg-primary-hover text-primary-foreground font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-glow transform hover:-translate-y-0.5;
-  }
-
-  .btn-secondary {
-    @apply px-6 py-3 bg-transparent border-2 border-primary/50 hover:border-primary text-primary hover:text-primary-hover font-semibold rounded-lg transition-all duration-300 hover:bg-primary/5;
-  }
-
-  .btn-accent {
-    color: hsl(var(--accent-foreground));
-    @apply px-6 py-3 bg-gradient-to-r from-accent to-secondary font-semibold rounded-lg transition-all duration-300 shadow-lg hover:shadow-glow transform hover:-translate-y-0.5;
-  }
-
-  .btn-ghost {
-    @apply px-4 py-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-300;
-  }
-
-  .btn-icon {
-    @apply p-2 text-text-secondary hover:text-primary hover:bg-primary/15 rounded-full transition-all duration-300;
-  }
+  /* Button components now use the unified Button component from @/components/ui/button.tsx */
 
   /* Enhanced Form Components */
   .input-field {

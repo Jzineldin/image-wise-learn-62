@@ -54,7 +54,7 @@ export const CharacterSelector = ({
                 <div className="h-4 bg-muted rounded w-3/4"></div>
                 <div className="h-3 bg-muted rounded w-1/2"></div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <div className="h-16 bg-muted rounded mb-3"></div>
                 <div className="h-6 bg-muted rounded"></div>
               </CardContent>
@@ -129,7 +129,7 @@ export const CharacterSelector = ({
                     {character.character_type}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <p className="text-sm text-muted-foreground mb-3 line-clamp-3">
                     {character.description}
                   </p>

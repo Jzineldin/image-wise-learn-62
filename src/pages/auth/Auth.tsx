@@ -413,7 +413,9 @@ const Auth = () => {
           <Button
             type="submit"
             disabled={loading}
-            className="btn-primary w-full"
+            variant="default"
+            size="lg"
+            className="w-full"
           >
             {loading ? (
               <div className="loading-spinner h-5 w-5" />

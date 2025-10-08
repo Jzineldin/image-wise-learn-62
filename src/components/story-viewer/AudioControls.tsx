@@ -106,7 +106,8 @@ export const AudioControls = ({
         {audioUrl ? (
           <Button
             onClick={onToggleAudio}
-            className={`btn-primary ${currentSize.button}`}
+            variant="default"
+            className={currentSize.button}
             disabled={isGenerating || disabled}
           >
             {isPlaying ? (
@@ -119,7 +120,8 @@ export const AudioControls = ({
           <Button
             onClick={onGenerateAudio}
             disabled={isGenerating || disabled}
-            className={`btn-primary ${currentSize.button}`}
+            variant="default"
+            className={currentSize.button}
             title={disabled ? "Please wait, another operation is in progress" : "Generate audio for this segment"}
           >
             {isGenerating ? (
@@ -157,7 +159,8 @@ export const AudioControls = ({
             <Button
               onClick={onSkipBack}
               variant="ghost"
-              className={`btn-icon ${currentSize.button}`}
+              size="icon"
+              className={currentSize.button}
               disabled={!canSkipBack}
             >
               <SkipBack className={currentSize.icon} />
@@ -167,7 +170,8 @@ export const AudioControls = ({
           {audioUrl ? (
             <Button
               onClick={onToggleAudio}
-              className={`btn-primary ${currentSize.button}`}
+              variant="default"
+              className={currentSize.button}
               disabled={isGenerating || disabled}
             >
               {isPlaying ? (
@@ -180,7 +184,8 @@ export const AudioControls = ({
             <Button
               onClick={onGenerateAudio}
               disabled={isGenerating || disabled}
-              className={`btn-primary ${currentSize.button}`}
+              variant="default"
+              className={currentSize.button}
               title={disabled ? "Please wait, another operation is in progress" : "Generate audio for this segment"}
             >
               {isGenerating ? (
@@ -195,7 +200,8 @@ export const AudioControls = ({
             <Button
               onClick={onSkipForward}
               variant="ghost"
-              className={`btn-icon ${currentSize.button}`}
+              size="icon"
+              className={currentSize.button}
               disabled={!canSkipForward}
             >
               <SkipForward className={currentSize.icon} />
@@ -224,7 +230,8 @@ export const AudioControls = ({
             <Button
               onClick={toggleMute}
               variant="ghost"
-              className={`btn-icon ${currentSize.button}`}
+              size="icon"
+              className={currentSize.button}
             >
               {isMuted || volume === 0 ? (
                 <VolumeX className={currentSize.icon} />

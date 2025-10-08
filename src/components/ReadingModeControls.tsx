@@ -80,36 +80,38 @@ export const ReadingModeControls = ({
           {/* Navigation Controls */}
           <div className="flex items-center space-x-2">
             <Button
-              size="sm"
+              size="icon"
               variant="ghost"
               onClick={() => onNavigate('prev')}
               disabled={currentSegment === 0}
-              className="btn-icon"
+              aria-label="Previous segment"
             >
-              <SkipBack className="w-4 h-4" />
+              <SkipBack className="w-4 h-4" aria-hidden="true" />
             </Button>
-            
+
             <Button
               size="sm"
+              variant="default"
               onClick={onAutoPlayToggle}
-              className="btn-primary px-4"
+              className="px-4"
+              aria-label={isAutoPlaying ? 'Pause auto-play' : 'Start auto-play'}
             >
               {isAutoPlaying ? (
-                <Pause className="w-4 h-4 mr-2" />
+                <Pause className="w-4 h-4 mr-2" aria-hidden="true" />
               ) : (
-                <Play className="w-4 h-4 mr-2" />
+                <Play className="w-4 h-4 mr-2" aria-hidden="true" />
               )}
               {isAutoPlaying ? 'Pause' : 'Auto-play'}
             </Button>
-            
+
             <Button
-              size="sm"
+              size="icon"
               variant="ghost"
               onClick={() => onNavigate('next')}
               disabled={currentSegment === totalSegments - 1}
-              className="btn-icon"
+              aria-label="Next segment"
             >
-              <SkipForward className="w-4 h-4" />
+              <SkipForward className="w-4 h-4" aria-hidden="true" />
             </Button>
           </div>
 
@@ -137,8 +139,12 @@ export const ReadingModeControls = ({
           <div className="flex items-center space-x-2">
             <Dialog>
               <DialogTrigger asChild>
-                <Button size="sm" variant="ghost" className="btn-icon">
-                  <Settings className="w-4 h-4" />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label="Open reading settings"
+                >
+                  <Settings className="w-4 h-4" aria-hidden="true" />
                 </Button>
               </DialogTrigger>
               <DialogContent className="glass-card-elevated border-primary/20">
@@ -192,16 +198,15 @@ export const ReadingModeControls = ({
             </Dialog>
 
             <Button
-              size="sm"
+              size="icon"
               variant="ghost"
               onClick={onFullscreenToggle}
-              className="btn-icon"
-              title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
             >
               {isFullscreen ? (
-                <Minimize className="w-4 h-4" />
+                <Minimize className="w-4 h-4" aria-hidden="true" />
               ) : (
-                <Maximize className="w-4 h-4" />
+                <Maximize className="w-4 h-4" aria-hidden="true" />
               )}
             </Button>
           </div>

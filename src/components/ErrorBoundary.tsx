@@ -47,7 +47,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
               </p>
               <button
                 onClick={() => window.location.reload()}
-                className="btn-primary"
+                variant="default"
+                size="lg"
               >
                 Refresh Page
               </button>

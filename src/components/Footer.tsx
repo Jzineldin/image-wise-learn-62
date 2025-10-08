@@ -32,13 +32,13 @@ const Footer = () => {
           <div>
             <h3 className="font-semibold mb-4 text-text-primary">Product</h3>
             <nav aria-label="Product links" className="space-y-2">
-              <Link to="/create" className="block text-text-secondary hover:text-primary transition-colors story-link">
+              <Link to="/create" className="block px-2 py-1 rounded-md text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
                 Create Story
               </Link>
-              <Link to="/discover" className="block text-text-secondary hover:text-primary transition-colors story-link">
+              <Link to="/discover" className="block px-2 py-1 rounded-md text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
                 Discover
               </Link>
-              <Link to="/pricing" className="block text-text-secondary hover:text-primary transition-colors story-link">
+              <Link to="/pricing" className="block px-2 py-1 rounded-md text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
                 Pricing
               </Link>
             </nav>
@@ -47,13 +47,13 @@ const Footer = () => {
           <div>
             <h3 className="font-semibold mb-4 text-text-primary">Company</h3>
             <nav aria-label="Company links" className="space-y-2">
-              <Link to="/about" className="block text-text-secondary hover:text-primary transition-colors story-link">
+              <Link to="/about" className="block px-2 py-1 rounded-md text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
                 About
               </Link>
-              <Link to="/contact" className="block text-text-secondary hover:text-primary transition-colors story-link">
+              <Link to="/contact" className="block px-2 py-1 rounded-md text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
                 Contact
               </Link>
-              <Link to="/testimonials" className="block text-text-secondary hover:text-primary transition-colors story-link">
+              <Link to="/testimonials" className="block px-2 py-1 rounded-md text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
                 Testimonials
               </Link>
             </nav>
@@ -62,10 +62,10 @@ const Footer = () => {
           <div>
             <h3 className="font-semibold mb-4 text-text-primary">Legal</h3>
             <nav aria-label="Legal links" className="space-y-2">
-              <Link to="/privacy" className="block text-text-secondary hover:text-primary transition-colors story-link">
+              <Link to="/privacy" className="block px-2 py-1 rounded-md text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
                 Privacy
               </Link>
-              <Link to="/terms" className="block text-text-secondary hover:text-primary transition-colors story-link">
+              <Link to="/terms" className="block px-2 py-1 rounded-md text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
                 Terms
               </Link>
             </nav>

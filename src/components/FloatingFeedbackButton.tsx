@@ -12,8 +12,9 @@ const FloatingFeedbackButton = () => {
       <div className="fixed bottom-6 right-6 z-40">
         <Button
           onClick={() => setOpen(true)}
+          variant="default"
           size="lg"
-          className="btn-primary shadow-2xl hover:shadow-3xl rounded-full w-14 h-14 p-0 animate-pulse hover:animate-none"
+          className="shadow-2xl hover:shadow-3xl rounded-full w-14 h-14 p-0 animate-pulse hover:animate-none"
           aria-label="Send feedback"
         >
           <MessageSquare className="w-6 h-6" />

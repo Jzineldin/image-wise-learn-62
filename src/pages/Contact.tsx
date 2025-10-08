@@ -53,7 +53,7 @@ const Contact = () => {
                 />
               </div>
               
-              <Button className="btn-primary w-full">
+              <Button variant="default" size="lg" className="w-full">
                 Send Message
               </Button>
             </form>

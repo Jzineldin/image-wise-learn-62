@@ -11,7 +11,7 @@ import { logger } from '@/lib/production-logger';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
 import { PAGINATION } from '@/lib/constants/query-constants';
-import { SkeletonCard } from '@/components/ui/loading-states';
+import { Loading } from '@/components/ui/loading';
 import { isStoryCompleted } from '@/lib/helpers/story-helpers';
 
 const Discover = () => {
@@ -146,7 +146,7 @@ const Discover = () => {
                   </option>
                 ))}
               </select>
-              <Button className="btn-secondary">
+              <Button variant="outline">
                 <Filter className="w-4 h-4 mr-2" />
                 Filters
               </Button>
@@ -162,7 +162,7 @@ const Discover = () => {
           
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <SkeletonCard count={6} />
+              <Loading.Skeleton.Card count={6} />
             </div>
           ) : publicStories.length === 0 ? (
             <div className="text-center py-12">
@@ -191,7 +191,8 @@ const Discover = () => {
                   <Button
                     onClick={() => fetchNextPage()}
                     disabled={isFetchingNextPage}
-                    className="btn-primary px-8 py-3"
+                    variant="default"
+                    size="lg"
                     aria-label="Load more stories"
                   >
                     {isFetchingNextPage ? (

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle, Clock, AlertCircle, X, RefreshCw } from 'lucide-react';
 import { useStoryStore } from '@/stores/storyStore';
+import { ErrorAlert } from '@/components/ui/error-alert';
 
 interface StoryGenerationProgressProps {
   open: boolean;
@@ -193,15 +194,10 @@ export const StoryGenerationProgress = ({
 
           {/* Error Message */}
           {error && (
-            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-destructive">Generation Error</h4>
-                  <p className="text-sm text-destructive/80 mt-1">{error}</p>
-                </div>
-              </div>
-            </div>
+            <ErrorAlert
+              title="Generation Error"
+              message={error}
+            />
           )}
 
           {/* Actions */}

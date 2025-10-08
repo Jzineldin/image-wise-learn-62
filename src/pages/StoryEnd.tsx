@@ -382,7 +382,7 @@ const StoryEnd = () => {
               The story you're looking for doesn't exist or has been removed.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <Button onClick={() => navigate('/dashboard')} className="w-full">
               Return to Dashboard
             </Button>
@@ -423,7 +423,7 @@ const StoryEnd = () => {
                 Your Adventure Summary
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div className="text-center space-y-2">
                   <div className="text-3xl font-bold text-primary">{segments.length}</div>
@@ -478,7 +478,7 @@ const StoryEnd = () => {
                 Select an AI-generated suggestion or create your own custom title.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="p-6 pt-0 space-y-6">
               
               {/* Custom Title Input */}
               <div className="space-y-2">
@@ -544,7 +544,7 @@ const StoryEnd = () => {
                   {segmentsWithoutAudio} segments don't have audio yet. Generate audio to create a fully immersive experience.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <Button
                   onClick={generateMissingAudio}
                   disabled={generatingAudio}
@@ -569,7 +569,7 @@ const StoryEnd = () => {
 
           {/* Final Actions */}
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="p-6">
               <div className="flex flex-col md:flex-row gap-4">
                 <Button
                   onClick={() => navigate(`/story/${story.id}?mode=experience`)}

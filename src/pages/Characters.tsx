@@ -9,7 +9,8 @@ import { useCharacters } from '@/hooks/useCharacters';
 import { CreateCharacterDialog } from '@/components/story-creation/CreateCharacterDialog';
 import { UserCharacter } from '@/types/character';
 import { useToast } from '@/hooks/use-toast';
-import { SkeletonCard } from '@/components/ui/loading-states';
+import { Loading } from '@/components/ui/loading';
+import { ErrorInline } from '@/components/ui/error-alert';
 
 const Characters = () => {
   const { characters, loading, error, deleteCharacter, refetch } = useCharacters();
@@ -61,7 +62,7 @@ const Characters = () => {
 
           {/* Character cards skeleton */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <SkeletonCard count={6} />
+            <Loading.Skeleton.Card count={6} />
           </div>
         </div>
         <Footer />
@@ -85,7 +86,9 @@ const Characters = () => {
           </div>
           <Button
             onClick={() => setIsCreateDialogOpen(true)}
-            className="btn-primary text-lg px-8 mt-4 md:mt-0"
+            variant="default"
+            size="lg"
+            className="mt-4 md:mt-0"
           >
             <Plus className="w-5 h-5 mr-2" />
             Create Character
@@ -93,8 +96,8 @@ const Characters = () => {
         </div>
 
         {error && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-8">
-            <p className="text-destructive text-center">{error}</p>
+          <div className="mb-8">
+            <ErrorInline message={error} className="text-center" />
           </div>
         )}
 
@@ -110,7 +113,8 @@ const Characters = () => {
             </p>
             <Button
               onClick={() => setIsCreateDialogOpen(true)}
-              className="btn-primary text-lg px-8"
+              variant="default"
+              size="lg"
             >
               <Plus className="w-5 h-5 mr-2" />
               Create Your First Character
@@ -135,21 +139,23 @@ const Characters = () => {
                         variant="ghost"
                         size="sm"
                         className="h-8 w-8 p-0 hover:bg-primary/10"
+                        aria-label={`Edit ${character.name}`}
                       >
-                        <Edit className="w-4 h-4" />
+                        <Edit className="w-4 h-4" aria-hidden="true" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         className="h-8 w-8 p-0 hover:bg-destructive/10 text-destructive"
                         onClick={() => handleDeleteCharacter(character.id)}
+                        aria-label={`Delete ${character.name}`}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <p className="text-text-secondary text-sm mb-3 line-clamp-3">
                     {character.description}
                   </p>

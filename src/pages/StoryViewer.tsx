@@ -1245,7 +1245,8 @@ const StoryViewer = () => {
                       )}
                       {!currentSegment.audio_url && (
                         <Button
-                          className="btn-primary"
+                          variant="default"
+                          size="lg"
                           onClick={() => currentSegment.content && generateAudio(currentSegment.id, currentSegment.content)}
                           disabled={creditLock.current || generatingAudio}
                         >

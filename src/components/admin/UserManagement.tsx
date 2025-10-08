@@ -261,7 +261,7 @@ const UserManagement = () => {
         <CardHeader>
           <CardTitle>Users ({filteredUsers.length})</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <div className="space-y-4">
             {filteredUsers.map((user) => (
               <div key={user.id} className="glass-card p-4 flex items-center justify-between">

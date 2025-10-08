@@ -96,7 +96,7 @@ const StorySettings: React.FC<StorySettingsProps> = ({ story, onUpdate, onClose 
           <Button variant="ghost" onClick={onClose}>×</Button>
         </CardHeader>
         
-        <CardContent className="space-y-6">
+        <CardContent className="p-6 pt-0 space-y-6">
           {/* Basic Information */}
           <div className="space-y-4">
             <div className="space-y-2">
@@ -226,7 +226,7 @@ const StorySettings: React.FC<StorySettingsProps> = ({ story, onUpdate, onClose 
             <Button onClick={onClose} variant="outline" className="flex-1">
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={loading} className="btn-primary flex-1">
+            <Button onClick={handleSave} disabled={loading} variant="default" size="lg" className="flex-1">
               {loading ? (
                 <>
                   <div className="loading-spinner w-4 h-4 mr-2" />

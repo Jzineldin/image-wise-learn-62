@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Home, Settings } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import taleForgeLogoImage from '@/assets/tale-forge-logo.webp';
 import taleForgeLogoFallback from '@/assets/tale-forge-logo.png';
 import { logger, generateRequestId } from '@/lib/utils/debug';
@@ -21,6 +21,7 @@ export default function CreateStoryFlow() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { translate, selectedLanguage, changeLanguage } = useLanguage();
+  const { toast } = useToast();
   const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
   const [creditError, setCreditError] = useState<{ required: number; available: number } | null>(null);
 
@@ -53,12 +54,20 @@ export default function CreateStoryFlow() {
     setShowProgressDialog(true);
     setCanCancelGeneration(true);
     if (!user) {
-      toast.error('Please sign in to create stories');
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to create stories",
+        variant: "destructive",
+      });
       return;
     }
 
     if (!flow.selectedSeed && !flow.customSeed.trim()) {
-      toast.error('Please select a story idea or write your own');
+      toast({
+        title: "Story Idea Required",
+        description: "Please select a story idea or write your own",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -331,7 +340,10 @@ export default function CreateStoryFlow() {
       // Small delay to show completion
       setTimeout(() => {
         setShowProgressDialog(false);
-        toast.success(selectedLanguage === 'sv' ? 'Berättelse skapad!' : 'Story created successfully!');
+        toast({
+          title: "Success!",
+          description: selectedLanguage === 'sv' ? 'Berättelse skapad!' : 'Story created successfully!',
+        });
         navigate(`/story/${story.id}?imgPending=1`);
       }, 1000);
 
@@ -352,7 +364,11 @@ export default function CreateStoryFlow() {
       // Handle auth errors
       if ((error as any).code === 'AUTH_REQUIRED') {
         setShowProgressDialog(false);
-        toast.error('Please sign in to create stories');
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to create stories",
+          variant: "destructive",
+        });
         navigate('/auth');
         return;
       }
@@ -360,7 +376,10 @@ export default function CreateStoryFlow() {
       // Handle cancellation
       if (error instanceof Error && error.message.includes('cancelled')) {
         setShowProgressDialog(false);
-        toast.info('Story generation was cancelled');
+        toast({
+          title: "Cancelled",
+          description: "Story generation was cancelled",
+        });
         return;
       }
 
@@ -386,7 +405,10 @@ export default function CreateStoryFlow() {
   const handleCancelGeneration = () => {
     setCancelRequested(true);
     setCanCancelGeneration(false);
-    toast.info('Cancelling story generation...');
+    toast({
+      title: "Cancelling",
+      description: "Cancelling story generation...",
+    });
   };
 
   const handleRetryGeneration = () => {
@@ -454,7 +476,7 @@ export default function CreateStoryFlow() {
                 </Button>
               </Link>
               <Link to="/settings" className="hidden sm:block">
-                <Button variant="outline" className="btn-secondary flex items-center gap-2 min-h-[44px]">
+                <Button variant="outline" className="flex items-center gap-2 min-h-[44px]">
                   <Settings className="h-4 w-4" />
                   <span className="hidden md:inline">Settings</span>
                 </Button>

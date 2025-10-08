@@ -15,6 +15,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ErrorAlert } from '@/components/ui/error-alert';
 
 const AnalyticsDashboard = () => {
   const [timeRange, setTimeRange] = React.useState('30d');
@@ -60,12 +61,16 @@ const AnalyticsDashboard = () => {
     logger.error('Analytics dashboard error', error);
     return (
       <div className="space-y-6">
-        <Card>
-          <CardContent className="p-6 text-center">
-            <p className="text-destructive mb-4">Failed to load analytics data</p>
-            <Button onClick={() => refetch()}>Try Again</Button>
-          </CardContent>
-        </Card>
+        <ErrorAlert
+          title="Failed to Load Analytics"
+          message="Unable to load analytics data. Please try again."
+          actions={
+            <Button onClick={() => refetch()} size="sm">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
+          }
+        />
       </div>
     );
   }
