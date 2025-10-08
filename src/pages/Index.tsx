@@ -13,10 +13,12 @@ import childrenStoriesImage from '@/assets/children-stories.jpg';
 import aiStorytellingImage from '@/assets/ai-storytelling.jpg';
 import { useEffect, useState } from 'react';
 import { useLiveStats } from '@/hooks/useLiveStats';
+import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
   const [sampleDataAdded, setSampleDataAdded] = useState(false);
   const { stats, isLoading } = useLiveStats();
+  const { profile, isAuthenticated } = useAuth();
 
   // Add sample featured stories on first visit (development aid)
   useEffect(() => {
@@ -100,6 +102,9 @@ const Index = () => {
     { number: "100%", label: "5-Star Rated", icon: <Star className="w-5 h-5" /> }
   ];
 
+  // Check if user has founder status
+  const hasFounderStatus = profile && (profile.is_beta_user || profile.founder_status === 'founder');
+
   const howItWorks = [
     { step: "1", title: "Choose Your Adventure", description: "Select characters, themes, and age-appropriate settings" },
     { step: "2", title: "Create Magic", description: "Our AI crafts a unique, personalized story just for you" },
@@ -158,12 +163,21 @@ const Index = () => {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 max-w-md">
-                <Link to="/auth">
-                  <Button className="btn-primary text-lg px-8 py-4 w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2">
-                    <Crown className="w-5 h-5" />
-                    Claim Founder Status
-                  </Button>
-                </Link>
+                {hasFounderStatus ? (
+                  <Link to="/create">
+                    <Button className="btn-primary text-lg px-8 py-4 w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2">
+                      <BookOpen className="w-5 h-5" />
+                      Create Story
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link to="/auth">
+                    <Button className="btn-primary text-lg px-8 py-4 w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2">
+                      <Crown className="w-5 h-5" />
+                      Claim Founder Status
+                    </Button>
+                  </Link>
+                )}
                 <Link to="/discover">
                   <Button variant="outline" className="btn-secondary text-lg px-8 py-4 w-full sm:w-auto shadow-lg hover:shadow-xl">
                     Explore Stories

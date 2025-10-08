@@ -1,42 +1,10 @@
 {
   "mcpServers": {
-    "time": {
-      "command": "uvx",
-      "args": [
-        "mcp-server-time"
-      ]
-    },
-    "supabase": {
+    "sequentialthinking": {
       "command": "npx",
       "args": [
         "-y",
-        "@supabase/mcp-server-supabase@0.5.5",
-        "--access-token",
-        "sbp_68c312eaebf1570cbc273924007c1300081811dd"
-      ]
-    },
-    "context7": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@upstash/context7-mcp"
-      ],
-      "env": {
-        "DEFAULT_MINIMUM_TOKENS": ""
-      }
-    },
-    "memory": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-memory"
-      ]
-    },
-    "puppeteer": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-puppeteer"
+        "@modelcontextprotocol/server-sequential-thinking"
       ]
     }
   }

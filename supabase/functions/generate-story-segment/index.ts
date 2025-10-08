@@ -1,11 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { CreditService, CREDIT_COSTS, validateCredits, deductCreditsAfterSuccess } from '../_shared/credit-system.ts';
 import { createAIService } from '../_shared/ai-service.ts';
+import { createImageService } from '../_shared/image-service.ts';
 import { AGE_GUIDELINES, PromptTemplateManager } from '../_shared/prompt-templates.ts';
 import { parseWordRange, countWords, trimToMaxWords } from '../_shared/response-handlers.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 import { logger } from '../_shared/logger.ts';
 import { InputValidator, InputSanitizer, RateLimiter, SecurityAuditor } from '../_shared/validation.ts';
+import { createSupabaseClient } from '../_shared/supabase-client.ts';
+import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 
 interface SegmentRequest {
@@ -137,7 +140,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const { data: story, error: storyError } = await supabase
       .from('stories')
-      .select('title, genre, age_group, language_code')
+      .select('title, genre, age_group, language_code, characters')
       .eq('id', story_id)
       .eq('user_id', userId)
       .single();
@@ -259,21 +262,145 @@ Deno.serve(async (req) => {
       const { min, max } = parseWordRange(wordRange);
       const wc = countWords(segmentContent);
       if (wc > max) {
-        logger.warn('Segment exceeds max words, trimming', { 
-          requestId, 
-          wordCount: wc, 
-          maxWords: max, 
-          operation: 'word-count-validation' 
+        logger.warn('Segment exceeds max words, trimming', {
+          requestId,
+          wordCount: wc,
+          maxWords: max,
+          operation: 'word-count-validation'
         });
         segmentContent = trimToMaxWords(segmentContent, max);
       }
-      logger.info('Segment word count validated', { 
-        requestId, 
-        segmentNumber: segment_number, 
-        wordCount: wc, 
-        targetRange: `${min}-${max}`, 
-        ageGroup: story.age_group 
+      logger.info('Segment word count validated', {
+        requestId,
+        segmentNumber: segment_number,
+        wordCount: wc,
+        targetRange: `${min}-${max}`,
+        ageGroup: story.age_group
       });
+    }
+
+    // ========== IMAGE GENERATION ==========
+    // Generate image for the story segment
+    const imageService = createImageService();
+    let imageUrl = '';
+    let imagePrompt = '';
+
+    try {
+      // Build image prompt from segment content
+      const charDescriptions = (story.characters || [])
+        .slice(0, 3)
+        .map((c: any) => {
+          const name = c?.name ? String(c.name) : '';
+          const desc = c?.description ? String(c.description) : '';
+          const type = c?.character_type ? String(c.character_type) : '';
+
+          let charDesc = name;
+          if (desc) charDesc += ` (${desc})`;
+          if (type && type !== 'human') charDesc += ` [${type}]`;
+
+          return charDesc;
+        })
+        .filter(Boolean);
+
+      const scene = segmentContent.slice(0, 200).replace(/\s+/g, ' ').trim();
+
+      if (charDescriptions.length > 0) {
+        imagePrompt = `${scene}. Characters: ${charDescriptions.join(', ')}`;
+      } else {
+        imagePrompt = scene;
+      }
+
+      // Derive a stable seed from story/segment for consistency
+      const hashToSeed = (input: string) => {
+        let h = 2166136261;
+        for (let i = 0; i < input.length; i++) {
+          h ^= input.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return Math.abs(h >>> 0) % 2147483647;
+      };
+      const seed = hashToSeed(`${story_id}|${segment_number || 1}`);
+
+      const negativePrompt = [
+        'low quality', 'worst quality', 'blurry', 'pixelated', 'jpeg artifacts', 'noise',
+        'deformed', 'distorted', 'extra limbs', 'mutated hands', 'bad anatomy', 'crooked eyes',
+        'text', 'caption', 'logo', 'watermark', 'signature', 'nsfw', 'gore', 'scary', 'violent',
+        'blood', 'weapons', 'nudity', 'disfigured', 'overexposed', 'underexposed'
+      ].join(', ');
+
+      logger.info('Generating image for story segment', { requestId, segmentNumber: segment_number });
+
+      const imageResult = await imageService.generateImage({
+        prompt: imagePrompt,
+        style: 'digital_storybook',
+        width: 1024,
+        height: 1024,
+        steps: 35,
+        guidance: 7.0,
+        seed,
+        negativePrompt
+      });
+
+      logger.info('Image generated successfully', { provider: imageResult.provider, operation: 'ai-generation' });
+
+      // Handle image storage
+      let finalImageUrl = imageResult.imageUrl;
+
+      // If it's a data URL (base64), upload to Supabase Storage
+      if (imageResult.imageUrl.startsWith('data:')) {
+        try {
+          const response = await fetch(imageResult.imageUrl);
+          const blob = await response.blob();
+          const fileName = `${story_id}_segment_${segment_number || 1}_${Date.now()}.png`;
+
+          const supabase = createSupabaseClient(true);
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('story-images')
+            .upload(fileName, blob, {
+              contentType: 'image/png',
+              upsert: false
+            });
+
+          if (uploadError) {
+            logger.error('Storage upload failed', uploadError, { operation: 'storage-upload' });
+          } else {
+            const { data: urlData } = supabase.storage
+              .from('story-images')
+              .getPublicUrl(fileName);
+
+            if (urlData?.publicUrl) {
+              finalImageUrl = urlData.publicUrl;
+            }
+          }
+        } catch (storageError) {
+          logger.error('Storage handling failed', storageError, { operation: 'storage-upload' });
+          // Continue with data URL if storage fails
+        }
+      }
+
+      imageUrl = finalImageUrl;
+
+      // Update story cover image if needed
+      if (story_id && imageUrl) {
+        const supabase = createSupabaseClient(true);
+        const { data: storyData } = await supabase
+          .from('stories')
+          .select('cover_image')
+          .eq('id', story_id)
+          .single();
+
+        if (!storyData?.cover_image) {
+          const supabase = createSupabaseClient(true);
+          await supabase
+            .from('stories')
+            .update({ cover_image: imageUrl })
+            .eq('id', story_id);
+        }
+      }
+
+    } catch (imageError) {
+      logger.error('Image generation failed, continuing without image', imageError, { requestId, operation: 'image-generation-failed' });
+      // Continue without image - don't fail the entire operation
     }
 
     // Create story segment
@@ -286,6 +413,9 @@ Deno.serve(async (req) => {
         segment_text: segmentContent,
         choices: choices,
         is_ending: choices.length === 0,
+        image_url: imageUrl || null,
+        image_prompt: imagePrompt || null,
+        image_generation_status: imageUrl ? 'completed' : 'failed',
       })
       .select()
       .single();
@@ -324,7 +454,10 @@ Deno.serve(async (req) => {
           id: segment.id,
           content: segmentContent,
           choices,
-          is_ending: choices.length === 0
+          is_ending: choices.length === 0,
+          image_url: imageUrl,
+          image_prompt: imagePrompt,
+          image_generation_status: imageUrl ? 'completed' : 'failed'
         },
         credits_used: creditValidation.creditsRequired,
         credits_remaining: creditResult.newBalance

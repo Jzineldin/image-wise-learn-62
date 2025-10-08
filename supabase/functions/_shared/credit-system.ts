@@ -13,7 +13,7 @@ export interface CreditCosts {
 
 // Credit cost configuration
 export const CREDIT_COSTS: CreditCosts = {
-  storyGeneration: 2,     // 2 credits for initial story generation
+  storyGeneration: 0,     // Free - text generation only (images charged separately)
   storySegment: 1,        // 1 credit per story segment (text only - images charged separately)
   audioGeneration: 1,     // 1 credit per 100 words of audio
   imageGeneration: 1,     // 1 credit per image
@@ -22,8 +22,23 @@ export const CREDIT_COSTS: CreditCosts = {
 
 // Calculate audio credits based on word count
 export function calculateAudioCredits(text: string): number {
-  const wordCount = text.trim().split(/\s+/).length;
-  return Math.ceil(wordCount / 100); // 1 credit per 100 words, rounded up
+  const trimmedText = text.trim();
+  if (!trimmedText) {
+    logger.info('Audio credit calculation: empty text provided', { operation: 'credit-calculation' });
+    return 0; // No credits for empty text
+  }
+
+  const wordCount = trimmedText.split(/\s+/).length;
+  const credits = Math.ceil(wordCount / 100); // 1 credit per 100 words, rounded up
+
+  logger.info('Audio credit calculation', {
+    wordCount,
+    credits,
+    textLength: trimmedText.length,
+    operation: 'credit-calculation'
+  });
+
+  return credits;
 }
 
 // Credit validation and deduction service

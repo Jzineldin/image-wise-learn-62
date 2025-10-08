@@ -151,14 +151,14 @@ serve(async (req) => {
     ].join(', ');
 
 
-    // Validate credits (don't deduct yet)
+    // Validate credits (don't deduct yet) - all images cost 1 credit
     const creditsValidation = await validateCredits(creditService, userId, 'imageGeneration');
     creditsRequired = creditsValidation.creditsRequired;
 
-    logger.info('Credits validated for image generation', { 
-      creditsRequired, 
-      availableCredits: creditsValidation.currentCredits, 
-      operation: 'credit-validation' 
+    logger.info('Credits validated for image generation', {
+      creditsRequired,
+      availableCredits: creditsValidation.currentCredits,
+      operation: 'credit-validation'
     });
 
     // Generate image using new service
@@ -189,10 +189,10 @@ serve(async (req) => {
       }
     );
 
-    logger.info('Credits deducted successfully', { 
-      creditsUsed: creditsRequired, 
-      newBalance: creditResult.newBalance, 
-      operation: 'credit-deduction' 
+    logger.info('Credits deducted successfully', {
+      creditsUsed: creditsRequired,
+      newBalance: creditResult.newBalance,
+      operation: 'credit-deduction'
     });
 
     // Store image URL in database
