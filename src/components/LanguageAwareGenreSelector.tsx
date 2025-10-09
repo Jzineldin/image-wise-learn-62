@@ -58,7 +58,7 @@ const LanguageAwareGenreSelector: React.FC<LanguageAwareGenreSelectorProps> = ({
           return (
             <Card
               key={genre}
-              className={`glass-card-interactive cursor-pointer transition-all duration-300 relative overflow-hidden ${
+              className={`glass-card-interactive cursor-pointer transition-all duration-200 relative overflow-hidden ${
                 isSelected
                   ? 'border-primary/50 bg-primary/10 ring-2 ring-primary/20'
                   : 'border-primary/20 hover:border-primary/40'

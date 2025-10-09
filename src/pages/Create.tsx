@@ -428,7 +428,7 @@ export default function CreateStoryFlow() {
       <nav className="glass-card border-b border-primary/10 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link to="/dashboard" className="flex items-center space-x-2 sm:space-x-3 hover:opacity-80 transition-opacity">
+            <Link to="/dashboard" className="flex items-center space-x-2 sm:space-x-3 hover:opacity-80 transition-opacity duration-200">
               <picture>
                 <source srcSet={taleForgeLogoImage} type="image/webp" />
                 <img
@@ -447,17 +447,17 @@ export default function CreateStoryFlow() {
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center space-x-8">
-              <Link to="/dashboard" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow flex items-center gap-2 min-h-[44px]">
+              <Link to="/dashboard" className="text-text-secondary hover:text-primary transition-colors duration-200 story-link text-with-shadow flex items-center gap-2 min-h-[44px]">
                 <Home className="h-4 w-4" />
                 Dashboard
               </Link>
-              <Link to="/discover" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow min-h-[44px] flex items-center">
+              <Link to="/discover" className="text-text-secondary hover:text-primary transition-colors duration-200 story-link text-with-shadow min-h-[44px] flex items-center">
                 Discover
               </Link>
-              <Link to="/characters" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow min-h-[44px] flex items-center">
+              <Link to="/characters" className="text-text-secondary hover:text-primary transition-colors duration-200 story-link text-with-shadow min-h-[44px] flex items-center">
                 Characters
               </Link>
-              <Link to="/my-stories" className="text-text-secondary hover:text-primary transition-colors story-link text-with-shadow min-h-[44px] flex items-center">
+              <Link to="/my-stories" className="text-text-secondary hover:text-primary transition-colors duration-200 story-link text-with-shadow min-h-[44px] flex items-center">
                 My Stories
               </Link>
             </div>

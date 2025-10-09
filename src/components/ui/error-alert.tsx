@@ -63,7 +63,7 @@ export const ErrorAlert: React.FC<ErrorAlertProps> = ({
   return (
     <div
       role="alert"
-      aria-live="polite"
+      aria-live={variant === 'warning' ? 'polite' : 'assertive'}
       className={cn(
         'p-4 bg-destructive/10 border border-destructive/20 rounded-lg transition-all duration-200',
         variant === 'warning' && 'bg-yellow-500/10 border-yellow-500/20',

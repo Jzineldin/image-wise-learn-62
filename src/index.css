@@ -23,11 +23,20 @@
     --popover: 240 25% 11%;
     --popover-foreground: 0 0% 100%;
 
-    /* Typography */
+    /* Typography - Refined System v2.0 */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-heading: 'Cinzel', 'Cinzel Decorative', Georgia, serif;
-    --body-line-height: 1.6;
-    --heading-line-height: 1.25;
+
+    /* Line Heights */
+    --line-height-none: 1;
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.625;
+
+    /* Letter Spacing */
+    --letter-spacing-tight: -0.025em;
+    --letter-spacing-normal: 0;
+    --letter-spacing-wide: 0.025em;
 
     /* Brand Colors */
     --primary: 39 100% 50%; /* #FFA500 - Amber */
@@ -143,10 +152,39 @@
     }
   }
 
+  /* Refined Heading Styles - Consistent hierarchy */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
-    line-height: var(--heading-line-height);
+    line-height: var(--line-height-tight);
+    letter-spacing: var(--letter-spacing-tight);
+  }
+
+  h1, h2 {
+    @apply font-bold;
+  }
+
+  h3, h4 {
+    @apply font-semibold;
+  }
+
+  h5, h6 {
     @apply font-medium;
+  }
+
+  /* Enhanced global focus styles for accessibility (WCAG 2.1 AA compliant) */
+  *:focus-visible {
+    outline: 3px solid hsl(var(--primary));
+    outline-offset: 3px;
+    transition: outline-offset 0.2s ease;
+  }
+
+  /* Enhanced focus for interactive elements */
+  a:focus-visible,
+  button:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 3px solid hsl(var(--primary));
+    outline-offset: 3px;
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.2);
   }
 }
 
@@ -157,7 +195,7 @@
   }
 
   .hover-scale {
-    @apply transition-all duration-300 hover:scale-105 hover:shadow-lg;
+    @apply transition-all duration-200 hover:scale-105 hover:shadow-lg;
   }
 
   /* ============================================================================
@@ -169,28 +207,28 @@
   .glass-card {
     background: hsl(var(--glass-card-overlay));
     backdrop-filter: blur(var(--glass-backdrop-blur));
-    @apply border border-primary/20 rounded-lg shadow-xl transition-all duration-300;
+    @apply border border-primary/20 rounded-lg shadow-xl transition-all duration-200;
   }
 
   /* Elevated - More prominent, higher z-index feel */
   .glass-card-elevated {
     background: hsl(var(--glass-dark));
     backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 4px));
-    @apply border border-primary/30 rounded-lg shadow-2xl transition-all duration-300;
+    @apply border border-primary/30 rounded-lg shadow-2xl transition-all duration-200;
   }
 
   /* Interactive - Hover effects for clickable cards */
   .glass-card-interactive {
     background: hsl(var(--glass-medium));
     backdrop-filter: blur(calc(var(--glass-backdrop-blur) - 4px));
-    @apply border border-primary/20 rounded-lg hover:border-primary/40 hover:bg-primary/5 transition-all duration-300 cursor-pointer hover-scale;
+    @apply border border-primary/20 rounded-lg hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 cursor-pointer hover-scale;
   }
 
   /* Subtle - Less prominent, background elements */
   .glass-card-subtle {
     background: hsl(var(--glass-light));
     backdrop-filter: blur(calc(var(--glass-backdrop-blur) + 8px));
-    @apply border border-white/10 rounded-lg shadow-lg transition-all duration-300;
+    @apply border border-white/10 rounded-lg shadow-lg transition-all duration-200;
   }
 
   /* ============================================================================
@@ -386,6 +424,224 @@
     }
     50% {
       box-shadow: 0 0 40px hsl(var(--primary) / 0.6);
+    }
+  }
+
+  /* ============================================================================
+     ENHANCED ANIMATION SYSTEM - Phase 3 Task 6
+     Comprehensive entrance, exit, and micro-interaction animations
+     ============================================================================ */
+
+  /* Entrance Animations - Slide Variants */
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out forwards;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-down {
+    animation: slideDown 0.4s ease-out forwards;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-left {
+    animation: slideLeft 0.4s ease-out forwards;
+  }
+
+  @keyframes slideLeft {
+    from {
+      opacity: 0;
+      transform: translateX(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-slide-right {
+    animation: slideRight 0.4s ease-out forwards;
+  }
+
+  @keyframes slideRight {
+    from {
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Entrance Animations - Scale Variants */
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out forwards;
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.5s ease-out forwards;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Exit Animations */
+  .animate-fade-out {
+    animation: fadeOut 0.3s ease-out forwards;
+  }
+
+  @keyframes fadeOut {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  .animate-scale-out {
+    animation: scaleOut 0.3s ease-out forwards;
+  }
+
+  @keyframes scaleOut {
+    from {
+      opacity: 1;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
+  .animate-slide-out-down {
+    animation: slideOutDown 0.3s ease-out forwards;
+  }
+
+  @keyframes slideOutDown {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+  }
+
+  /* Stagger Animation System */
+  .stagger-children > * {
+    opacity: 0;
+    animation: fadeInUp 0.5s ease-out forwards;
+  }
+
+  .stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
+  .stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
+  .stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
+  .stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
+  .stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
+  .stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
+  .stagger-children > *:nth-child(7) { animation-delay: 0.35s; }
+  .stagger-children > *:nth-child(8) { animation-delay: 0.4s; }
+  .stagger-children > *:nth-child(9) { animation-delay: 0.45s; }
+  .stagger-children > *:nth-child(10) { animation-delay: 0.5s; }
+
+  /* Micro-interactions */
+  .btn-press {
+    @apply active:scale-95 transition-transform duration-100;
+  }
+
+  .icon-bounce:hover {
+    animation: bounce 0.5s ease;
+  }
+
+  @keyframes bounce {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    25% {
+      transform: translateY(-5px);
+    }
+    50% {
+      transform: translateY(0);
+    }
+    75% {
+      transform: translateY(-2px);
+    }
+  }
+
+  .shake-error {
+    animation: shake 0.5s ease;
+  }
+
+  @keyframes shake {
+    0%, 100% {
+      transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+      transform: translateX(-5px);
+    }
+    20%, 40%, 60%, 80% {
+      transform: translateX(5px);
+    }
+  }
+
+  .hover-lift {
+    @apply transition-all duration-200 hover:-translate-y-1 hover:shadow-lg;
+  }
+
+  /* Reduced Motion Support - Respect user preferences */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    .animate-float,
+    .animate-pulse-glow {
+      animation: none !important;
     }
   }
 

@@ -211,7 +211,7 @@ export const StoryCreationWizard = ({
                 title={canClick ? `Go to ${step.title}` : step.title}
               >
                 <div
-                  className={`w-12 h-12 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
+                  className={`w-12 h-12 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-2 transition-colors duration-200 ${
                     isActive
                       ? 'bg-primary border-primary text-primary-foreground'
                       : isCompleted

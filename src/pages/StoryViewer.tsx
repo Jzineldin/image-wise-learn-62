@@ -1223,7 +1223,7 @@ const StoryViewer = () => {
 
               {/* Ending helper hint: guide user to generate missing content */}
               {viewMode === 'creation' && currentSegment?.is_ending && isOwner && !isCompletedStory && !!currentSegment.content && ((!currentSegment.image_url) || (!currentSegment.audio_url)) && (
-                <div className="glass-card-info p-4 rounded-lg border border-primary/20">
+                <div className="glass-card p-4 rounded-lg border-info/30">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <h4 className="font-semibold">Finalize your ending</h4>

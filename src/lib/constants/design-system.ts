@@ -54,27 +54,35 @@ export const SPACING = {
 
 // ============================================================================
 // TYPOGRAPHY SYSTEM
-// Consistent text sizing with responsive scaling
+// Refined hierarchy with consistent font weights, line heights, and letter spacing
+// Version 2.0 - January 2025
 // ============================================================================
 
 export const TYPOGRAPHY = {
   // Display text (hero sections)
-  display: 'text-5xl md:text-6xl font-heading font-bold leading-tight',
-  
-  // Headings
-  h1: 'text-4xl md:text-5xl font-heading font-bold',
-  h2: 'text-3xl md:text-4xl font-heading font-semibold',
-  h3: 'text-2xl md:text-3xl font-heading font-semibold',
-  h4: 'text-xl md:text-2xl font-heading font-medium',
-  h5: 'text-lg md:text-xl font-heading font-medium',
-  
-  // Body text
-  lead: 'text-xl md:text-2xl text-text-secondary',
-  body: 'text-base leading-relaxed',
+  display: 'text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-heading font-bold leading-tight tracking-tight',
+
+  // Headings - Consistent hierarchy with responsive sizing
+  h1: 'text-4xl sm:text-5xl font-heading font-bold leading-tight tracking-tight',
+  h2: 'text-3xl sm:text-4xl font-heading font-bold leading-tight tracking-tight',
+  h3: 'text-2xl sm:text-3xl font-heading font-semibold leading-tight',
+  h4: 'text-xl sm:text-2xl font-heading font-semibold leading-tight',
+  h5: 'text-lg font-heading font-medium leading-tight',
+  h6: 'text-base font-heading font-medium leading-tight',
+
+  // Body text - Optimized for readability
+  lead: 'text-lg sm:text-xl md:text-2xl text-text-secondary leading-relaxed',
   bodyLarge: 'text-lg leading-relaxed',
-  small: 'text-sm',
-  tiny: 'text-xs',
-  
+  body: 'text-base leading-normal',
+  bodySmall: 'text-sm leading-normal',
+  tiny: 'text-xs leading-normal',
+
+  // UI Elements
+  label: 'text-sm font-medium leading-none',
+  button: 'text-sm font-medium leading-none',
+  stat: 'text-3xl font-bold leading-none',
+  caption: 'text-xs text-muted-foreground leading-normal',
+
   // Special text
   gradient: 'text-gradient',
   muted: 'text-muted-foreground',
@@ -117,14 +125,55 @@ export const BUTTON_SIZE = {
 } as const;
 
 // ============================================================================
-// ANIMATION DURATIONS
-// Consistent animation timing
+// ANIMATION SYSTEM
+// Comprehensive animation utilities - Phase 3 Task 6
 // ============================================================================
 
 export const ANIMATION = {
-  fast: 'duration-150',
-  normal: 'duration-300',
-  slow: 'duration-500',
+  // Durations
+  duration: {
+    fast: 'duration-150',
+    normal: 'duration-300',
+    slow: 'duration-500',
+  },
+
+  // Entrance animations
+  entrance: {
+    fadeIn: 'animate-fade-in',
+    fadeInUp: 'animate-fade-in-up',
+    slideUp: 'animate-slide-up',
+    slideDown: 'animate-slide-down',
+    slideLeft: 'animate-slide-left',
+    slideRight: 'animate-slide-right',
+    scaleIn: 'animate-scale-in',
+  },
+
+  // Exit animations
+  exit: {
+    fadeOut: 'animate-fade-out',
+    scaleOut: 'animate-scale-out',
+    slideOutDown: 'animate-slide-out-down',
+  },
+
+  // Utility animations
+  utility: {
+    float: 'animate-float',
+    pulseGlow: 'animate-pulse-glow',
+    spin: 'animate-spin',
+    pulse: 'animate-pulse',
+  },
+
+  // Micro-interactions
+  interaction: {
+    btnPress: 'btn-press',
+    iconBounce: 'icon-bounce',
+    hoverLift: 'hover-lift',
+    hoverScale: 'hover-scale',
+    shakeError: 'shake-error',
+  },
+
+  // Stagger
+  stagger: 'stagger-children',
 } as const;
 
 // ============================================================================

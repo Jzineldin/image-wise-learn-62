@@ -33,14 +33,21 @@ export const LoadingSpinner = ({
   };
 
   return (
-    <div className={cn(
-      "flex flex-col items-center justify-center gap-2",
-      className
-    )}>
-      <Loader2 className={cn(
-        "animate-spin text-primary",
-        sizeClasses[size]
-      )} />
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center gap-2",
+        className
+      )}
+      role="status"
+      aria-label={text || "Loading"}
+    >
+      <Loader2
+        className={cn(
+          "animate-spin text-primary",
+          sizeClasses[size]
+        )}
+        aria-hidden="true"
+      />
       {text && (
         <p className="text-sm text-muted-foreground animate-pulse">
           {text}
@@ -60,7 +67,12 @@ interface PageLoadingSpinnerProps {
 }
 
 export const PageLoadingSpinner = ({ text = "Loading..." }: PageLoadingSpinnerProps) => (
-  <div className="min-h-screen flex items-center justify-center">
+  <div
+    className="min-h-screen flex items-center justify-center"
+    role="status"
+    aria-live="polite"
+    aria-label={text}
+  >
     <LoadingSpinner size="lg" text={text} />
   </div>
 );
@@ -75,7 +87,12 @@ interface ComponentLoadingSpinnerProps {
 }
 
 export const ComponentLoadingSpinner = ({ text }: ComponentLoadingSpinnerProps) => (
-  <div className="flex items-center justify-center p-8">
+  <div
+    className="flex items-center justify-center p-8"
+    role="status"
+    aria-live="polite"
+    aria-label={text || "Loading content"}
+  >
     <LoadingSpinner size="md" text={text} />
   </div>
 );

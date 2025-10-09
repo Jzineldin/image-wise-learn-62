@@ -281,7 +281,7 @@ The journey from clueless student to global runner-up taught me that sometimes t
         {/* Testimonials Grid */}
         <section className="pb-16">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredTestimonials.map((testimonial, index) => (
                 <Card key={index} className="glass-card hover-scale h-full">
                   <CardContent className="p-6 flex flex-col h-full">

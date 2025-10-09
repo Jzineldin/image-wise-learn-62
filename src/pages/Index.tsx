@@ -219,17 +219,17 @@ const Index = () => {
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-heading font-bold text-fire-gradient mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-fire-gradient mb-6">
               Magical Features
             </h2>
-            <p className="text-xl text-text-secondary max-w-2xl mx-auto text-with-shadow">
+            <p className="text-lg sm:text-xl md:text-2xl text-text-secondary max-w-2xl mx-auto text-with-shadow">
               Discover the power of AI storytelling with features designed to inspire and delight
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 stagger-children">
             {features.map((feature, index) => (
-              <Card key={index} className="glass-card hover-scale group">
+              <Card key={index} className="glass-card hover-lift group">
                 <CardHeader className="text-center">
                   <div className="mx-auto mb-4 p-3 rounded-full bg-primary/10 w-fit group-hover:bg-primary/20 transition-colors">
                     {feature.icon}
@@ -250,7 +250,7 @@ const Index = () => {
       {/* Stats Section */}
       <section className="py-16 px-4">
         <div className="container mx-auto max-w-4xl">
-          <div className="glass-card-primary p-8">
+          <div className="glass-card p-8 border-primary/30">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
               {displayStats.map((stat, index) => (
                 <div key={index} className="text-center">
@@ -274,15 +274,15 @@ const Index = () => {
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-heading font-bold text-fire-gradient mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-fire-gradient mb-6">
               How It Works
             </h2>
-            <p className="text-xl text-text-secondary max-w-2xl mx-auto text-with-shadow">
+            <p className="text-lg sm:text-xl md:text-2xl text-text-secondary max-w-2xl mx-auto text-with-shadow">
               Creating magical stories is as easy as 1, 2, 3
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-8 stagger-children">
             {howItWorks.map((step, index) => (
               <div key={index} className="text-center">
                 <div className="relative mb-8">
@@ -309,18 +309,18 @@ const Index = () => {
         <section className="py-20 px-4">
           <div className="container mx-auto max-w-6xl">
             <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-heading font-bold text-fire-gradient mb-6">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-fire-gradient mb-6">
                 What Our Users Say
               </h2>
-              <p className="text-xl text-text-secondary max-w-2xl mx-auto text-with-shadow">
+              <p className="text-lg sm:text-xl md:text-2xl text-text-secondary max-w-2xl mx-auto text-with-shadow">
                 Join thousands of storytellers who've discovered the magic
               </p>
             </div>
             
             <div className="max-w-6xl mx-auto">
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 stagger-children">
                 {testimonials.slice(0, 6).map((testimonial, index) => (
-                  <Card key={index} className="glass-card hover-scale h-full">
+                  <Card key={index} className="glass-card hover-lift h-full">
                     <CardHeader>
                       <div className="flex items-center space-x-1 mb-2">
                         {[...Array(testimonial.rating)].map((_, i) => (
@@ -352,11 +352,11 @@ const Index = () => {
       {/* Pricing Teaser Section */}
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-4xl">
-          <div className="glass-card-primary p-12 text-center">
-            <h2 className="text-4xl md:text-5xl font-heading font-bold text-fire-gradient mb-6">
+          <div className="glass-card p-12 text-center border-primary/30">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-fire-gradient mb-6">
               Start Your Story Today
             </h2>
-            <p className="text-xl text-text-secondary mb-8 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl md:text-2xl text-text-secondary mb-8 max-w-2xl mx-auto">
               Begin with our free plan or unlock unlimited creativity with premium features
             </p>
             <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-8">
@@ -394,10 +394,10 @@ const Index = () => {
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-4xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-heading font-bold text-fire-gradient mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-fire-gradient mb-6">
               Frequently Asked Questions
             </h2>
-            <p className="text-xl text-text-secondary max-w-2xl mx-auto text-with-shadow">
+            <p className="text-lg sm:text-xl md:text-2xl text-text-secondary max-w-2xl mx-auto text-with-shadow">
               Everything you need to know about Tale Forge
             </p>
           </div>
@@ -422,14 +422,14 @@ const Index = () => {
         <div className="container mx-auto max-w-4xl text-center">
           <div className="glass-card-elevated p-12">
             <Sparkles className="w-16 h-16 text-primary mx-auto mb-6" />
-            <h2 className="text-4xl md:text-5xl font-heading font-bold text-fire-gradient mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-fire-gradient mb-6">
               Ready to Create Magic?
             </h2>
-            <p className="text-xl text-text-secondary mb-8 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl md:text-2xl text-text-secondary mb-8 max-w-2xl mx-auto">
               Join thousands of storytellers and start creating your unique tales today
             </p>
             <Link to="/create">
-              <Button variant="default" size="lg" className="text-xl px-12 py-4 shadow-xl hover:shadow-2xl">
+              <Button variant="default" size="lg" className="text-lg sm:text-xl px-6 sm:px-8 md:px-12 py-3 sm:py-4 shadow-xl hover:shadow-2xl">
                 <Zap className="w-6 h-6 mr-2" />
                 Start Creating Now
               </Button>

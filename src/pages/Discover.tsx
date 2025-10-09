@@ -161,7 +161,7 @@ const Discover = () => {
           </h2>
           
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <Loading.Skeleton.Card count={6} />
             </div>
           ) : publicStories.length === 0 ? (
@@ -174,7 +174,7 @@ const Discover = () => {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
                 {publicStories.map((story) => (
                   <StoryCard
                     key={story.id}
@@ -230,10 +230,10 @@ const Discover = () => {
                 className="glass-card-interactive p-6 text-center group"
                 onClick={() => setSelectedGenre(genre)}
               >
-                <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-primary/30 transition-colors text-primary font-bold text-lg">
+                <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-primary/30 transition-colors duration-200 text-primary font-bold text-lg">
                   {genre.charAt(0)}
                 </div>
-                <h3 className="font-medium group-hover:text-primary transition-colors text-sm">
+                <h3 className="font-medium group-hover:text-primary transition-colors duration-200 text-sm">
                   {genre}
                 </h3>
               </button>

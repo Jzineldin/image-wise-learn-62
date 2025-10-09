@@ -120,7 +120,7 @@ const Dashboard = () => {
 
         {/* Upgrade Prompt for Free Users */}
         {tier === 'free' && (
-          <div className="glass-card-primary p-6 mb-8 border border-primary/20">
+          <div className="glass-card p-6 mb-8 border-primary/30">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="p-3 bg-primary/10 rounded-full">
@@ -141,9 +141,9 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Enhanced Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          <div className="glass-card-primary p-6">
+        {/* Enhanced Stats Grid with Stagger Animation */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 stagger-children">
+          <div className="glass-card p-6 border-primary/30 hover-lift">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm font-medium">Stories Created</p>
@@ -153,8 +153,8 @@ const Dashboard = () => {
               <Book className="w-8 h-8 text-primary" />
             </div>
           </div>
-          
-          <div className="glass-card-info p-6">
+
+          <div className="glass-card p-6 border-info/30 hover-lift">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm font-medium">Credits Used</p>
@@ -165,7 +165,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="glass-card-success p-6">
+          <div className="glass-card p-6 border-success/30 hover-lift">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm font-medium">Voice Minutes</p>
@@ -176,7 +176,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="glass-card-secondary p-6">
+          <div className="glass-card p-6 border-secondary/30 hover-lift">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-text-secondary text-sm font-medium">Plan Status</p>
@@ -191,7 +191,7 @@ const Dashboard = () => {
         </div>
 
         {/* Recent Stories */}
-        <div className="glass-card-light p-8">
+        <div className="glass-card-subtle p-8">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-heading font-semibold">Your Recent Stories</h2>
             <Link to="/my-stories">
@@ -202,7 +202,7 @@ const Dashboard = () => {
           </div>
 
           {loading || storiesLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <Loading.Skeleton.Card count={3} />
             </div>
           ) : recentStories.length === 0 ? (
@@ -235,14 +235,14 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
           <UsageAnalytics />
           <div className="space-y-6">
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 gap-4">
-              <Link to="/discover" className="glass-card-secondary p-4 group flex items-center space-x-4">
-                <div className="p-3 bg-primary/10 rounded-full group-hover:scale-110 transition-transform">
-                  <Book className="w-6 h-6 text-primary" />
+            {/* Quick Actions with Animations */}
+            <div className="grid grid-cols-1 gap-4 stagger-children">
+              <Link to="/discover" className="glass-card-interactive p-4 group flex items-center space-x-4 btn-press">
+                <div className="p-3 bg-primary/10 rounded-full group-hover:scale-110 transition-transform duration-200">
+                  <Book className="w-6 h-6 text-primary icon-bounce" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold group-hover:text-primary transition-colors">
+                  <h3 className="font-semibold group-hover:text-primary transition-colors duration-200">
                     Discover Stories
                   </h3>
                   <p className="text-text-secondary text-sm">
@@ -251,12 +251,12 @@ const Dashboard = () => {
                 </div>
               </Link>
 
-              <Link to="/characters" className="glass-card-primary p-4 group flex items-center space-x-4">
-                <div className="p-3 bg-primary/10 rounded-full group-hover:scale-110 transition-transform">
-                  <Users className="w-6 h-6 text-primary" />
+              <Link to="/characters" className="glass-card-interactive p-4 group flex items-center space-x-4 btn-press">
+                <div className="p-3 bg-primary/10 rounded-full group-hover:scale-110 transition-transform duration-200">
+                  <Users className="w-6 h-6 text-primary icon-bounce" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold group-hover:text-primary transition-colors">
+                  <h3 className="font-semibold group-hover:text-primary transition-colors duration-200">
                     My Characters
                   </h3>
                   <p className="text-text-secondary text-sm">
@@ -265,12 +265,12 @@ const Dashboard = () => {
                 </div>
               </Link>
 
-              <Link to="/settings" className="glass-card-info p-4 group flex items-center space-x-4">
-                <div className="p-3 bg-primary/10 rounded-full group-hover:scale-110 transition-transform">
-                  <TrendingUp className="w-6 h-6 text-primary" />
+              <Link to="/settings" className="glass-card-interactive p-4 group flex items-center space-x-4 btn-press">
+                <div className="p-3 bg-primary/10 rounded-full group-hover:scale-110 transition-transform duration-200">
+                  <TrendingUp className="w-6 h-6 text-primary icon-bounce" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold group-hover:text-primary transition-colors">
+                  <h3 className="font-semibold group-hover:text-primary transition-colors duration-200">
                     Settings & Analytics
                   </h3>
                   <p className="text-text-secondary text-sm">

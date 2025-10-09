@@ -92,7 +92,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
         <div className="flex items-center justify-between">
           <Link
             to="/"
-            className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200"
             aria-label="Tale Forge home"
           >
             <picture>
@@ -400,7 +400,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                     <>
                       <Link
                         to="/auth"
-                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors min-h-[44px] flex items-center justify-center"
+                        className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 transition-colors duration-200 min-h-[44px] flex items-center justify-center"
                         onClick={closeMobileMenu}
                       >
                         <Button variant="outline" className="w-full min-h-[44px]">
@@ -409,7 +409,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                       </Link>
                       <Link
                         to="/auth"
-                        className="text-lg py-3 px-4 rounded-lg transition-colors min-h-[44px] flex items-center justify-center"
+                        className="text-lg py-3 px-4 rounded-lg transition-colors duration-200 min-h-[44px] flex items-center justify-center"
                         onClick={closeMobileMenu}
                       >
                         <Button variant="default" size="lg" className="w-full min-h-[44px]">
