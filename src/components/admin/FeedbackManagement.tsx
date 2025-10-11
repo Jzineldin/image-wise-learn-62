@@ -39,15 +39,10 @@ const FeedbackManagement = () => {
   const fetchFeedback = async () => {
     setLoading(true);
     try {
+      // First, try to fetch feedback without join
       let query = supabase
         .from('user_feedback')
-        .select(`
-          *,
-          profiles:user_id (
-            email,
-            full_name
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (filterStatus !== 'all') {
@@ -58,16 +53,31 @@ const FeedbackManagement = () => {
         query = query.eq('feedback_type', filterType);
       }
 
-      const { data, error } = await query;
+      const { data: feedbackData, error: feedbackError } = await query;
 
-      if (error) throw error;
+      if (feedbackError) throw feedbackError;
 
-      // Transform data to include user info
-      const transformedData = data?.map((item: any) => ({
-        ...item,
-        user_email: item.profiles?.email,
-        user_name: item.profiles?.full_name,
-      })) || [];
+      // Then fetch user profiles separately
+      const userIds = feedbackData?.map(f => f.user_id).filter(Boolean) || [];
+
+      let transformedData = feedbackData || [];
+
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .in('id', userIds);
+
+        // Map profiles to feedback
+        transformedData = feedbackData?.map((item: any) => {
+          const profile = profilesData?.find(p => p.id === item.user_id);
+          return {
+            ...item,
+            user_email: profile?.email,
+            user_name: profile?.full_name,
+          };
+        }) || [];
+      }
 
       setFeedback(transformedData);
     } catch (error) {

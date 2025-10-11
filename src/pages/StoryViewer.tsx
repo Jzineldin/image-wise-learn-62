@@ -24,7 +24,8 @@ import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import { calculateTTSCredits } from '@/lib/api/credit-api';
 import { generateAudio as generateAudioAPI } from '@/lib/api/story-api';
 import { isStoryCompleted } from '@/lib/helpers/story-helpers';
-import { CheckCircle2, BookOpen } from 'lucide-react';
+import { CheckCircle2, BookOpen, FileDown } from 'lucide-react';
+import { exportStoryToPDF } from '@/lib/pdf-export';
 
 type ViewMode = 'creation' | 'experience';
 
@@ -142,6 +143,7 @@ const StoryViewer = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fontSize, setFontSize] = useState(18);
   const [autoPlaySpeed, setAutoPlaySpeed] = useState(5);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
 
   // Ensure voice selection matches current language
   useEffect(() => {
@@ -1017,6 +1019,38 @@ const StoryViewer = () => {
     }
   };
 
+  const handleExportPDF = async () => {
+    if (!story || segments.length === 0) {
+      toast({
+        title: "Cannot export PDF",
+        description: "Story must have at least one segment to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsExportingPDF(true);
+
+      // Export the story to PDF
+      await exportStoryToPDF(story.title, segments);
+
+      toast({
+        title: "PDF exported successfully!",
+        description: `${story.title}.pdf has been downloaded.`,
+      });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast({
+        title: "Export failed",
+        description: error instanceof Error ? error.message : "Failed to export PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+
   const handleEndStory = async () => {
     if (!story || !user) return;
 
@@ -1136,6 +1170,7 @@ const StoryViewer = () => {
         isFullscreen={isFullscreen}
         isCompleted={isCompletedStory}
         generatingEnding={generatingEnding}
+        isExportingPDF={isExportingPDF}
         onModeChange={(mode) => {
           setViewMode(mode);
           setSearchParams(prev => {
@@ -1148,6 +1183,7 @@ const StoryViewer = () => {
         onToggleReadingMode={toggleReadingMode}
         onToggleFullscreen={toggleFullscreen}
         onEndStory={handleEndStory}
+        onExportPDF={handleExportPDF}
         hasEnding={hasEnding}
         endActionLabel={endActionLabel}
       />

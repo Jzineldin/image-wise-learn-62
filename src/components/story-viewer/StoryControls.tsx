@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Share, ThumbsUp, BookOpen, Edit, Eye, Home, User, Settings, Coins, Square } from 'lucide-react';
+import { Share, ThumbsUp, BookOpen, Edit, Eye, Home, User, Settings, Coins, Square, FileDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StoryModeToggle, StoryModeIndicator } from './StoryModeToggle';
 import CreditDisplay from '@/components/CreditDisplay';
@@ -15,12 +15,14 @@ interface StoryControlsProps {
   generatingEnding?: boolean;
   hasEnding?: boolean;
   endActionLabel?: string;
+  isExportingPDF?: boolean;
   onModeChange: (mode: 'creation' | 'experience') => void;
   onShare: () => void;
   onToggleLike: () => void;
   onToggleReadingMode: () => void;
   onToggleFullscreen: () => void;
   onEndStory?: () => void;
+  onExportPDF?: () => void;
 }
 
 export const StoryControls = ({
@@ -33,12 +35,14 @@ export const StoryControls = ({
   generatingEnding = false,
   hasEnding = false,
   endActionLabel,
+  isExportingPDF = false,
   onModeChange,
   onShare,
   onToggleLike,
   onToggleReadingMode,
   onToggleFullscreen,
-  onEndStory
+  onEndStory,
+  onExportPDF
 }: StoryControlsProps) => {
   return (
     <div className="space-y-4">
@@ -146,6 +150,29 @@ export const StoryControls = ({
               <Share className="h-4 w-4" />
               Share
             </Button>
+
+            {/* Export PDF Button */}
+            {onExportPDF && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onExportPDF}
+                disabled={isExportingPDF}
+                className="flex items-center gap-2"
+              >
+                {isExportingPDF ? (
+                  <>
+                    <div className="loading-spinner h-4 w-4" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <FileDown className="h-4 w-4" />
+                    Export PDF
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       )}
