@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,13 +10,16 @@ import { VOICE_LANGUAGE_MAP } from '@/constants/translations';
 import { VoiceSelector } from '@/components/VoiceSelector';
 import { ReadingModeControls } from '@/components/ReadingModeControls';
 import { StoryModeToggle, StoryModeIndicator } from '@/components/story-viewer/StoryModeToggle';
-import { AudioControls, FloatingAudioControls } from '@/components/story-viewer/AudioControls';
-import { StorySegmentDisplay } from '@/components/story-viewer/StorySegmentDisplay';
-import { StoryNavigation } from '@/components/story-viewer/StoryNavigation';
-import { StoryMetadata } from '@/components/story-viewer/StoryMetadata';
+const AudioControls = lazy(() => import('@/components/story-viewer/AudioControls').then(m => ({ default: m.AudioControls })));
+const FloatingAudioControls = lazy(() => import('@/components/story-viewer/AudioControls').then(m => ({ default: m.FloatingAudioControls })));
+const StorySegmentDisplay = lazy(() => import('@/components/story-viewer/StorySegmentDisplay').then(m => ({ default: m.StorySegmentDisplay })));
+const StoryNavigation = lazy(() => import('@/components/story-viewer/StoryNavigation').then(m => ({ default: m.StoryNavigation })));
+const StoryMetadata = lazy(() => import('@/components/story-viewer/StoryMetadata').then(m => ({ default: m.StoryMetadata })));
+const StorySidebar = lazy(() => import('@/components/story-viewer/StorySidebar').then(m => ({ default: m.StorySidebar })));
+
 import { StoryControls } from '@/components/story-viewer/StoryControls';
 import { StoryProgressTracker } from '@/components/story-viewer/StoryProgressTracker';
-import { StorySidebar } from '@/components/story-viewer/StorySidebar';
+
 import { logger as debugLogger, generateRequestId } from '@/lib/utils/debug';
 import { logger } from '@/lib/logger';
 import { AIClient, InsufficientCreditsError, AIClientError } from '@/lib/api/ai-client';
@@ -1223,38 +1226,42 @@ const StoryViewer = () => {
             <div className="space-y-6 min-w-0">
               {/* Story Metadata */}
               {viewMode === 'experience' && (
-                <StoryMetadata story={story} viewMode={viewMode} />
+                <Suspense fallback={<div className="h-6 w-32 animate-pulse rounded bg-muted/30" /> }>
+                  <StoryMetadata story={story} viewMode={viewMode} />
+                </Suspense>
               )}
 
               {/* Current Segment Display */}
               {currentSegment && (
-                <StorySegmentDisplay
-                  segment={currentSegment}
-                  story={story}
-                  viewMode={viewMode}
-                  isOwner={isOwner}
-                  generatingSegment={generatingSegment}
-                  generatingImage={generatingImage}
-                  onChoice={handleChoice}
-                  onGenerateImage={generateSegmentImage}
-                  fontSize={fontSize}
-                  isPlaying={isPlaying}
-                  generatingAudio={generatingAudio}
-                  onToggleAudio={toggleAudio}
-                  onGenerateAudio={() => {
-                    if (!currentSegment.content) {
-                      toast({
-                        title: "Cannot generate audio",
-                        description: "This segment has no content to convert to audio.",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                    generateAudio(currentSegment.id, currentSegment.content);
-                  }}
-                  selectedVoice={selectedVoice}
-                  onVoiceChange={setSelectedVoice}
-                />
+                <Suspense fallback={<div className="aspect-video w-full rounded-lg bg-muted/30 animate-pulse" /> }>
+                  <StorySegmentDisplay
+                    segment={currentSegment}
+                    story={story}
+                    viewMode={viewMode}
+                    isOwner={isOwner}
+                    generatingSegment={generatingSegment}
+                    generatingImage={generatingImage}
+                    onChoice={handleChoice}
+                    onGenerateImage={generateSegmentImage}
+                    fontSize={fontSize}
+                    isPlaying={isPlaying}
+                    generatingAudio={generatingAudio}
+                    onToggleAudio={toggleAudio}
+                    onGenerateAudio={() => {
+                      if (!currentSegment.content) {
+                        toast({
+                          title: "Cannot generate audio",
+                          description: "This segment has no content to convert to audio.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      generateAudio(currentSegment.id, currentSegment.content);
+                    }}
+                    selectedVoice={selectedVoice}
+                    onVoiceChange={setSelectedVoice}
+                  />
+                </Suspense>
               )}
 
               {/* Ending helper hint: guide user to generate missing content */}
@@ -1297,61 +1304,63 @@ const StoryViewer = () => {
 
               {/* Story Navigation for Experience Mode */}
               {viewMode === 'experience' && (
-                <StoryNavigation
-                  currentSegmentIndex={currentSegmentIndex}
-                  totalSegments={segments.length}
-                  onNavigate={navigateSegment}
-                  onJumpToSegment={jumpToSegment}
-                  onEndStory={handleEndStory}
-                  showEndStory={isOwner && !isCompletedStory}
-                  viewMode={viewMode}
-                  hasEnding={hasEnding}
-                  endActionLabel={endActionLabel}
-                />
+                <Suspense fallback={<div className="h-10 w-full rounded bg-muted/30 animate-pulse" /> }>
+                  <StoryNavigation
+                    currentSegmentIndex={currentSegmentIndex}
+                    totalSegments={segments.length}
+                    onNavigate={navigateSegment}
+                    onJumpToSegment={jumpToSegment}
+                    onEndStory={handleEndStory}
+                    showEndStory={isOwner && !isCompletedStory}
+                    viewMode={viewMode}
+                    hasEnding={hasEnding}
+                    endActionLabel={endActionLabel}
+                  />
+                </Suspense>
               )}
             </div>
 
             {/* Sidebar for Creation Mode */}
             {viewMode === 'creation' && currentSegment && (
-              <div className="lg:sticky lg:top-6 min-w-0">
-                <StorySidebar
-                story={story}
-                currentSegment={currentSegment}
-                segmentNumber={currentSegmentIndex + 1}
-                totalSegments={segments.length}
-                creditsUsed={creditsUsed}
-                totalCredits={totalCredits}
-                isPlaying={isPlaying}
-                generatingAudio={generatingAudio}
-                generatingImage={generatingImage === currentSegment.id}
-                generatingEnding={generatingEnding}
-                generatingSegment={generatingSegment}
-                selectedVoice={selectedVoice}
-                onVoiceChange={setSelectedVoice}
-                onGenerateAudio={() => {
-                  if (!currentSegment.content) {
-                    toast({
-                      title: "Cannot generate audio",
-                      description: "This segment has no content to convert to audio.",
-                      variant: "destructive",
-
-
-                    });
-                    return;
-                  }
-                  generateAudio(currentSegment.id, currentSegment.content);
-                }}
-                onToggleAudio={toggleAudio}
-                onGenerateImage={() => generateSegmentImage(currentSegment)}
-                onEndStory={handleEndStory}
-                isOwner={isOwner}
-                isCompleted={isCompletedStory}
-                creditLocked={creditLock.current}
-                hasEnding={hasEnding}
-                onMakePictureAndVoice={() => makePictureAndVoice(currentSegment)}
-                endActionLabel={endActionLabel}
-              />
-              </div>
+              <Suspense fallback={<div className="h-[420px] rounded-lg bg-muted/30 animate-pulse" /> }>
+                <div className="lg:sticky lg:top-6 min-w-0">
+                  <StorySidebar
+                    story={story}
+                    currentSegment={currentSegment}
+                    segmentNumber={currentSegmentIndex + 1}
+                    totalSegments={segments.length}
+                    creditsUsed={creditsUsed}
+                    totalCredits={totalCredits}
+                    isPlaying={isPlaying}
+                    generatingAudio={generatingAudio}
+                    generatingImage={generatingImage === currentSegment.id}
+                    generatingEnding={generatingEnding}
+                    generatingSegment={generatingSegment}
+                    selectedVoice={selectedVoice}
+                    onVoiceChange={setSelectedVoice}
+                    onGenerateAudio={() => {
+                      if (!currentSegment.content) {
+                        toast({
+                          title: "Cannot generate audio",
+                          description: "This segment has no content to convert to audio.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      generateAudio(currentSegment.id, currentSegment.content);
+                    }}
+                    onToggleAudio={toggleAudio}
+                    onGenerateImage={() => generateSegmentImage(currentSegment)}
+                    onEndStory={handleEndStory}
+                    isOwner={isOwner}
+                    isCompleted={isCompletedStory}
+                    creditLocked={creditLock.current}
+                    hasEnding={hasEnding}
+                    onMakePictureAndVoice={() => makePictureAndVoice(currentSegment)}
+                    endActionLabel={endActionLabel}
+                  />
+                </div>
+              </Suspense>
             )}
           </div>
         </div>
@@ -1386,31 +1395,33 @@ const StoryViewer = () => {
 
       {/* Floating Audio Controls for Experience Mode */}
       {viewMode === 'experience' && !isReadingMode && (
-        <FloatingAudioControls
-          audioUrl={currentSegment?.audio_url}
-          isPlaying={isPlaying}
-          isGenerating={generatingAudio}
-          onToggleAudio={toggleAudio}
-          onGenerateAudio={() => {
-            if (!currentSegment || !currentSegment.content) {
-              toast({
-                title: "Cannot generate audio",
-                description: "This segment has no content to convert to audio.",
-                variant: "destructive",
-              });
-              return;
-            }
-            generateAudio(currentSegment.id, currentSegment.content);
-          }}
-          onSkipForward={() => navigateSegment('next')}
-          onSkipBack={() => navigateSegment('prev')}
-          canSkipForward={currentSegmentIndex < segments.length - 1}
-          canSkipBack={currentSegmentIndex > 0}
-          disabled={creditLock.current}
-          selectedVoice={selectedVoice}
-          onVoiceChange={setSelectedVoice}
-          showVoiceSelector={true}
-        />
+        <Suspense fallback={<div className="fixed bottom-4 left-1/2 -translate-x-1/2 h-12 w-[90%] max-w-xl rounded-full bg-muted/30 animate-pulse" /> }>
+          <FloatingAudioControls
+            audioUrl={currentSegment?.audio_url}
+            isPlaying={isPlaying}
+            isGenerating={generatingAudio}
+            onToggleAudio={toggleAudio}
+            onGenerateAudio={() => {
+              if (!currentSegment || !currentSegment.content) {
+                toast({
+                  title: "Cannot generate audio",
+                  description: "This segment has no content to convert to audio.",
+                  variant: "destructive",
+                });
+                return;
+              }
+              generateAudio(currentSegment.id, currentSegment.content);
+            }}
+            onSkipForward={() => navigateSegment('next')}
+            onSkipBack={() => navigateSegment('prev')}
+            canSkipForward={currentSegmentIndex < segments.length - 1}
+            canSkipBack={currentSegmentIndex > 0}
+            disabled={creditLock.current}
+            selectedVoice={selectedVoice}
+            onVoiceChange={setSelectedVoice}
+            showVoiceSelector={true}
+          />
+        </Suspense>
       )}
     </div>
   );

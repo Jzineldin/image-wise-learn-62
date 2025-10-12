@@ -97,9 +97,19 @@ async function optimizeImages() {
       })
       .webp({ quality: 80 })
       .toFile(path.join(assetsDir, 'main-astronaut-optimized.webp'));
-    
+
+    // Create optimized PNG fallback (1920x1080, quality ~90)
+    await sharp(bgPath)
+      .resize(1366, 768, {
+        fit: 'cover',
+        position: 'center'
+      })
+      .png({ compressionLevel: 9, adaptiveFiltering: true, palette: true, colors: 128 })
+      .toFile(path.join(assetsDir, 'main-astronaut-optimized.png'));
+
     console.log('✅ Background image optimized successfully');
     console.log('   - Created: main-astronaut-optimized.webp');
+    console.log('   - Created: main-astronaut-optimized.png');
   } catch (error) {
     console.error('❌ Error optimizing background:', error.message);
   }
