@@ -1,0 +1,324 @@
+/**
+ * UI/UX Fixes - October 11, 2025
+ * Based on feedback analysis report
+ * Addresses: Layout overflow, text alignment, responsive design, unnecessary elements
+ */
+
+/* ============================================================================
+   PRIORITY 1: CRITICAL LAYOUT OVERFLOW FIXES
+   ============================================================================ */
+
+/* Ensure proper viewport handling - prevent horizontal overflow */
+html {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Fix content overflow globally */
+.container,
+[class*="container"] {
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.content-wrapper,
+[class*="content"] {
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* Ensure buttons stay within bounds */
+.button-container,
+[class*="button-container"],
+[class*="actions"] {
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.action-button,
+button,
+[role="button"] {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Fix modal/dialog overflow */
+[role="dialog"],
+[class*="Dialog"],
+[class*="Modal"] {
+  max-width: 100vw;
+  max-height: 100vh;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* ============================================================================
+   PRIORITY 2: TEXT ALIGNMENT STANDARDIZATION
+   ============================================================================ */
+
+/* Standardize title alignment - center all major headings */
+.page-title,
+.section-title,
+[class*="title"],
+h1,
+h2.text-center {
+  text-align: center !important;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Ensure banner centering */
+.banner,
+[class*="banner"],
+[class*="announcement"] {
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Center hero sections */
+.hero,
+[class*="hero"],
+.landing-section {
+  text-align: center;
+}
+
+/* Center CTA messages */
+.cta,
+[class*="cta"],
+[class*="call-to-action"] {
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ============================================================================
+   PRIORITY 3: HIDE UNNECESSARY ELEMENTS ON MOBILE
+   ============================================================================ */
+
+/* Hide feedback button on mobile (we have floating button instead) */
+@media (max-width: 768px) {
+  /* Hide desktop feedback button in navigation */
+  nav [class*="feedback"],
+  nav button:has([class*="MessageSquare"]) {
+    display: none !important;
+  }
+  
+  /* Keep floating feedback button visible */
+  .fixed.bottom-6.right-6 {
+    display: block !important;
+  }
+}
+
+/* ============================================================================
+   PRIORITY 4: NAVIGATION OPTIMIZATION
+   ============================================================================ */
+
+/* Simplify mobile top bar - reduce icon clutter */
+@media (max-width: 768px) {
+  /* Top bar container */
+  nav .flex.items-center.justify-between {
+    gap: 0.5rem;
+  }
+  
+  /* Standardize icon spacing in top bar */
+  nav .top-bar-icon,
+  nav button[aria-label],
+  nav [role="button"] {
+    margin: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Ensure proper icon alignment */
+  nav svg,
+  nav [class*="lucide"] {
+    vertical-align: middle;
+  }
+  
+  /* Hide non-essential icons on very small screens */
+  @media (max-width: 640px) {
+    /* Hide theme toggle on very small screens */
+    nav [class*="ThemeToggle"] {
+      display: none;
+    }
+    
+    /* Hide help icon on very small screens */
+    nav button:has([class*="HelpCircle"]) {
+      display: none;
+    }
+  }
+}
+
+/* ============================================================================
+   PRIORITY 5: RESPONSIVE DESIGN IMPROVEMENTS
+   ============================================================================ */
+
+/* Mobile-first responsive containers */
+@media (max-width: 768px) {
+  /* Ensure all containers are mobile-friendly */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Stack elements vertically on mobile */
+  .flex-row-desktop {
+    flex-direction: column;
+  }
+  
+  /* Full-width buttons on mobile */
+  .mobile-full-width,
+  [class*="DialogFooter"] button,
+  [class*="modal-footer"] button {
+    width: 100%;
+  }
+}
+
+/* Fix card overflow on mobile */
+@media (max-width: 768px) {
+  [class*="Card"],
+  [class*="card"] {
+    max-width: 100%;
+    overflow: hidden;
+  }
+  
+  /* Ensure card content doesn't overflow */
+  [class*="CardContent"],
+  [class*="card-content"] {
+    max-width: 100%;
+    overflow-x: hidden;
+    word-wrap: break-word;
+  }
+}
+
+/* ============================================================================
+   PRIORITY 6: CONTENT PRESENTATION IMPROVEMENTS
+   ============================================================================ */
+
+/* Improve CTA message presentation */
+.cta-message,
+[class*="cta"] p,
+[class*="call-to-action"] p {
+  text-align: center;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+/* Simplify CTA text on mobile */
+@media (max-width: 768px) {
+  .cta-message,
+  [class*="cta"] p {
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+}
+
+/* ============================================================================
+   ADDITIONAL MOBILE OPTIMIZATIONS
+   ============================================================================ */
+
+/* Prevent text overflow */
+@media (max-width: 768px) {
+  p, span, div {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+  
+  /* Prevent long URLs or text from breaking layout */
+  a, code, pre {
+    word-break: break-all;
+    overflow-wrap: break-word;
+  }
+}
+
+/* Improve touch targets */
+@media (max-width: 768px) {
+  /* Ensure all interactive elements meet minimum size */
+  button,
+  [role="button"],
+  a[class*="Button"],
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Add spacing between touch targets */
+  button + button,
+  [role="button"] + [role="button"] {
+    margin-left: 8px;
+  }
+}
+
+/* Fix image overflow */
+@media (max-width: 768px) {
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  /* Ensure images in cards don't overflow */
+  [class*="Card"] img,
+  [class*="card"] img {
+    max-width: 100%;
+    object-fit: contain;
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY IMPROVEMENTS
+   ============================================================================ */
+
+/* Improve focus visibility on mobile */
+@media (max-width: 768px) {
+  *:focus-visible {
+    outline: 3px solid var(--primary, #3b82f6);
+    outline-offset: 2px;
+  }
+}
+
+/* Ensure sufficient color contrast */
+.text-muted,
+[class*="muted"] {
+  opacity: 0.8;
+  min-contrast: 4.5;
+}
+
+/* ============================================================================
+   PERFORMANCE OPTIMIZATIONS
+   ============================================================================ */
+
+/* Reduce animations on mobile for better performance */
+@media (max-width: 768px) and (prefers-reduced-motion: no-preference) {
+  * {
+    animation-duration: 0.2s !important;
+    transition-duration: 0.2s !important;
+  }
+}
+
+/* Disable animations if user prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+

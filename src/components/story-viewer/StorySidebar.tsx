@@ -157,10 +157,7 @@ export const StorySidebar = ({
           </h3>
 
           <div className="space-y-3">
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">Select Voice</label>
-              <VoiceSelector selectedVoice={selectedVoice} onVoiceChange={onVoiceChange} />
-            </div>
+            <VoiceSelector selectedVoice={selectedVoice} onVoiceChange={onVoiceChange} />
 
             {!hasAudio && (
               <Button

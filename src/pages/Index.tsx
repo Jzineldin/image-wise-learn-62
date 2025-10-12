@@ -96,9 +96,9 @@ const Index = () => {
   ];
 
   const displayStats = [
-    { number: "5,000+", label: "Stories Created", icon: <BookOpen className="w-5 h-5" /> },
-    { number: "50+", label: "Countries", icon: <Globe className="w-5 h-5" /> },
-    { number: "Swedish & English", label: "AI Storytelling", icon: <Sparkles className="w-5 h-5" /> },
+    { number: stats.totalStories > 0 ? `${stats.totalStories}+` : "153+", label: "Stories Created", icon: <BookOpen className="w-5 h-5" /> },
+    { number: "2", label: "Languages", icon: <Globe className="w-5 h-5" /> },
+    { number: "🇸🇪 🇬🇧", label: "Swedish & English", icon: <Sparkles className="w-5 h-5" /> },
     { number: "100%", label: "5-Star Rated", icon: <Star className="w-5 h-5" /> }
   ];
 
@@ -118,7 +118,7 @@ const Index = () => {
     },
     {
       question: "How much does Tale Forge cost?",
-      answer: "We offer a free plan with limited stories per month, and premium plans starting at $9.99/month for unlimited story creation and additional features."
+      answer: "We offer a free plan with 10 credits per month (enough for 2-3 stories), and premium plans starting at $9.99/month for 100 credits (10-20 stories) with additional features."
     },
     {
       question: "Can I customize the stories?",
@@ -357,17 +357,19 @@ const Index = () => {
               Start Your Story Today
             </h2>
             <p className="text-lg sm:text-xl md:text-2xl text-text-secondary mb-8 max-w-2xl mx-auto">
-              Begin with our free plan or unlock unlimited creativity with premium features
+              Start free with 10 credits or unlock unlimited creativity with premium
             </p>
             <div className="flex flex-col md:flex-row items-center justify-center gap-6 mb-8">
               <div className="text-center">
                 <div className="text-3xl font-bold text-text-primary">Free Plan</div>
-                <div className="text-text-secondary">3 stories per month</div>
+                <div className="text-text-secondary">10 credits/month</div>
+                <div className="text-xs text-muted-foreground mt-1">~2-3 stories</div>
               </div>
               <div className="hidden md:block w-px h-12 bg-primary/30"></div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary">Premium</div>
-                <div className="text-text-secondary">Starting at $9.99/month</div>
+                <div className="text-3xl font-bold text-primary">Starter</div>
+                <div className="text-text-secondary">$9.99/month</div>
+                <div className="text-xs text-muted-foreground mt-1">100 credits (~10-20 stories)</div>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

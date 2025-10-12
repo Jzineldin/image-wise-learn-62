@@ -156,17 +156,17 @@ const Navigation = ({ className = "" }: NavigationProps) => {
           <div className="hidden md:flex items-center space-x-4">
             <ThemeToggle variant="dropdown" showLabel={false} />
 
-            {/* Global Feedback Button */}
+            {/* Global Feedback Button - Desktop Only (Mobile has floating button) */}
             <FeedbackDialog
               trigger={
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-2 hidden sm:flex"
+                  className="gap-2 hidden md:flex"
                   aria-label="Send feedback"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span className="hidden md:inline">Feedback</span>
+                  <span>Feedback</span>
                 </Button>
               }
             />
@@ -366,16 +366,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                         Take Tour
                       </button>
 
-                      <FeedbackDialog
-                        trigger={
-                          <button
-                            className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 min-h-[44px] flex items-center gap-3 w-full text-left"
-                          >
-                            <MessageSquare className="w-5 h-5" />
-                            Send Feedback
-                          </button>
-                        }
-                      />
+                      {/* Feedback button removed from mobile menu - use floating button instead */}
 
                       {isAdmin && (
                         <Link
