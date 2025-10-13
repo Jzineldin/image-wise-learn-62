@@ -49,8 +49,6 @@ const ContentModeration = () => {
   const [segmentCounts, setSegmentCounts] = useState<Record<string, number>>({});
   const [audioCounts, setAudioCounts] = useState<Record<string, number>>({});
   const [contentCounts, setContentCounts] = useState<Record<string, number>>({});
-  const PREVIEW_LIMIT = 5;
-
 
   const { toast } = useToast();
 
@@ -201,15 +199,6 @@ const ContentModeration = () => {
   const toggleStoryFeature = async (storyId: string, shouldFeature: boolean, priority: number = 1) => {
     try {
       if (shouldFeature) {
-        // Enforce preview limit on client side for immediate feedback
-        if (!featuredIds.has(storyId) && featuredIds.size >= PREVIEW_LIMIT) {
-          toast({
-            title: 'Preview limit reached',
-            description: `You can feature up to ${PREVIEW_LIMIT} stories. Remove one before adding another.`,
-            variant: 'destructive',
-          });
-          return;
-        }
         // Pre-check story status/visibility to avoid RPC failure
         const { data: storyRow, error: sErr } = await supabase
           .from('stories')
@@ -464,7 +453,6 @@ const ContentModeration = () => {
                     <Button
                       size="sm"
                       variant={featuredIds.has(story.id) ? "secondary" : "outline"}
-                      disabled={!featuredIds.has(story.id) && featuredIds.size >= PREVIEW_LIMIT}
                       onClick={() => toggleStoryFeature(story.id, !featuredIds.has(story.id), featurePriority[story.id] ?? 1)}
                       title={featuredIds.has(story.id) ? 'Remove from Preview' : 'Add to Preview (Landing Carousel)'}
                       aria-label={featuredIds.has(story.id) ? 'Remove from Preview' : 'Add to Preview'}

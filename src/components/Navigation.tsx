@@ -13,6 +13,8 @@ import FeedbackDialog from './FeedbackDialog';
 import FounderBadge from './FounderBadge';
 import { logger } from '@/lib/production-logger';
 
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+
 interface NavigationProps {
   className?: string;
 }
@@ -30,7 +32,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
 
   const checkAdminStatus = async () => {
     if (!user) return;
-    
+
     try {
       const { data } = await supabase.rpc('has_role', { check_role: 'admin' });
       setIsAdmin(data || false);
@@ -60,7 +62,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
         setShowUserMenu(false);
       }
     };
-    
+
     if (showMobileMenu || showUserMenu) {
       document.addEventListener('keydown', handleEscape);
       return () => document.removeEventListener('keydown', handleEscape);
@@ -110,7 +112,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
             </picture>
             <span className="text-2xl font-heading font-bold text-gradient">Tale Forge</span>
           </Link>
-          
+
           <div className="hidden md:flex items-center space-x-2">
             <Link to="/discover" className="px-3 py-2 rounded-lg text-text-secondary hover:bg-muted/50 hover:text-primary transition-all duration-200">
               Discover
@@ -175,14 +177,15 @@ const Navigation = ({ className = "" }: NavigationProps) => {
               <>
                 <CreditDisplay compact showActions={false} />
                 <div className="relative">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-2"
-                    aria-label="User menu"
-                    aria-expanded={showUserMenu}
-                    aria-haspopup="true"
-                  >
+                  <DropdownMenu open={showUserMenu} onOpenChange={setShowUserMenu}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="flex items-center gap-2"
+                        aria-label="User menu"
+                        aria-expanded={showUserMenu}
+                        aria-haspopup="true"
+                      >
                     <User className="w-4 h-4" />
                     {user.email?.split('@')[0]}
                     {profile?.is_beta_user && (
@@ -194,49 +197,33 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                       />
                     )}
                   </Button>
-                
-                  {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-48 glass-card-elevated rounded-lg shadow-lg z-[1200] max-h-[80vh] overflow-auto">
-                      <div className="py-2">
-                        <Link
-                          to="/settings"
-                          className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200"
-                          onClick={() => setShowUserMenu(false)}
-                        >
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 glass-card-elevated">
+                      <DropdownMenuItem asChild>
+                        <Link to="/settings" className="flex items-center gap-2">
                           <Settings className="w-4 h-4" />
-                          Settings
+                          <span>Settings</span>
                         </Link>
-                        <button
-                          onClick={() => {
-                            setShowUserMenu(false);
-                            startTour();
-                          }}
-                          className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 w-full text-left"
-                        >
-                          <HelpCircle className="w-4 h-4" />
-                          Take Tour
-                        </button>
-                        {isAdmin && (
-                          <Link
-                            to="/admin"
-                            className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200"
-                            onClick={() => setShowUserMenu(false)}
-                          >
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); startTour(); }} className="flex items-center gap-2">
+                        <HelpCircle className="w-4 h-4" />
+                        <span>Take Tour</span>
+                      </DropdownMenuItem>
+                      {isAdmin && (
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin" className="flex items-center gap-2">
                             <Shield className="w-4 h-4" />
-                            Admin Panel
+                            <span>Admin Panel</span>
                           </Link>
-                        )}
-                        <button
-                          onClick={handleSignOut}
-                          className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 w-full text-left"
-                          aria-label="Sign out of your account"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          Sign Out
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleSignOut(); }} className="flex items-center gap-2">
+                        <LogOut className="w-4 h-4" />
+                        <span>Sign Out</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </>
             ) : (
@@ -265,7 +252,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
               onClick={closeMobileMenu}
               aria-hidden="true"
             />
-            
+
             {/* Mobile Menu Panel */}
             <div
               id="mobile-menu"
@@ -345,7 +332,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                           />
                         )}
                       </div>
-                      
+
                       <Link
                         to="/settings"
                         className="text-lg py-3 px-4 rounded-lg hover:bg-muted/50 hover:text-primary transition-all duration-200 min-h-[44px] flex items-center gap-3"
