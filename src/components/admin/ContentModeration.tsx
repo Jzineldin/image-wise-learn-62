@@ -19,6 +19,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/debug';
 import StoryCard from '@/components/StoryCard';
+import { queryClient, queryKeys } from '@/lib/query-client';
+
 
 interface Story {
   id: string;
@@ -40,12 +42,15 @@ const ContentModeration = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [visibilityFilter, setVisibilityFilter] = useState('all');
+  const [previewFilter, setPreviewFilter] = useState<'all' | 'featured' | 'non'>('all');
   const [completionFilter, setCompletionFilter] = useState<'all' | '25' | '50' | '75' | '100'>('all');
   const [featuredIds, setFeaturedIds] = useState<Set<string>>(new Set());
   const [featurePriority, setFeaturePriority] = useState<Record<string, number>>({});
   const [segmentCounts, setSegmentCounts] = useState<Record<string, number>>({});
   const [audioCounts, setAudioCounts] = useState<Record<string, number>>({});
   const [contentCounts, setContentCounts] = useState<Record<string, number>>({});
+  const PREVIEW_LIMIT = 5;
+
 
   const { toast } = useToast();
 
@@ -55,7 +60,7 @@ const ContentModeration = () => {
 
   useEffect(() => {
     filterStories();
-  }, [stories, searchTerm, statusFilter, visibilityFilter, completionFilter]);
+  }, [stories, searchTerm, statusFilter, visibilityFilter, completionFilter, previewFilter]);
 
   const loadData = async () => {
     try {
@@ -160,6 +165,11 @@ const ContentModeration = () => {
       });
     }
 
+    // Preview filter
+    if (previewFilter !== 'all') {
+      filtered = filtered.filter(story => previewFilter === 'featured' ? featuredIds.has(story.id) : !featuredIds.has(story.id));
+    }
+
     setFilteredStories(filtered);
   };
 
@@ -191,6 +201,15 @@ const ContentModeration = () => {
   const toggleStoryFeature = async (storyId: string, shouldFeature: boolean, priority: number = 1) => {
     try {
       if (shouldFeature) {
+        // Enforce preview limit on client side for immediate feedback
+        if (!featuredIds.has(storyId) && featuredIds.size >= PREVIEW_LIMIT) {
+          toast({
+            title: 'Preview limit reached',
+            description: `You can feature up to ${PREVIEW_LIMIT} stories. Remove one before adding another.`,
+            variant: 'destructive',
+          });
+          return;
+        }
         // Pre-check story status/visibility to avoid RPC failure
         const { data: storyRow, error: sErr } = await supabase
           .from('stories')
@@ -236,6 +255,7 @@ const ContentModeration = () => {
       });
 
       loadData();
+      queryClient.invalidateQueries({ queryKey: queryKeys.featuredStories });
     } catch (error: any) {
       logger.error('Error toggling story feature', error);
       const message = error?.message || 'Failed to update story feature status.';
@@ -363,7 +383,18 @@ const ContentModeration = () => {
                 <SelectItem value="unlisted">Unlisted</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={previewFilter} onValueChange={(v) => setPreviewFilter(v as 'all' | 'featured' | 'non')}>
+              <SelectTrigger className="w-48" aria-label="Preview filter">
+                <SelectValue placeholder="Preview filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stories</SelectItem>
+                <SelectItem value="featured">Preview Only</SelectItem>
+                <SelectItem value="non">Not in Preview</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={completionFilter} onValueChange={(v) => setCompletionFilter(v as any)}>
+
               <SelectTrigger className="w-44" aria-label="Completion">
                 <SelectValue placeholder="Completion" />
               </SelectTrigger>
@@ -391,7 +422,7 @@ const ContentModeration = () => {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredStories.map((story) => (
-              <div key={story.id} className="space-y-3">
+              <div key={story.id} className={`space-y-3 ${featuredIds.has(story.id) ? 'ring-2 ring-amber-400 rounded-xl' : ''}`}>
                 <StoryCard
                   story={{
                     ...story,
@@ -433,6 +464,7 @@ const ContentModeration = () => {
                     <Button
                       size="sm"
                       variant={featuredIds.has(story.id) ? "secondary" : "outline"}
+                      disabled={!featuredIds.has(story.id) && featuredIds.size >= PREVIEW_LIMIT}
                       onClick={() => toggleStoryFeature(story.id, !featuredIds.has(story.id), featurePriority[story.id] ?? 1)}
                       title={featuredIds.has(story.id) ? 'Remove from Preview' : 'Add to Preview (Landing Carousel)'}
                       aria-label={featuredIds.has(story.id) ? 'Remove from Preview' : 'Add to Preview'}

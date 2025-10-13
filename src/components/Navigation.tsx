@@ -80,7 +80,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
   }, [showMobileMenu]);
 
   return (
-    <nav aria-label="Main navigation" className={`glass-card border-b border-primary/10 sticky top-0 z-50 ${className}`}>
+    <nav aria-label="Main navigation" className={`glass-card border-b border-primary/10 sticky top-0 z-50 overflow-visible ${className}`}>
       {/* Skip to main content link for accessibility */}
       <a
         href="#main-content"
@@ -196,7 +196,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                   </Button>
                 
                   {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-48 glass-card-elevated rounded-lg shadow-lg z-50">
+                    <div className="absolute right-0 mt-2 w-48 glass-card-elevated rounded-lg shadow-lg z-[1200] max-h-[80vh] overflow-auto">
                       <div className="py-2">
                         <Link
                           to="/settings"
