@@ -287,22 +287,22 @@ export const StorySidebar = ({
 
       {/* End Story Card */}
       {isOwner && !isCompleted && (
-        <Card className="bg-gradient-to-br from-primary to-secondary text-white border-0 shadow-lg rounded-xl overflow-hidden">
+        <Card className="bg-gradient-to-br from-amber-500 to-orange-600 text-white border-0 shadow-lg rounded-xl overflow-hidden">
           <CardContent className="p-5 text-center">
-            <h3 className="text-base font-semibold mb-2">{hasEnding ? 'Finalize Story' : 'Ready to End?'}</h3>
-            <p className="text-sm opacity-90 mb-3">{hasEnding ? 'Review your ending and complete the story' : 'Create a magical ending for your story'}</p>
+            <h3 className="text-base font-semibold mb-2 drop-shadow">{hasEnding ? 'Finalize Story' : 'Ready to End?'}</h3>
+            <p className="text-sm/6 mb-3 text-white/90">{hasEnding ? 'Review your ending and complete the story' : 'Create a magical ending for your story'}</p>
 
             <AlertDialog open={showEndConfirm} onOpenChange={setShowEndConfirm}>
               <AlertDialogTrigger asChild>
                 <Button
                   disabled={generatingEnding || creditLocked}
                   variant="secondary"
-                  className="bg-white/10 text-white hover:bg-white/20 w-full"
+                  className="w-full bg-white text-amber-700 hover:bg-amber-50"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
                   {endActionLabel || (hasEnding ? 'Finalize Story' : 'Create Ending')}
                   {!hasEnding && !generatingEnding && (
-                    <Badge variant="secondary" className="ml-2 bg-white/20">1 credit</Badge>
+                    <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-800">1 credit</Badge>
                   )}
                 </Button>
               </AlertDialogTrigger>

@@ -1266,11 +1266,11 @@ const StoryViewer = () => {
 
               {/* Ending helper hint: guide user to generate missing content */}
               {viewMode === 'creation' && currentSegment?.is_ending && isOwner && !isCompletedStory && !!currentSegment.content && ((!currentSegment.image_url) || (!currentSegment.audio_url)) && (
-                <div className="glass-card p-4 rounded-lg border-info/30">
+                <div className="rounded-lg border border-amber-300 bg-amber-50 text-amber-900 p-4 mt-2 mb-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <h4 className="font-semibold">Finalize your ending</h4>
-                      <p className="text-sm text-text-secondary">
+                      <p className="text-sm">
                         {(!currentSegment.image_url && !currentSegment.audio_url) && 'Generate image and audio for the ending segment.'}
                         {(currentSegment.image_url && !currentSegment.audio_url) && 'Generate audio for the ending segment.'}
                         {(!currentSegment.image_url && currentSegment.audio_url) && 'Generate an image for the ending segment.'}
@@ -1423,6 +1423,16 @@ const StoryViewer = () => {
           />
         </Suspense>
       )}
+      {generatingSegment && (
+        <div className="fixed inset-0 z-[1000] bg-black/50 backdrop-blur-sm flex items-center justify-center" aria-busy>
+          <div className="glass-card rounded-xl p-6 text-center shadow-2xl">
+            <div className="loading-spinner h-6 w-6 mx-auto mb-3" />
+            <div className="font-medium">Continuing your story…</div>
+            <div className="text-sm text-muted-foreground mt-1">This usually takes ~15s.</div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

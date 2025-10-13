@@ -165,11 +165,11 @@ export const StorySegmentDisplay = ({
                 const choiceButton = (
                   <Button
                     key={choice.id}
-                    variant="outline"
-                    className={`group p-6 h-auto text-left justify-start rounded-xl border-2 transition-all duration-300 ${
+                    variant="secondary"
+                    className={`group p-6 h-auto text-left justify-start rounded-xl border-2 transition-all duration-300 bg-card text-foreground ${
                       isCompleted
-                        ? 'opacity-60 cursor-not-allowed bg-muted/50 border-muted'
-                        : 'hover:bg-card/80 hover:border-primary hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/20'
+                        ? 'opacity-60 cursor-not-allowed border-muted'
+                        : 'hover:bg-card hover:border-primary hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/20 focus-visible:ring-2 focus-visible:ring-primary'
                     }`}
                     onClick={() => !isCompleted && onChoice(choice.id, choice.text)}
                     disabled={generatingSegment || isCompleted}
