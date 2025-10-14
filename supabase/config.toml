@@ -39,6 +39,9 @@ verify_jwt = true
 [functions.translate-content]
 verify_jwt = true
 
+[functions.generate-character-reference-image]
+verify_jwt = true
+
 [functions.context7-mcp]
 verify_jwt = true
 

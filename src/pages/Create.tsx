@@ -215,6 +215,53 @@ export default function CreateStoryFlow() {
       });
 
 
+      setGenerationProgress(85);
+
+      // Auto-generate character reference images (non-blocking)
+      try {
+        const charactersNeedingImages = flow.selectedCharacters.filter(c => !c.image_url);
+
+        if (charactersNeedingImages.length > 0) {
+          logger.info('Generating character reference images', {
+            count: charactersNeedingImages.length,
+            characterIds: charactersNeedingImages.map(c => c.id)
+          });
+
+          // Generate character images in parallel (fire-and-forget)
+          const characterImagePromises = charactersNeedingImages.map(character =>
+            AIClient.generateCharacterReferenceImage({
+              characterId: character.id,
+              characterName: character.name,
+              characterDescription: character.description,
+              characterType: character.character_type,
+              ageGroup: flow.ageGroup,
+              backstory: character.backstory,
+              personalityTraits: character.personality_traits
+            })
+            .then(res => {
+              logger.info('Character reference image generated', {
+                characterId: character.id,
+                characterName: character.name,
+                success: res?.success
+              });
+            })
+            .catch(err => {
+              logger.error('Character reference image generation failed (non-blocking)', err, {
+                characterId: character.id,
+                characterName: character.name
+              });
+            })
+          );
+
+          // Don't wait for character images to complete
+          Promise.all(characterImagePromises).catch(() => {
+            // Silently fail - character images are optional
+          });
+        }
+      } catch (e) {
+        logger.error('Failed to schedule character image generation', e);
+      }
+
       setGenerationProgress(90);
 
       // Auto-generate an image for the first segment (non-blocking UX)

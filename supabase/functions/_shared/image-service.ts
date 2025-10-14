@@ -26,7 +26,8 @@ export interface ImageRequest {
   guidance?: number;
   seed?: number;
   negativePrompt?: string;
-  referenceImages?: string[]; // Character reference images (max 3) for Freepik Gemini
+  referenceImages?: string[]; // Character reference images (max 3) for Google Gemini
+  aspectRatio?: '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9'; // Aspect ratio for Google Gemini
 }
 
 export interface ImageResponse {
@@ -195,11 +196,11 @@ export class ImageService {
     // Enhance prompt for children's book style
     const enhancedPrompt = this.enhancePromptForStyle(request.prompt, request.style || 'digital_storybook');
 
-    // Generate image with reference images
+    // Generate image with reference images and aspect ratio
     const result = await this.googleGeminiService.generateImage({
       prompt: enhancedPrompt,
       referenceImages: request.referenceImages || [],
-      aspectRatio: '1:1' // Default to square images
+      aspectRatio: request.aspectRatio || '3:4' // Default to 3:4 portrait for children's books
     });
 
     if (!result.success || !result.imageData) {

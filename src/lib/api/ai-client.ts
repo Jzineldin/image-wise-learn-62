@@ -374,7 +374,33 @@ export class AIClient {
   }
 
   /**
+   * Generate character reference image with proper error handling
+   */
+  static async generateCharacterReferenceImage(params: {
+    characterId: string;
+    characterName: string;
+    characterDescription: string;
+    characterType: string;
+    ageGroup?: string;
+    backstory?: string;
+    personalityTraits?: string[];
+  }) {
+    const body = {
+      character_id: params.characterId,
+      character_name: params.characterName,
+      character_description: params.characterDescription,
+      character_type: params.characterType,
+      age_group: params.ageGroup,
+      backstory: params.backstory,
+      personality_traits: params.personalityTraits
+    };
+
+    return this.invoke('generate-character-reference-image', body, { timeout: 60000, retries: 2 });
+  }
+
+  /**
    * Generate story image with proper error handling
+   * Note: Prompt building is now handled by the Edge Function with age-appropriate styles
    */
   static async generateStoryImage(params: {
     storyContent: string;
@@ -387,15 +413,10 @@ export class AIClient {
     characters?: any[];
     requestId: string;
   }) {
-    // Build simplified, visual-first prompt: subject + setting + mood + style
-    const names = (params.characters || []).map((c: any) => c?.name).filter(Boolean);
-    const subject = names.slice(0, 2).join(' and ') || params.storyTitle;
-    const settingHint = params.storyContent.slice(0, 160).replace(/\s+/g, ' ').trim();
-    const prompt = `${subject}. Setting: ${settingHint}. Mood: warm, adventurous, friendly. Style: children's book illustration, cohesive composition, soft lighting, colorful, safe for children, high quality.`;
-
     // Map camelCase IDs to snake_case expected by the Edge Function
+    // The Edge Function will build the narrative prompt with age-appropriate styles
     const { storyId, segmentId, ...rest } = params as any;
-    const body = { ...rest, story_id: storyId, segment_id: segmentId, prompt };
+    const body = { ...rest, story_id: storyId, segment_id: segmentId };
 
     return this.invoke('generate-story-image', body, { timeout: 60000, retries: 2 });
   }
