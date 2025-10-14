@@ -124,13 +124,36 @@ export const useAutoSave = (
     try {
       setState({ isSaving: true, error: null });
 
+      // Extract character IDs robustly (supports objects, UUID strings, and JSON-stringified objects)
+      const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const characterIds = (draft.selectedCharacters || [])
+        .map((char: any) => {
+          if (!char) return null;
+          if (typeof char === 'string') {
+            if (uuidRe.test(char)) return char; // already a UUID
+            // try parse JSON string
+            try {
+              const obj = JSON.parse(char);
+              if (obj && typeof obj.id === 'string' && uuidRe.test(obj.id)) return obj.id;
+              return null;
+            } catch {
+              return null;
+            }
+          }
+          if (typeof char === 'object' && typeof char.id === 'string' && uuidRe.test(char.id)) {
+            return char.id;
+          }
+          return null;
+        })
+        .filter((v: string | null): v is string => Boolean(v));
+
       const { error } = await supabase
         .from('story_drafts' as any)
         .upsert({
           user_id: user.id,
           age_group: draft.ageGroup,
           genres: draft.genres,
-          selected_characters: draft.selectedCharacters,
+          selected_characters: characterIds,
           selected_seed: draft.selectedSeed,
           custom_seed: draft.customSeed,
           current_step: draft.step,

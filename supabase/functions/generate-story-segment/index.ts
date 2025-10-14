@@ -95,6 +95,7 @@ Deno.serve(async (req) => {
 
     // Get user ID
     const userId = await creditService.getUserId();
+    console.log('🔑 USER ID FROM JWT:', userId);
     logger.info('Story segment generation started', { requestId, userId, operation: 'story-segment-generation' });
 
     // Rate limiting check
@@ -137,17 +138,73 @@ Deno.serve(async (req) => {
     logger.info('Credits validation completed', { requestId, userId, creditsRequired: creditValidation.creditsRequired });
 
     // Get story details
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createSupabaseClient(true); // Use service role to bypass RLS
+
+    // First, try to get the story without user_id filter to see if it exists
+    const { data: storyCheck, error: storyCheckError } = await supabase
+      .from('stories')
+      .select('id, user_id, title')
+      .eq('id', story_id)
+      .single();
+
+    console.log('🔍 STORY OWNERSHIP CHECK:');
+    console.log('  Story ID:', story_id);
+    console.log('  Request User ID:', userId);
+    console.log('  Story Exists:', !!storyCheck);
+    console.log('  Story User ID:', storyCheck?.user_id);
+    console.log('  Story Title:', storyCheck?.title);
+    console.log('  User Match:', storyCheck?.user_id === userId);
+
+    logger.info('🔍 Story ownership check', {
+      requestId,
+      storyId: story_id,
+      requestUserId: userId,
+      storyExists: !!storyCheck,
+      storyUserId: storyCheck?.user_id,
+      storyTitle: storyCheck?.title,
+      userMatch: storyCheck?.user_id === userId,
+      error: storyCheckError?.message
+    });
+
+    // Check if story exists but belongs to different user
+    if (storyCheck && storyCheck.user_id !== userId) {
+      logger.error('❌ User ID mismatch - story belongs to different user', {
+        requestId,
+        storyId: story_id,
+        storyTitle: storyCheck.title,
+        requestUserId: userId,
+        storyOwnerId: storyCheck.user_id,
+        message: 'The logged-in user does not own this story'
+      });
+      throw new Error('Story not found or access denied');
+    }
+
+    // Now get the full story details with user_id filter for security
     const { data: story, error: storyError } = await supabase
       .from('stories')
-      .select('title, genre, age_group, language_code, characters')
+      .select('title, genre, age_group, language_code, metadata, user_id')
       .eq('id', story_id)
       .eq('user_id', userId)
       .single();
 
     if (storyError) {
+      logger.error('Failed to fetch story', {
+        requestId,
+        storyId: story_id,
+        userId,
+        error: storyError.message,
+        code: storyError.code,
+        hint: storyCheck ? `Story exists but belongs to user ${storyCheck.user_id}` : 'Story does not exist'
+      });
       throw new Error('Story not found or access denied');
     }
+
+    logger.info('✅ Story fetched successfully', {
+      requestId,
+      storyId: story_id,
+      storyTitle: story.title,
+      userId: story.user_id
+    });
 
     // Get previous segments for context
     const { data: segments } = await supabase
@@ -287,7 +344,9 @@ Deno.serve(async (req) => {
 
     try {
       // Build image prompt from segment content
-      const charDescriptions = (story.characters || [])
+      // Extract characters from metadata JSONB field
+      const characters = story.metadata?.characters || [];
+      const charDescriptions = (Array.isArray(characters) ? characters : [])
         .slice(0, 3)
         .map((c: any) => {
           const name = c?.name ? String(c.name) : '';

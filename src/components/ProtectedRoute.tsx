@@ -120,6 +120,11 @@ const ProtectedRoute = ({
       return;
     }
 
+    // Wait for user session to be loaded before checking access
+    // This prevents false negatives where user is still loading
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentUser = session?.user ?? null;
+
     try {
       const { data: storyData, error } = await supabase
         .from('stories')
@@ -147,10 +152,10 @@ const ProtectedRoute = ({
       // Allow access to completed stories in both modes
       const isCompleted = isStoryCompleted(storyData);
 
-      // Check access permissions
-      const isOwner = user && (storyData.author_id === user.id || storyData.user_id === user.id);
+      // Check access permissions using the freshly loaded user
+      const isOwner = currentUser && (storyData.author_id === currentUser.id || storyData.user_id === currentUser.id);
       const isPublic = storyData.visibility === 'public';
-      
+
       if (mode === 'experience') {
         // Experience mode: accessible if public or user is owner
         setStoryAccessible(isPublic || !!isOwner);

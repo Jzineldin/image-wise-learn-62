@@ -500,6 +500,63 @@ EXAMPLES OF CORRECT SWEDISH:
       operation: 'perf-tracking'
     });
 
+    // Record character appearances in character_story_appearances table
+    if (characters && characters.length > 0) {
+      try {
+        // Get character IDs from story metadata
+        const { data: storyData } = await supabase
+          .from('stories')
+          .select('metadata')
+          .eq('id', storyId)
+          .single();
+
+        if (storyData?.metadata?.characters && Array.isArray(storyData.metadata.characters)) {
+          const characterAppearances = storyData.metadata.characters.map((char: any, index: number) => {
+            // Determine role based on position (first character is protagonist)
+            let role = 'supporting';
+            if (index === 0) role = 'protagonist';
+            else if (index === 1) role = 'sidekick';
+            else if (index === 2) role = 'mentor';
+
+            return {
+              character_id: char.id,
+              story_id: storyId,
+              user_id: userId,
+              role_in_story: role
+            };
+          }).filter((appearance: any) => appearance.character_id); // Only include if character_id exists
+
+          if (characterAppearances.length > 0) {
+            const { error: appearanceError } = await supabase
+              .from('character_story_appearances')
+              .insert(characterAppearances);
+
+            if (appearanceError) {
+              logger.warn('Failed to record character appearances', {
+                error: appearanceError.message,
+                storyId,
+                characterCount: characterAppearances.length,
+                operation: 'character-appearances'
+              });
+            } else {
+              logger.info('Character appearances recorded', {
+                storyId,
+                characterCount: characterAppearances.length,
+                operation: 'character-appearances'
+              });
+            }
+          }
+        }
+      } catch (error) {
+        logger.warn('Failed to record character appearances', {
+          error: (error as Error)?.message,
+          storyId,
+          operation: 'character-appearances'
+        });
+        // Continue - this is not a critical error
+      }
+    }
+
     // Deduct credits AFTER successful generation and persistence
     const creditResult = await deductCreditsAfterSuccess(
       creditService,
@@ -509,10 +566,10 @@ EXAMPLES OF CORRECT SWEDISH:
       storyId,
       { requestId }
     );
-    logger.info('Credits deducted after successful story generation', { 
-      requestId, 
-      creditsUsed: creditValidation.creditsRequired, 
-      newBalance: creditResult.newBalance 
+    logger.info('Credits deducted after successful story generation', {
+      requestId,
+      creditsUsed: creditValidation.creditsRequired,
+      newBalance: creditResult.newBalance
     });
 
     timings.total = Date.now() - startTotal;

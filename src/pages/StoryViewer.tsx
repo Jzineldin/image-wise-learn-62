@@ -23,12 +23,12 @@ import { StoryProgressTracker } from '@/components/story-viewer/StoryProgressTra
 import { logger as debugLogger, generateRequestId } from '@/lib/utils/debug';
 import { logger } from '@/lib/logger';
 import { AIClient, InsufficientCreditsError, AIClientError } from '@/lib/api/ai-client';
-import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
+const InsufficientCreditsDialog = lazy(() => import('@/components/InsufficientCreditsDialog'));
 import { calculateTTSCredits } from '@/lib/api/credit-api';
 import { generateAudio as generateAudioAPI } from '@/lib/api/story-api';
 import { isStoryCompleted } from '@/lib/helpers/story-helpers';
-import { CheckCircle2, BookOpen, FileDown } from 'lucide-react';
-import { exportStoryToPDF } from '@/lib/pdf-export';
+import { CheckCircle2, BookOpen } from 'lucide-react';
+// PDF export loaded dynamically to reduce bundle size
 
 type ViewMode = 'creation' | 'experience';
 
@@ -264,7 +264,21 @@ const StoryViewer = () => {
       // Stop after 30s max
       if (Date.now() - startedAt > 30_000) {
         console.warn('[DIAG:image-poll] timeout', { elapsedMs: Date.now() - startedAt });
+        try {
+          // Fallback: if first segment still lacks image, trigger generation now
+          const segsAfter = await reloadSegments();
+          const firstSegAfter = segsAfter.find(s => s.segment_number === 1);
+          if (firstSegAfter && !firstSegAfter.image_url && firstSegAfter.content) {
+            console.info('[DIAG:image-poll] timeout fallback → triggering image generation', { segmentId: firstSegAfter.id });
+            await generateSegmentImage(firstSegAfter);
+          }
+        } catch {}
         setGeneratingImage(null);
+        // Clear imgPending hint to avoid re-poll loops
+        if (searchParams.get('imgPending') === '1') {
+          searchParams.delete('imgPending');
+          setSearchParams(searchParams);
+        }
         return;
       }
 
@@ -281,6 +295,123 @@ const StoryViewer = () => {
     };
   }, [generatingImage, searchParams]);
 
+
+
+  const generateSegmentImage = async (segment: StorySegment) => {
+    logger.imageGeneration(segment.id, { operation: 'user_initiated' });
+    if (!story) return;
+
+    // Check if credit operation is in progress
+    if (creditLock.current) {
+      toast({
+        title: "Please wait",
+        description: "Another operation is in progress. Try again in a moment.",
+        variant: "default",
+      });
+      return;
+    }
+
+    const requestId = generateRequestId();
+    const retryKey = `image-${segment.id}`;
+    const currentRetries = retryAttempts[retryKey] || 0;
+
+    if (currentRetries >= 3) {
+      logger.warn('Max image generation retries reached', {
+        requestId,
+        segmentId: segment.id,
+        attempts: currentRetries
+      });
+      toast({
+        title: "Image generation failed",
+        description: `Max retry attempts reached. Please try again later. (ID: ${requestId})`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    logger.imageGeneration(segment.id, { requestId, attempts: currentRetries + 1 });
+    setGeneratingImage(segment.id);
+    creditLock.current = true; // Lock credits during image generation
+
+    try {
+      const requestBody = {
+        storyContent: segment.content,
+        storyTitle: story.title,
+        ageGroup: story.age_group,
+        genre: story.genre,
+        segmentNumber: segment.segment_number,
+        storyId: story.id,
+        segmentId: segment.id,
+        characters: story.metadata?.characters || [],
+        requestId
+      };
+
+      debugLogger.edgeFunction('generate-story-image', requestId, requestBody);
+
+      const imageResult = await AIClient.generateStoryImage({
+        storyContent: segment.content,
+        storyTitle: story.title,
+        ageGroup: story.age_group,
+        genre: story.genre,
+        segmentNumber: segment.segment_number,
+        storyId: story.id,
+        segmentId: segment.id,
+        characters: story.metadata?.characters || [],
+        requestId
+      });
+
+      debugLogger.edgeFunctionResponse('generate-story-image', requestId, imageResult);
+
+      // Update segment with image URL when ready
+      setSegments(prev => prev.map(s =>
+        s.id === segment.id
+          ? { ...s, image_url: imageResult.data?.imageUrl }
+          : s
+      ));
+
+      // Clear retry counter on success
+      setRetryAttempts(prev => {
+        const newAttempts = { ...prev };
+        delete newAttempts[retryKey];
+        return newAttempts;
+      });
+
+      toast({
+        title: "Image generated!",
+        description: "Story artwork is ready.",
+      });
+
+    } catch (error: any) {
+      logger.error('Image generation failed', error, {
+        requestId,
+        segmentId: segment.id,
+        attempt: currentRetries + 1
+      });
+      setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
+
+      // Show better error messages
+      if (error.code === 'INSUFFICIENT_CREDITS') {
+        toast({
+          title: "Insufficient Credits",
+          description: `Need ${error.required} credits, but only have ${error.available}. Please upgrade your plan.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Image generation failed",
+          description: error.message || "Failed to generate story image. Retrying...",
+          variant: "destructive",
+        });
+      }
+
+      setTimeout(() => {
+        generateSegmentImage(segment);
+      }, 2000 * (currentRetries + 1));
+    } finally {
+      setGeneratingImage(null);
+      creditLock.current = false; // Release credit lock
+    }
+  };
 
   const loadStory = async () => {
     try {
@@ -599,121 +730,6 @@ const StoryViewer = () => {
     }
   };
 
-  const generateSegmentImage = async (segment: StorySegment) => {
-    logger.imageGeneration(segment.id, { operation: 'user_initiated' });
-    if (!story) return;
-
-    // Check if credit operation is in progress
-    if (creditLock.current) {
-      toast({
-        title: "Please wait",
-        description: "Another operation is in progress. Try again in a moment.",
-        variant: "default",
-      });
-      return;
-    }
-
-    const requestId = generateRequestId();
-    const retryKey = `image-${segment.id}`;
-    const currentRetries = retryAttempts[retryKey] || 0;
-
-    if (currentRetries >= 3) {
-      logger.warn('Max image generation retries reached', {
-        requestId,
-        segmentId: segment.id,
-        attempts: currentRetries
-      });
-      toast({
-        title: "Image generation failed",
-        description: `Max retry attempts reached. Please try again later. (ID: ${requestId})`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    logger.imageGeneration(segment.id, { requestId, attempts: currentRetries + 1 });
-    setGeneratingImage(segment.id);
-    creditLock.current = true; // Lock credits during image generation
-
-    try {
-      const requestBody = {
-        storyContent: segment.content,
-        storyTitle: story.title,
-        ageGroup: story.age_group,
-        genre: story.genre,
-        segmentNumber: segment.segment_number,
-        storyId: story.id,
-        segmentId: segment.id,
-        characters: story.metadata?.characters || [],
-        requestId
-      };
-
-      debugLogger.edgeFunction('generate-story-image', requestId, requestBody);
-
-      const imageResult = await AIClient.generateStoryImage({
-        storyContent: segment.content,
-        storyTitle: story.title,
-        ageGroup: story.age_group,
-        genre: story.genre,
-        segmentNumber: segment.segment_number,
-        storyId: story.id,
-        segmentId: segment.id,
-        characters: story.metadata?.characters || [],
-        requestId
-      });
-
-      debugLogger.edgeFunctionResponse('generate-story-image', requestId, imageResult);
-
-      // Update segment with image URL when ready
-      setSegments(prev => prev.map(s =>
-        s.id === segment.id
-          ? { ...s, image_url: imageResult.data?.imageUrl }
-          : s
-      ));
-
-      // Clear retry counter on success
-      setRetryAttempts(prev => {
-        const newAttempts = { ...prev };
-        delete newAttempts[retryKey];
-        return newAttempts;
-      });
-
-      toast({
-        title: "Image generated!",
-        description: "Story artwork is ready.",
-      });
-
-    } catch (error: any) {
-      logger.error('Image generation failed', error, {
-        requestId,
-        segmentId: segment.id,
-        attempt: currentRetries + 1
-      });
-      setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
-
-      // Show better error messages
-      if (error.code === 'INSUFFICIENT_CREDITS') {
-        toast({
-          title: "Insufficient Credits",
-          description: `Need ${error.required} credits, but only have ${error.available}. Please upgrade your plan.`,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Image generation failed",
-          description: error.message || "Failed to generate story image. Retrying...",
-          variant: "destructive",
-        });
-      }
-
-      setTimeout(() => {
-        generateSegmentImage(segment);
-      }, 2000 * (currentRetries + 1));
-    } finally {
-      setGeneratingImage(null);
-      creditLock.current = false; // Release credit lock
-    }
-  };
 
   const generateAudio = async (segmentId: string, content: string) => {
     logger.audioGeneration(segmentId, {
@@ -1035,7 +1051,8 @@ const StoryViewer = () => {
     try {
       setIsExportingPDF(true);
 
-      // Export the story to PDF
+      // Export the story to PDF (dynamically imported to reduce bundle size)
+      const { exportStoryToPDF } = await import('@/lib/pdf-export');
       await exportStoryToPDF(story.title, segments);
 
       toast({

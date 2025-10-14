@@ -96,6 +96,58 @@ serve(async (req) => {
     const storyContent = rawStoryContent ? InputSanitizer.sanitizeText(rawStoryContent) : undefined;
     const storyTitle = rawStoryTitle ? InputSanitizer.sanitizeText(rawStoryTitle) : undefined;
 
+    // Fetch character reference images from database if story_id is provided
+    let characterReferenceImages: string[] = [];
+    if (story_id) {
+      try {
+        const supabase = createSupabaseClient(true);
+
+        // Get story metadata which contains character IDs
+        const { data: story } = await supabase
+          .from('stories')
+          .select('metadata')
+          .eq('id', story_id)
+          .single();
+
+        if (story?.metadata?.characters && Array.isArray(story.metadata.characters)) {
+          const characterIds = story.metadata.characters
+            .map((c: any) => c.id)
+            .filter(Boolean)
+            .slice(0, 3); // Max 3 characters for Gemini 2.5 Flash
+
+          if (characterIds.length > 0) {
+            // Fetch character images from user_characters table
+            const { data: characterData } = await supabase
+              .from('user_characters')
+              .select('id, name, image_url')
+              .in('id', characterIds);
+
+            if (characterData) {
+              characterReferenceImages = characterData
+                .filter(c => c.image_url) // Only include characters with images
+                .map(c => c.image_url)
+                .slice(0, 3); // Ensure max 3 images
+
+              if (characterReferenceImages.length > 0) {
+                logger.info('Using character reference images', {
+                  count: characterReferenceImages.length,
+                  storyId: story_id,
+                  operation: 'character-references'
+                });
+              }
+            }
+          }
+        }
+      } catch (error) {
+        logger.warn('Failed to fetch character reference images', {
+          error: (error as Error)?.message,
+          storyId: story_id,
+          operation: 'character-references'
+        });
+        // Continue without reference images
+      }
+    }
+
     // Build prompt if not provided - focus on character consistency
     let finalPrompt = prompt;
     if (!finalPrompt && storyContent) {
@@ -105,18 +157,18 @@ serve(async (req) => {
           const name = c?.name ? String(c.name) : '';
           const desc = c?.description ? String(c.description) : '';
           const type = c?.character_type ? String(c.character_type) : '';
-          
+
           // Build detailed character description for consistency
           let charDesc = name;
           if (desc) charDesc += ` (${desc})`;
           if (type && type !== 'human') charDesc += ` [${type}]`;
-          
+
           return charDesc;
         })
         .filter(Boolean);
-      
+
       const scene = storyContent.slice(0, 200).replace(/\s+/g, ' ').trim();
-      
+
       if (charDescriptions.length > 0) {
         finalPrompt = `${scene}. Characters: ${charDescriptions.join(', ')}`;
       } else {
@@ -161,7 +213,7 @@ serve(async (req) => {
       operation: 'credit-validation'
     });
 
-    // Generate image using new service
+    // Generate image using new service with character reference images
     const imageResult = await imageService.generateImage({
       prompt: finalPrompt,
       style,
@@ -170,7 +222,8 @@ serve(async (req) => {
       steps: 35,            // SDXL: 35 steps for softer, more illustrated look (vs 40 for hyperdetail)
       guidance: 7.0,        // Higher guidance (7.0 vs 6.5) to enforce illustrated style more strongly
       seed,
-      negativePrompt
+      negativePrompt,
+      referenceImages: characterReferenceImages // Pass character reference images for consistency
     });
 
     logger.info('Image generated successfully', { provider: imageResult.provider, operation: 'ai-generation' });

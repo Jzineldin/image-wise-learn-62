@@ -61,6 +61,10 @@ export interface StorySegment {
   content: string | null;
   image_url?: string;
   audio_url?: string;
+  video_url?: string;
+  video_provider?: string;
+  video_generation_status?: string;
+  video_task_id?: string;
   choices: Choice[];
   parent_segment_id?: string;
   parent_choice_id?: number;

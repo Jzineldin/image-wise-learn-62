@@ -414,4 +414,49 @@ export class AIClient {
   }) {
     return this.invoke('generate-story', params, { timeout: 45000, retries: 1 });
   }
+
+  /**
+   * Generate video for story segment with proper error handling
+   */
+  static async generateStoryVideo(params: {
+    segmentId: string;
+    storyId: string;
+    imageUrl: string;
+    prompt?: string;
+    waitForCompletion?: boolean;
+  }) {
+    // Map camelCase IDs to snake_case expected by the Edge Function
+    const { segmentId, storyId, imageUrl, waitForCompletion, ...rest } = params;
+    const body = {
+      ...rest,
+      segment_id: segmentId,
+      story_id: storyId,
+      image_url: imageUrl,
+      wait_for_completion: waitForCompletion || false
+    };
+
+    // Longer timeout if waiting for completion (up to 5 minutes)
+    const timeout = waitForCompletion ? 300000 : 30000;
+    return this.invoke('generate-story-video', body, { timeout, retries: 1 });
+  }
+
+  /**
+   * Check video generation status with proper error handling
+   */
+  static async checkVideoStatus(params: {
+    taskId: string;
+    provider: string;
+    segmentId?: string;
+    updateDatabase?: boolean;
+  }) {
+    const { taskId, segmentId, updateDatabase, ...rest } = params;
+    const body = {
+      ...rest,
+      task_id: taskId,
+      segment_id: segmentId,
+      update_database: updateDatabase !== false // Default to true
+    };
+
+    return this.invoke('check-video-status', body, { timeout: 15000, retries: 2 });
+  }
 }

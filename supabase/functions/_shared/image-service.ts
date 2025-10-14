@@ -6,6 +6,7 @@
  */
 
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
+import { GoogleGeminiImageService } from './google-gemini-image-service.ts';
 
 export interface ImageProvider {
   name: string;
@@ -25,6 +26,7 @@ export interface ImageRequest {
   guidance?: number;
   seed?: number;
   negativePrompt?: string;
+  referenceImages?: string[]; // Character reference images (max 3) for Freepik Gemini
 }
 
 export interface ImageResponse {
@@ -39,6 +41,17 @@ export interface ImageResponse {
 
 // Available image providers
 export const IMAGE_PROVIDERS: Record<string, ImageProvider> = {
+  google_gemini: {
+    name: 'GoogleGemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    defaultModel: 'gemini-2.5-flash-image',
+    supportedStyles: [
+      'digital_storybook', 'watercolor_fantasy', 'gouache', 'soft_painting',
+      'flat_illustration', 'magical', 'children_book', 'cartoon', 'watercolor', 'surreal'
+    ],
+    priority: 0, // Highest priority - best quality with character consistency (FREE for 3 weeks!)
+    costPerImage: 1
+  },
   ovh: {
     name: 'OVH',
     baseUrl: 'https://stable-diffusion-xl.endpoints.kepler.ai.cloud.ovh.net/api/text2image',
@@ -56,7 +69,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProvider> = {
       'surreal'                 // Dreamlike illustration
     ],
     priority: 1,
-    costPerImage: 0 // Free on OVH
+    costPerImage: 1 // All providers cost 1 credit per image
   },
   replicate: {
     name: 'Replicate',
@@ -85,10 +98,20 @@ export const IMAGE_PROVIDERS: Record<string, ImageProvider> = {
 export class ImageService {
   private providers: Map<string, ImageProvider>;
   private apiKeys: Record<string, string>;
+  private googleGeminiService: GoogleGeminiImageService | null = null;
 
   constructor(apiKeys: Record<string, string>) {
     this.providers = new Map(Object.entries(IMAGE_PROVIDERS));
     this.apiKeys = apiKeys;
+
+    // Initialize Google Gemini service if API key is available
+    if (apiKeys.GOOGLE_GEMINI_API_KEY) {
+      try {
+        this.googleGeminiService = new GoogleGeminiImageService(apiKeys.GOOGLE_GEMINI_API_KEY);
+      } catch (error) {
+        console.warn('⚠️  Failed to initialize Google Gemini service:', (error as Error)?.message);
+      }
+    }
   }
 
   /**
@@ -145,6 +168,8 @@ export class ImageService {
     }
 
     switch (provider.name) {
+      case 'GoogleGemini':
+        return this.callGoogleGemini(provider, request);
       case 'OVH':
         return this.callOVH(provider, request, apiKey);
       case 'Replicate':
@@ -154,6 +179,40 @@ export class ImageService {
       default:
         throw new Error(`Unknown provider: ${provider.name}`);
     }
+  }
+
+  /**
+   * Call Google Gemini 2.5 Flash Image for image generation
+   */
+  private async callGoogleGemini(
+    provider: ImageProvider,
+    request: ImageRequest
+  ): Promise<{ imageUrl: string; seed?: number }> {
+    if (!this.googleGeminiService) {
+      throw new Error('Google Gemini service not initialized');
+    }
+
+    // Enhance prompt for children's book style
+    const enhancedPrompt = this.enhancePromptForStyle(request.prompt, request.style || 'digital_storybook');
+
+    // Generate image with reference images
+    const result = await this.googleGeminiService.generateImage({
+      prompt: enhancedPrompt,
+      referenceImages: request.referenceImages || [],
+      aspectRatio: '1:1' // Default to square images
+    });
+
+    if (!result.success || !result.imageData) {
+      throw new Error(result.error || 'Google Gemini image generation failed');
+    }
+
+    // Convert base64 to data URL
+    const imageUrl = `data:image/png;base64,${result.imageData}`;
+
+    return {
+      imageUrl,
+      seed: request.seed
+    };
   }
 
   /**
@@ -461,6 +520,7 @@ export class ImageService {
    */
   private getApiKeyForProvider(providerName: string): string | null {
     const keyMap: Record<string, string> = {
+      'GoogleGemini': this.apiKeys.GOOGLE_GEMINI_API_KEY,
       'OVH': this.apiKeys.OVH_AI_ENDPOINTS_ACCESS_TOKEN,
       'Replicate': this.apiKeys.REPLICATE_API_KEY,
       'HuggingFace': this.apiKeys.HUGGINGFACE_API_KEY
@@ -483,6 +543,7 @@ export class ImageService {
  */
 export function createImageService(): ImageService {
   const apiKeys = {
+    GOOGLE_GEMINI_API_KEY: Deno.env.get('GOOGLE_GEMINI_API_KEY') || '',
     OVH_AI_ENDPOINTS_ACCESS_TOKEN: Deno.env.get('OVH_AI_ENDPOINTS_ACCESS_TOKEN') || '',
     REPLICATE_API_KEY: Deno.env.get('REPLICATE_API_KEY') || '',
     HUGGINGFACE_API_KEY: Deno.env.get('HUGGINGFACE_API_KEY') || ''
