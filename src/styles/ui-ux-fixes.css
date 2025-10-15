@@ -305,20 +305,32 @@ h2.text-center {
 
 /* Reduce animations on mobile for better performance */
 @media (max-width: 768px) and (prefers-reduced-motion: no-preference) {
-  * {
+  /* Limit duration tightening to decorative effects only */
+  .hover-lift,
+  .animate-float,
+  .animate-bounce,
+  .animate-pulse-glow,
+  [data-decorative-animation="true"] {
     animation-duration: 0.2s !important;
+  }
+  /* Keep general transitions snappy without affecting core loaders */
+  * {
     transition-duration: 0.2s !important;
   }
 }
 
 /* Disable animations if user prefers reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  /* Respect reduced motion for decorative animations only */
+  .hover-lift,
+  .animate-float,
+  .animate-pulse-glow,
+  .animate-bounce,
+  [data-decorative-animation="true"] {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  /* Preserve essential feedback like spinners/skeletons */
 }
 

@@ -632,17 +632,24 @@
 
   /* Reduced Motion Support - Respect user preferences */
   @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
+    /* Scope reduced motion to decorative animations; do not affect spinners/skeletons */
+    .hover-lift,
+    .animate-float,
+    .animate-pulse-glow,
+    .animate-bounce,
+    [data-decorative-animation="true"] {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+      animation: none !important;
     }
 
-    .animate-float,
-    .animate-pulse-glow {
-      animation: none !important;
+    /* Ensure core loaders stay functional even with reduced motion preferences */
+    .animate-spin,
+    .loading-spinner,
+    .animate-pulse {
+      animation-iteration-count: infinite !important;
+      animation-play-state: running !important;
     }
   }
 

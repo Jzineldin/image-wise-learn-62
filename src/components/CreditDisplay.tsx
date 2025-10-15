@@ -39,7 +39,7 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
         .from('user_credits')
         .select('current_balance')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (creditsError) throw creditsError;
       setCredits(creditsData?.current_balance || 0);

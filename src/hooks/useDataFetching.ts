@@ -52,8 +52,8 @@ export function useCredits() {
         .from('user_credits')
         .select('*')
         .eq('user_id', user.id)
-        .single();
-      
+        .maybeSingle();
+
       if (error) {
         logger.error('Failed to fetch credits', error, { userId: user.id });
         throw error;

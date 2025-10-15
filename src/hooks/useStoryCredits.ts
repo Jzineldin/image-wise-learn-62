@@ -54,7 +54,7 @@ export const useStoryCredits = (
         .from('user_credits')
         .select('current_balance')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         logger.error('Failed to fetch user credits', error, {
