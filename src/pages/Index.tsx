@@ -165,14 +165,14 @@ const Index = () => {
               <div className="flex flex-col sm:flex-row gap-4 max-w-md">
                 {hasFounderStatus ? (
                   <Link to="/create">
-                    <Button variant="default" size="lg" className="w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2">
+                    <Button variant="default" size="lg" className="w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2 px-6 sm:px-12 py-3 sm:py-4">
                       <BookOpen className="w-5 h-5" />
                       Create Story
                     </Button>
                   </Link>
                 ) : (
                   <Link to="/auth">
-                    <Button variant="default" size="lg" className="w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2">
+                    <Button variant="default" size="lg" className="w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2 px-6 sm:px-12 py-3 sm:py-4">
                       <Crown className="w-5 h-5" />
                       Claim Founder Status
                     </Button>

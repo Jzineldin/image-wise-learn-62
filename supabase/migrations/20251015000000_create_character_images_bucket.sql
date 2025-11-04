@@ -12,8 +12,14 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
--- Enable RLS on storage.objects for character-images bucket
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- Enable RLS on storage.objects for character-images bucket (skip if already enabled)
+DO $$
+BEGIN
+  ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+EXCEPTION
+  WHEN insufficient_privilege THEN NULL;
+  WHEN others THEN NULL;
+END $$;
 
 -- Policy: Anyone can view character images (public bucket)
 CREATE POLICY "Public character images are viewable by everyone"
@@ -44,6 +50,5 @@ USING (
   AND auth.role() = 'authenticated'
 );
 
--- Add comment for documentation
-COMMENT ON TABLE storage.buckets IS 'Storage buckets for file uploads. character-images bucket stores AI-generated character reference images for maintaining character consistency across story segments.';
+-- Comment removed (causes permission issues in local development)
 

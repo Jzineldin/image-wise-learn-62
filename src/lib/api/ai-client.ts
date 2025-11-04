@@ -206,9 +206,17 @@ export class AIClient {
                 data.metadata?.available || 0
               );
             }
-            
+
+            // Convert error to string if it's an object
+            let errorMessage = 'Edge function returned error';
+            if (data.error) {
+              errorMessage = typeof data.error === 'string'
+                ? data.error
+                : JSON.stringify(data.error);
+            }
+
             throw new AIClientError(
-              data.error || 'Edge function returned error',
+              errorMessage,
               data.error_code,
               400,
               data
@@ -437,6 +445,26 @@ export class AIClient {
   }
 
   /**
+   * Generate audio narration for story segment with proper error handling
+   */
+  static async generateStoryAudio(params: {
+    segmentId: string;
+    text: string;
+    voiceId?: string;
+    requestId?: string;
+  }) {
+    const { segmentId, text, voiceId, requestId } = params;
+    const body = {
+      segment_id: segmentId,
+      text,
+      voice_id: voiceId || 'default',
+      request_id: requestId,
+    };
+
+    return this.invoke('generate-story-audio', body, { timeout: 30000, retries: 1 });
+  }
+
+  /**
    * Generate video for story segment with proper error handling
    */
   static async generateStoryVideo(params: {
@@ -479,5 +507,223 @@ export class AIClient {
     };
 
     return this.invoke('check-video-status', body, { timeout: 15000, retries: 2 });
+  }
+
+  /**
+   * ============================================================================
+   * V2 METHODS - Google AI Studio Integration with Master Storyteller Prompts
+   * ============================================================================
+   * These methods use the proven prompts from the working Google app for
+   * significantly better quality at lower cost.
+   */
+
+  /**
+   * Generate story page with V2 (Google AI Studio - Master Storyteller)
+   *
+   * Uses proven "master storyteller" persona and age-appropriate prompts
+   * from the working Google app. Generates both text + image in one call.
+   *
+   * Cost: 2 credits (1 for text, 1 for image)
+   * Quality: ⭐⭐⭐⭐⭐ (vs ⭐⭐⭐ for old system)
+   */
+  static async generateStoryPageV2(params: {
+    childName: string;
+    ageGroup: '4-6 years old' | '7-9 years old' | '10-12 years old' | '13+ years old';
+    theme: string;
+    character: string;
+    traits?: string;
+    prompt: string;
+    storyId?: string;
+    segmentNumber?: number;
+  }) {
+    logger.info('V2 Story Page Generation (Google AI Studio)', {
+      ageGroup: params.ageGroup,
+      theme: params.theme,
+      character: params.character,
+      method: 'generate-story-page-v2'
+    });
+
+    // Map camelCase to snake_case expected by the Edge Function
+    const { storyId, segmentNumber, ...rest } = params as any;
+    const body = { ...rest, story_id: storyId, segment_number: segmentNumber };
+
+    return this.invoke('generate-story-page-v2', body, {
+      timeout: 60000,
+      retries: 1
+    });
+  }
+
+  /**
+   * Generate audio with V2 (Gemini TTS - FREE!)
+   *
+   * Uses Gemini TTS for narration - completely FREE during preview period.
+   * Replaces expensive ElevenLabs ($11-99/month).
+   *
+   * Available voices:
+   * - Kore: Friendly Narrator (default)
+   * - Puck: Adventurous Hero
+   * - Charon: Wise Owl
+   * - Fenrir: Gentle Giant
+   * - Zephyr: Mystical Sprite
+   *
+   * Cost: 0 credits (FREE!)
+   * Quality: High-quality, natural-sounding voices
+   */
+  static async generateAudioV2(params: {
+    text: string;
+    voiceId?: 'Kore' | 'Puck' | 'Charon' | 'Fenrir' | 'Zephyr';
+  }) {
+    logger.info('V2 Audio Generation (Gemini TTS - FREE)', {
+      voiceId: params.voiceId || 'Kore',
+      textLength: params.text.length,
+      method: 'generate-audio-v2'
+    });
+
+    return this.invoke('generate-audio-v2', {
+      text: params.text,
+      voiceId: params.voiceId || 'Kore'
+    }, {
+      timeout: 30000,
+      retries: 1
+    });
+  }
+
+  /**
+   * Generate video with V2 (Veo 3.1)
+   *
+   * Uses Veo 3.1 for high-quality video animation from static images.
+   * Much better quality than Freepik at lower cost (~$0.10 vs $0.50-2).
+   *
+   * Note: Requires Google AI Studio API quota for video generation.
+   *
+   * Cost: 2 credits
+   * Quality: ⭐⭐⭐⭐⭐ (cinematic, smooth animation)
+   */
+  static async generateVideoV2(params: {
+    segmentId: string;
+    imageUrl?: string;
+    imageBase64?: string;
+    prompt: string;
+    includeNarration?: boolean;
+  }) {
+    const body = {
+      segment_id: params.segmentId,
+      imageUrl: params.imageUrl,
+      imageBase64: params.imageBase64,
+      prompt: params.prompt,
+      includeNarration: params.includeNarration || false
+    };
+
+    logger.info('V2 Video Generation (Veo 3.1)', {
+      segmentId: params.segmentId,
+      includeNarration: body.includeNarration,
+      hasImageUrl: !!params.imageUrl,
+      hasImageBase64: !!params.imageBase64,
+      method: 'generate-video-v2'
+    });
+
+    return this.invoke('generate-video-v2', body, {
+      timeout: 300000, // 5 minutes for video generation + polling
+      retries: 0 // Don't retry video (expensive operation)
+    });
+  }
+
+  /**
+   * Generate video async with V2 (Veo 3.1) - Background Processing
+   *
+   * Starts video generation in background and returns immediately with job_id.
+   * Frontend can subscribe to job status updates via Supabase Realtime.
+   * User can navigate away and video will continue generating.
+   *
+   * Cost: 2 credits
+   * Time: Returns immediately (~1 second), video generates in ~55 seconds
+   * Quality: ⭐⭐⭐⭐⭐ (same as generateVideoV2)
+   */
+  static async generateVideoAsync(params: {
+    segmentId: string;
+    imageUrl?: string;
+    imageBase64?: string;
+    prompt: string;
+    includeNarration?: boolean;
+  }) {
+    const body = {
+      segment_id: params.segmentId,
+      imageUrl: params.imageUrl,
+      imageBase64: params.imageBase64,
+      prompt: params.prompt,
+      includeNarration: params.includeNarration || false
+    };
+
+    logger.info('V2 Async Video Generation (Veo 3.1)', {
+      segmentId: params.segmentId,
+      includeNarration: body.includeNarration,
+      hasImageUrl: !!params.imageUrl,
+      hasImageBase64: !!params.imageBase64,
+      method: 'generate-video-async'
+    });
+
+    return this.invoke('generate-video-async', body, {
+      timeout: 30000, // 30 seconds - just to create job
+      retries: 1 // Can retry job creation
+    });
+  }
+
+  /**
+   * ============================================================================
+   * CIRCUIT BREAKER UTILITIES
+   * ============================================================================
+   */
+
+  /**
+   * Get circuit breaker status for a specific function
+   */
+  static getCircuitBreakerStatus(functionName: string): {
+    isOpen: boolean;
+    failures: number;
+    timeUntilReset: number;
+  } {
+    const failures = this.failureCount.get(functionName) || 0;
+    const lastFailure = this.lastFailureTime.get(functionName) || 0;
+    const now = Date.now();
+    const isOpen = failures >= this.MAX_FAILURES && now - lastFailure < this.CIRCUIT_BREAKER_TIMEOUT;
+    const timeUntilReset = isOpen ? Math.max(0, this.CIRCUIT_BREAKER_TIMEOUT - (now - lastFailure)) : 0;
+
+    return {
+      isOpen,
+      failures,
+      timeUntilReset,
+    };
+  }
+
+  /**
+   * Manually reset circuit breaker for a specific function
+   */
+  static resetCircuitBreaker(functionName: string): void {
+    this.failureCount.set(functionName, 0);
+    this.lastFailureTime.set(functionName, 0);
+    logger.info('Circuit breaker manually reset', { functionName });
+  }
+
+  /**
+   * Get all circuit breaker statuses
+   */
+  static getAllCircuitBreakerStatuses(): Record<string, {
+    isOpen: boolean;
+    failures: number;
+    timeUntilReset: number;
+  }> {
+    const statuses: Record<string, any> = {};
+
+    // Get all tracked functions
+    const allFunctions = new Set([
+      ...Array.from(this.failureCount.keys()),
+      ...Array.from(this.lastFailureTime.keys()),
+    ]);
+
+    for (const functionName of allFunctions) {
+      statuses[functionName] = this.getCircuitBreakerStatus(functionName);
+    }
+
+    return statuses;
   }
 }

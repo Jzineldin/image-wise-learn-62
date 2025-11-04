@@ -139,7 +139,13 @@
     /* Optimize rendering */
     will-change: transform;
     transform: translateZ(0);
-  }
+}
+
+/* Disable global astronaut background on routes that provide their own cinematic background */
+body.no-global-bg::before {
+  display: none !important;
+}
+
 
   /* Fallback for browsers without WebP support */
   @supports not (background-image: url('./assets/main-astronaut.webp')) {
@@ -324,13 +330,13 @@
 
   /* Text Visibility Enhancements */
   .text-with-shadow {
-    text-shadow: 
+    text-shadow:
       0 1px 3px rgba(0, 0, 0, 0.8),
       0 2px 6px rgba(0, 0, 0, 0.4);
   }
 
   .text-with-outline {
-    text-shadow: 
+    text-shadow:
       -1px -1px 0 rgba(0, 0, 0, 0.8),
       1px -1px 0 rgba(0, 0, 0, 0.8),
       -1px 1px 0 rgba(0, 0, 0, 0.8),
@@ -340,7 +346,7 @@
 
   .text-on-bright {
     color: hsl(var(--text-primary));
-    text-shadow: 
+    text-shadow:
       0 1px 3px rgba(0, 0, 0, 0.8),
       0 2px 8px rgba(0, 0, 0, 0.6);
   }

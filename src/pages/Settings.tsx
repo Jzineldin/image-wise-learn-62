@@ -20,6 +20,7 @@ import { usePageThemeClasses } from '@/components/ThemeProvider';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Loading } from '@/components/ui/loading';
 import FounderBadge from '@/components/FounderBadge';
+import HeroBackground from '@/components/HeroBackground';
 
 interface Profile {
   id: string;
@@ -191,9 +192,10 @@ const Settings = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen relative">
+        <HeroBackground />
         <Navigation />
-        <div className="container mx-auto px-4 py-8">
+        <div className="relative z-10 container mx-auto px-4 py-8">
           {/* Header skeleton */}
           <div className="mb-8">
             <div className="h-10 bg-muted rounded w-48 mb-2 animate-pulse" />
@@ -239,11 +241,12 @@ const Settings = () => {
 
   if (!profile) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen relative">
+        <HeroBackground />
         <Navigation />
-        <div className="container mx-auto px-4 py-8">
+        <div className="relative z-10 container mx-auto px-4 py-8">
           <div className="text-center">
-            <p>Profile not found</p>
+            <p className="text-[#C9C5D5]">Profile not found</p>
           </div>
         </div>
         <Footer />
@@ -252,15 +255,16 @@ const Settings = () => {
   }
 
   return (
-    <div className={`min-h-screen ${pageClassName}`}>
+    <div className={`min-h-screen relative ${pageClassName}`}>
+      <HeroBackground />
       <Navigation />
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="relative z-10 container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
         <div className="content-overlay mb-12">
-          <h1 className="text-4xl font-heading font-bold text-gradient mb-2">
+          <h1 className="text-4xl md:text-5xl font-heading font-bold text-[#F4E3B2] mb-2 tracking-wide">
             Settings
           </h1>
-          <p className="text-xl text-text-secondary">
+          <p className="text-lg text-[#C9C5D5]">
             Manage your account preferences and settings
           </p>
         </div>
@@ -268,82 +272,78 @@ const Settings = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Sidebar */}
           <div className="space-y-4 lg:sticky lg:top-24 self-start">
-            <Card className="glass-card">
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  <a href="#profile" onClick={() => setActiveSection('profile')} className={`flex items-center gap-3 p-2 rounded-lg ${activeSection==='profile' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
-                    <User className="w-4 h-4" />
-                    <span className="font-medium">Profile</span>
-                  </a>
-                  <a href="#notifications" onClick={() => setActiveSection('notifications')} className={`flex items-center gap-3 p-2 rounded-lg ${activeSection==='notifications' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
-                    <Bell className="w-4 h-4" />
-                    <span>Notifications</span>
-                  </a>
-                  <a href="#theme" onClick={() => setActiveSection('theme')} className={`flex items-center gap-3 p-2 rounded-lg ${activeSection==='theme' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
-                    <Palette className="w-4 h-4" />
-                    <span>Theme</span>
-                  </a>
-                  <a href="#privacy" onClick={() => setActiveSection('privacy')} className={`flex items-center gap-3 p-2 rounded-lg ${activeSection==='privacy' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
-                    <Shield className="w-4 h-4" />
-                    <span>Privacy</span>
-                  </a>
-                  <a href="#account" onClick={() => setActiveSection('account')} className={`flex items-center gap-3 p-2 rounded-lg ${activeSection==='account' ? 'bg-primary/10 text-primary' : 'hover:bg-muted/50'}`}>
-                    <CreditCard className="w-4 h-4" />
-                    <span>Account</span>
-                  </a>
-                  <Separator className="my-2" />
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); setActiveSection('profile'); }}
-                    className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50"
-                  >
-                    <ArrowUp className="w-4 h-4" />
-                    <span>Back to top</span>
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="rounded-2xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)] p-4">
+              <div className="space-y-2">
+                <a href="#profile" onClick={() => setActiveSection('profile')} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${activeSection==='profile' ? 'bg-[rgba(242,181,68,.15)] text-[#F4E3B2]' : 'text-[#C9C5D5] hover:bg-[rgba(242,181,68,.08)]'}`}>
+                  <User className="w-4 h-4" />
+                  <span className="font-medium">Profile</span>
+                </a>
+                <a href="#notifications" onClick={() => setActiveSection('notifications')} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${activeSection==='notifications' ? 'bg-[rgba(242,181,68,.15)] text-[#F4E3B2]' : 'text-[#C9C5D5] hover:bg-[rgba(242,181,68,.08)]'}`}>
+                  <Bell className="w-4 h-4" />
+                  <span>Notifications</span>
+                </a>
+                <a href="#theme" onClick={() => setActiveSection('theme')} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${activeSection==='theme' ? 'bg-[rgba(242,181,68,.15)] text-[#F4E3B2]' : 'text-[#C9C5D5] hover:bg-[rgba(242,181,68,.08)]'}`}>
+                  <Palette className="w-4 h-4" />
+                  <span>Theme</span>
+                </a>
+                <a href="#privacy" onClick={() => setActiveSection('privacy')} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${activeSection==='privacy' ? 'bg-[rgba(242,181,68,.15)] text-[#F4E3B2]' : 'text-[#C9C5D5] hover:bg-[rgba(242,181,68,.08)]'}`}>
+                  <Shield className="w-4 h-4" />
+                  <span>Privacy</span>
+                </a>
+                <a href="#account" onClick={() => setActiveSection('account')} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${activeSection==='account' ? 'bg-[rgba(242,181,68,.15)] text-[#F4E3B2]' : 'text-[#C9C5D5] hover:bg-[rgba(242,181,68,.08)]'}`}>
+                  <CreditCard className="w-4 h-4" />
+                  <span>Account</span>
+                </a>
+                <Separator className="my-2 bg-[rgba(242,181,68,.18)]" />
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); setActiveSection('profile'); }}
+                  className="w-full flex items-center gap-2 p-2 rounded-lg text-[#C9C5D5] hover:bg-[rgba(242,181,68,.08)] transition-colors"
+                >
+                  <ArrowUp className="w-4 h-4" />
+                  <span>Back to top</span>
+                </button>
+              </div>
+            </div>
 
             {/* Account Summary */}
-            <Card id="account" className="glass-card">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Account Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 pt-0 space-y-3">
+            <div id="account" className="rounded-2xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)] p-6">
+              <h3 className="text-lg font-heading font-bold text-[#F4E3B2] mb-4">Account Summary</h3>
+              <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-text-secondary">Plan</span>
-                  <span className="font-medium capitalize">{subLoading ? 'Loading…' : (subscribed ? tier : 'free')}</span>
+                  <span className="text-[#C9C5D5]">Plan</span>
+                  <span className="font-medium text-[#F4E3B2] capitalize">{subLoading ? 'Loading…' : (subscribed ? tier : 'free')}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-text-secondary">Credits</span>
-                  <span className="font-medium">{userCredits ?? '—'}</span>
+                  <span className="text-[#C9C5D5]">Credits</span>
+                  <span className="font-medium text-[#F4E3B2]">{userCredits ?? '—'}</span>
                 </div>
-                <Separator />
+                <Separator className="bg-[rgba(242,181,68,.18)]" />
                 {subscribed ? (
-                  <Button variant="outline" className="w-full" onClick={openCustomerPortal}>
+                  <Button className="w-full bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border border-[rgba(242,181,68,.35)] hover:bg-[rgba(242,181,68,.25)]" onClick={openCustomerPortal}>
                     Manage Subscription
                   </Button>
                 ) : (
-                  <Button variant="outline" className="w-full" onClick={() => (window.location.href = '/pricing')}>
+                  <Button className="w-full bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border border-[rgba(242,181,68,.35)] hover:bg-[rgba(242,181,68,.25)]" onClick={() => (window.location.href = '/pricing')}>
                     Upgrade Plan
                   </Button>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
 
           {/* Main Settings */}
           <div className="lg:col-span-2 space-y-8">
             {/* Profile Settings */}
-            <Card id="profile" className="glass-card-elevated">
-              <CardHeader>
+            <div id="profile" className="rounded-2xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)] p-6 mb-8">
+              <div className="mb-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
+                    <h2 className="flex items-center gap-2 text-2xl font-heading font-bold text-[#F4E3B2]">
                       <User className="w-5 h-5" />
                       Profile Information
-                    </CardTitle>
-                    <p className="text-sm text-text-secondary mt-1">Update your personal details and language.</p>
+                    </h2>
+                    <p className="text-sm text-[#C9C5D5] mt-1">Update your personal details and language.</p>
                   </div>
                   {authProfile?.is_beta_user && (
                     <FounderBadge
@@ -355,11 +355,11 @@ const Settings = () => {
                     />
                   )}
                 </div>
-              </CardHeader>
-              <CardContent className="p-6 pt-0 space-y-6">
+              </div>
+              <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email" className="text-[#C9C5D5]">Email</Label>
                     <Input
                       id="email"
                       value={profile.email || ''}
@@ -368,7 +368,7 @@ const Settings = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="full_name">Full Name</Label>
+                    <Label htmlFor="full_name" className="text-[#C9C5D5]">Full Name</Label>
                     <Input
                       id="full_name"
                       value={profile.full_name || ''}
@@ -379,7 +379,7 @@ const Settings = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="display_name">Display Name</Label>
+                  <Label htmlFor="display_name" className="text-[#C9C5D5]">Display Name</Label>
                   <Input
                     id="display_name"
                     value={profile.display_name || ''}
@@ -389,7 +389,7 @@ const Settings = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
+                  <Label htmlFor="bio" className="text-[#C9C5D5]">Bio</Label>
                   <Textarea
                     id="bio"
                     value={profile.bio || ''}
@@ -400,8 +400,8 @@ const Settings = () => {
                 </div>
 
 
-                <Separator />
-                <Button onClick={saveProfile} disabled={saving} variant="default" size="lg">
+                <Separator className="bg-[rgba(242,181,68,.18)]" />
+                <Button onClick={saveProfile} disabled={saving} size="lg" className="bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border border-[rgba(242,181,68,.35)] hover:bg-[rgba(242,181,68,.25)]">
                   {saving ? (
                     <>
                       <div className="loading-spinner w-4 h-4 mr-2" />
@@ -411,50 +411,50 @@ const Settings = () => {
                     'Save Changes'
                   )}
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Theme Settings */}
-            <Card id="theme" className="glass-card-elevated">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            <div id="theme" className="rounded-2xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)] p-6 mb-8">
+              <div className="mb-6">
+                <h2 className="flex items-center gap-2 text-2xl font-heading font-bold text-[#F4E3B2]">
                   <Palette className="w-5 h-5" />
                   Theme & Appearance
-                </CardTitle>
-                <p className="text-sm text-text-secondary mt-1">Choose your preferred theme and see current state.</p>
-              </CardHeader>
-              <CardContent className="p-6 pt-0 space-y-6">
+                </h2>
+                <p className="text-sm text-[#C9C5D5] mt-1">Choose your preferred theme and see current state.</p>
+              </div>
+              <div className="space-y-6">
                 <div className="space-y-4">
-                  <p className="text-sm text-text-secondary">
+                  <p className="text-sm text-[#C9C5D5]">
                     Choose your preferred theme for the best reading and writing experience.
                   </p>
 
                   <ThemeSelect />
 
-                  <Separator />
+                  <Separator className="bg-[rgba(242,181,68,.18)]" />
 
                   <div>
-                    <h4 className="font-medium mb-3">Current Theme Status</h4>
+                    <h4 className="font-medium text-[#F4E3B2] mb-3">Current Theme Status</h4>
                     <ThemeStatus />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Notification Settings */}
-            <Card id="notifications" className="glass-card-elevated">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            <div id="notifications" className="rounded-2xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)] p-6 mb-8">
+              <div className="mb-6">
+                <h2 className="flex items-center gap-2 text-2xl font-heading font-bold text-[#F4E3B2]">
                   <Bell className="w-5 h-5" />
                   Notification Preferences
-                </CardTitle>
-                <p className="text-sm text-text-secondary mt-1">Control how we notify you about updates.</p>
-              </CardHeader>
-              <CardContent className="p-6 pt-0 space-y-6">
+                </h2>
+                <p className="text-sm text-[#C9C5D5] mt-1">Control how we notify you about updates.</p>
+              </div>
+              <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Story Updates</Label>
-                    <p className="text-sm text-text-secondary">Get notified when your stories are ready</p>
+                    <Label className="text-[#F4E3B2]">Story Updates</Label>
+                    <p className="text-sm text-[#C9C5D5]">Get notified when your stories are ready</p>
                   </div>
                   <Switch
                     checked={notificationPreferences.email_stories}
@@ -463,12 +463,12 @@ const Settings = () => {
                     }
                   />
                 </div>
-                <Separator />
+                <Separator className="bg-[rgba(242,181,68,.18)]" />
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Platform Updates</Label>
-                    <p className="text-sm text-text-secondary">New features and announcements</p>
+                    <Label className="text-[#F4E3B2]">Platform Updates</Label>
+                    <p className="text-sm text-[#C9C5D5]">New features and announcements</p>
                   </div>
                   <Switch
                     checked={notificationPreferences.email_updates}
@@ -477,12 +477,12 @@ const Settings = () => {
                     }
                   />
                 </div>
-                <Separator />
+                <Separator className="bg-[rgba(242,181,68,.18)]" />
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Push Notifications</Label>
-                    <p className="text-sm text-text-secondary">Browser notifications for important updates</p>
+                    <Label className="text-[#F4E3B2]">Push Notifications</Label>
+                    <p className="text-sm text-[#C9C5D5]">Browser notifications for important updates</p>
                   </div>
                   <Switch
                     checked={notificationPreferences.push_notifications}
@@ -491,35 +491,35 @@ const Settings = () => {
                     }
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Privacy Settings */}
-            <Card id="privacy" className="glass-card-elevated">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            <div id="privacy" className="rounded-2xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)] p-6 mb-8">
+              <div className="mb-6">
+                <h2 className="flex items-center gap-2 text-2xl font-heading font-bold text-[#F4E3B2]">
                   <Shield className="w-5 h-5" />
                   Privacy & Security
-                </CardTitle>
-                <p className="text-sm text-text-secondary mt-1">Manage your profile visibility and data.</p>
-              </CardHeader>
-              <CardContent className="p-6 pt-0 space-y-6">
+                </h2>
+                <p className="text-sm text-[#C9C5D5] mt-1">Manage your profile visibility and data.</p>
+              </div>
+              <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Public Profile</Label>
-                    <p className="text-sm text-text-secondary">Allow others to see your profile</p>
+                    <Label className="text-[#F4E3B2]">Public Profile</Label>
+                    <p className="text-sm text-[#C9C5D5]">Allow others to see your profile</p>
                   </div>
                   <Switch
                     checked={visibilitySettings.public_profile}
                     onCheckedChange={(checked) => updateVisibilitySetting('public_profile', checked)}
                   />
                 </div>
-                <Separator />
+                <Separator className="bg-[rgba(242,181,68,.18)]" />
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Show Stories in Discover</Label>
-                    <p className="text-sm text-text-secondary">Make your public stories discoverable</p>
+                    <Label className="text-[#F4E3B2]">Show Stories in Discover</Label>
+                    <p className="text-sm text-[#C9C5D5]">Make your public stories discoverable</p>
                   </div>
                   <Switch
                     checked={visibilitySettings.discoverable_stories}
@@ -527,15 +527,15 @@ const Settings = () => {
                   />
                 </div>
 
-                <Separator />
+                <Separator className="bg-[rgba(242,181,68,.18)]" />
 
                 <div className="space-y-4">
-                  <h4 className="font-medium">Account Actions</h4>
+                  <h4 className="font-medium text-[#F4E3B2]">Account Actions</h4>
                   <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start">
+                    <Button className="w-full justify-start bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border border-[rgba(242,181,68,.35)] hover:bg-[rgba(242,181,68,.25)]">
                       Change Password
                     </Button>
-                    <Button variant="outline" className="w-full justify-start">
+                    <Button className="w-full justify-start bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border border-[rgba(242,181,68,.35)] hover:bg-[rgba(242,181,68,.25)]">
                       Download My Data
                     </Button>
                     <Button variant="destructive" className="w-full justify-start">
@@ -543,8 +543,8 @@ const Settings = () => {
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       </div>

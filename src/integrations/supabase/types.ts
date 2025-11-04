@@ -7,10 +7,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -79,6 +99,70 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "languages"
             referencedColumns: ["code"]
+          },
+        ]
+      }
+      character_story_appearances: {
+        Row: {
+          character_development: string | null
+          character_id: string
+          created_at: string
+          id: string
+          key_events: string[] | null
+          memorable_moments: string[] | null
+          relationships: Json | null
+          role_in_story: string | null
+          story_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          character_development?: string | null
+          character_id: string
+          created_at?: string
+          id?: string
+          key_events?: string[] | null
+          memorable_moments?: string[] | null
+          relationships?: Json | null
+          role_in_story?: string | null
+          story_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          character_development?: string | null
+          character_id?: string
+          created_at?: string
+          id?: string
+          key_events?: string[] | null
+          memorable_moments?: string[] | null
+          relationships?: Json | null
+          role_in_story?: string | null
+          story_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_story_appearances_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "user_characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_story_appearances_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "character_story_appearances_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "story_lifecycle_summary"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -170,6 +254,13 @@ export type Database = {
             columns: ["story_id"]
             isOneToOne: true
             referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "featured_stories_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: true
+            referencedRelation: "story_lifecycle_summary"
             referencedColumns: ["id"]
           },
         ]
@@ -347,6 +438,13 @@ export type Database = {
             referencedRelation: "stories"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reading_history_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "story_lifecycle_summary"
+            referencedColumns: ["id"]
+          },
         ]
       }
       security_audit_log: {
@@ -382,6 +480,8 @@ export type Database = {
       stories: {
         Row: {
           age_group: string | null
+          age_range: string | null
+          allow_featuring: boolean | null
           audio_generation_status: string | null
           author_id: string | null
           cover_image: string | null
@@ -389,6 +489,7 @@ export type Database = {
           created_at: string | null
           credits_used: number | null
           description: string | null
+          finalized_at: string | null
           full_story_audio_url: string | null
           genre: string | null
           id: string
@@ -396,23 +497,29 @@ export type Database = {
           is_completed: boolean | null
           is_public: boolean | null
           language_code: string | null
+          lifecycle_status: string | null
           metadata: Json | null
           original_language_code: string | null
           prompt: string | null
+          ready_at: string | null
           selected_voice_id: string | null
           selected_voice_name: string | null
           status: string | null
           story_mode: string | null
+          story_tags: string[] | null
           story_type: string | null
           target_age: string | null
           thumbnail_url: string | null
           title: string
           updated_at: string | null
           user_id: string | null
+          version: number | null
           visibility: string | null
         }
         Insert: {
           age_group?: string | null
+          age_range?: string | null
+          allow_featuring?: boolean | null
           audio_generation_status?: string | null
           author_id?: string | null
           cover_image?: string | null
@@ -420,6 +527,7 @@ export type Database = {
           created_at?: string | null
           credits_used?: number | null
           description?: string | null
+          finalized_at?: string | null
           full_story_audio_url?: string | null
           genre?: string | null
           id?: string
@@ -427,23 +535,29 @@ export type Database = {
           is_completed?: boolean | null
           is_public?: boolean | null
           language_code?: string | null
+          lifecycle_status?: string | null
           metadata?: Json | null
           original_language_code?: string | null
           prompt?: string | null
+          ready_at?: string | null
           selected_voice_id?: string | null
           selected_voice_name?: string | null
           status?: string | null
           story_mode?: string | null
+          story_tags?: string[] | null
           story_type?: string | null
           target_age?: string | null
           thumbnail_url?: string | null
           title: string
           updated_at?: string | null
           user_id?: string | null
+          version?: number | null
           visibility?: string | null
         }
         Update: {
           age_group?: string | null
+          age_range?: string | null
+          allow_featuring?: boolean | null
           audio_generation_status?: string | null
           author_id?: string | null
           cover_image?: string | null
@@ -451,6 +565,7 @@ export type Database = {
           created_at?: string | null
           credits_used?: number | null
           description?: string | null
+          finalized_at?: string | null
           full_story_audio_url?: string | null
           genre?: string | null
           id?: string
@@ -458,19 +573,23 @@ export type Database = {
           is_completed?: boolean | null
           is_public?: boolean | null
           language_code?: string | null
+          lifecycle_status?: string | null
           metadata?: Json | null
           original_language_code?: string | null
           prompt?: string | null
+          ready_at?: string | null
           selected_voice_id?: string | null
           selected_voice_name?: string | null
           status?: string | null
           story_mode?: string | null
+          story_tags?: string[] | null
           story_type?: string | null
           target_age?: string | null
           thumbnail_url?: string | null
           title?: string
           updated_at?: string | null
           user_id?: string | null
+          version?: number | null
           visibility?: string | null
         }
         Relationships: [
@@ -521,6 +640,13 @@ export type Database = {
             columns: ["story_id"]
             isOneToOne: false
             referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_analytics_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "story_lifecycle_summary"
             referencedColumns: ["id"]
           },
         ]
@@ -574,15 +700,72 @@ export type Database = {
             referencedRelation: "stories"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "story_content_i18n_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "story_lifecycle_summary"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      story_drafts: {
+        Row: {
+          age_group: string | null
+          created_at: string | null
+          current_step: number | null
+          custom_seed: string | null
+          genres: string[] | null
+          id: string
+          language_code: string | null
+          selected_characters: string[] | null
+          selected_seed: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          age_group?: string | null
+          created_at?: string | null
+          current_step?: number | null
+          custom_seed?: string | null
+          genres?: string[] | null
+          id?: string
+          language_code?: string | null
+          selected_characters?: string[] | null
+          selected_seed?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          age_group?: string | null
+          created_at?: string | null
+          current_step?: number | null
+          custom_seed?: string | null
+          genres?: string[] | null
+          id?: string
+          language_code?: string | null
+          selected_characters?: string[] | null
+          selected_seed?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       story_segments: {
         Row: {
+          animation_config: Json | null
+          animation_error: string | null
+          animation_status: string | null
           audio_generation_status: string | null
           audio_url: string | null
+          chapter_age_range: string | null
+          chapter_cover_url: string | null
+          chapter_tags: string[] | null
+          chapter_title: string | null
           choices: Json | null
           content: string | null
           created_at: string | null
+          details_status: string | null
           id: string
           image_generation_status: string | null
           image_prompt: string | null
@@ -590,16 +773,30 @@ export type Database = {
           is_end: boolean | null
           is_ending: boolean | null
           metadata: Json | null
+          missing_fields: string[] | null
           segment_number: number
           segment_text: string | null
           story_id: string | null
+          video_generation_status: string | null
+          video_url: string | null
+          voice_config: Json | null
+          voice_error: string | null
+          voice_status: string | null
         }
         Insert: {
+          animation_config?: Json | null
+          animation_error?: string | null
+          animation_status?: string | null
           audio_generation_status?: string | null
           audio_url?: string | null
+          chapter_age_range?: string | null
+          chapter_cover_url?: string | null
+          chapter_tags?: string[] | null
+          chapter_title?: string | null
           choices?: Json | null
           content?: string | null
           created_at?: string | null
+          details_status?: string | null
           id?: string
           image_generation_status?: string | null
           image_prompt?: string | null
@@ -607,16 +804,30 @@ export type Database = {
           is_end?: boolean | null
           is_ending?: boolean | null
           metadata?: Json | null
+          missing_fields?: string[] | null
           segment_number: number
           segment_text?: string | null
           story_id?: string | null
+          video_generation_status?: string | null
+          video_url?: string | null
+          voice_config?: Json | null
+          voice_error?: string | null
+          voice_status?: string | null
         }
         Update: {
+          animation_config?: Json | null
+          animation_error?: string | null
+          animation_status?: string | null
           audio_generation_status?: string | null
           audio_url?: string | null
+          chapter_age_range?: string | null
+          chapter_cover_url?: string | null
+          chapter_tags?: string[] | null
+          chapter_title?: string | null
           choices?: Json | null
           content?: string | null
           created_at?: string | null
+          details_status?: string | null
           id?: string
           image_generation_status?: string | null
           image_prompt?: string | null
@@ -624,9 +835,15 @@ export type Database = {
           is_end?: boolean | null
           is_ending?: boolean | null
           metadata?: Json | null
+          missing_fields?: string[] | null
           segment_number?: number
           segment_text?: string | null
           story_id?: string | null
+          video_generation_status?: string | null
+          video_url?: string | null
+          voice_config?: Json | null
+          voice_error?: string | null
+          voice_status?: string | null
         }
         Relationships: [
           {
@@ -634,6 +851,13 @@ export type Database = {
             columns: ["story_id"]
             isOneToOne: false
             referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_segments_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "story_lifecycle_summary"
             referencedColumns: ["id"]
           },
         ]
@@ -755,8 +979,11 @@ export type Database = {
           id: string
           image_url: string | null
           is_public: boolean | null
+          last_appearance_at: string | null
+          memory_summary: string | null
           name: string
           personality_traits: string[] | null
+          total_stories: number | null
           updated_at: string | null
           usage_count: number | null
           user_id: string
@@ -769,8 +996,11 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_public?: boolean | null
+          last_appearance_at?: string | null
+          memory_summary?: string | null
           name: string
           personality_traits?: string[] | null
+          total_stories?: number | null
           updated_at?: string | null
           usage_count?: number | null
           user_id: string
@@ -783,8 +1013,11 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_public?: boolean | null
+          last_appearance_at?: string | null
+          memory_summary?: string | null
           name?: string
           personality_traits?: string[] | null
+          total_stories?: number | null
           updated_at?: string | null
           usage_count?: number | null
           user_id?: string
@@ -893,6 +1126,59 @@ export type Database = {
         }
         Relationships: []
       }
+      video_generation_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          image_url: string
+          include_narration: boolean | null
+          prompt: string
+          segment_id: string
+          started_at: string | null
+          status: string
+          updated_at: string | null
+          video_url: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          image_url: string
+          include_narration?: boolean | null
+          prompt: string
+          segment_id: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          image_url?: string
+          include_narration?: boolean | null
+          prompt?: string
+          segment_id?: string
+          started_at?: string | null
+          status?: string
+          updated_at?: string | null
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_generation_jobs_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "story_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       visibility_settings: {
         Row: {
           created_at: string | null
@@ -922,7 +1208,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      story_lifecycle_summary: {
+        Row: {
+          allow_featuring: boolean | null
+          animations_missing: number | null
+          animations_ready: number | null
+          details_complete: number | null
+          details_incomplete: number | null
+          finalized_at: string | null
+          id: string | null
+          lifecycle_status: string | null
+          ready_at: string | null
+          title: string | null
+          total_chapters: number | null
+          user_id: string | null
+          version: number | null
+          visibility: string | null
+          voices_missing: number | null
+          voices_ready: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_credits: {
@@ -1107,6 +1413,23 @@ export type Database = {
         }
         Returns: Json
       }
+      finalize_story: {
+        Args: {
+          p_allow_featuring?: boolean
+          p_visibility?: string
+          story_uuid: string
+        }
+        Returns: Json
+      }
+      get_character_history: {
+        Args: { p_character_id: string }
+        Returns: {
+          appearance_created_at: string
+          story_created_at: string
+          story_id: string
+          story_title: string
+        }[]
+      }
       get_credit_transactions: {
         Args: { limit_count?: number; user_uuid?: string }
         Returns: {
@@ -1169,6 +1492,10 @@ export type Database = {
         Args: { language_code?: string; template_key: string }
         Returns: string
       }
+      get_story_readiness: {
+        Args: { story_uuid: string }
+        Returns: Json
+      }
       get_user_credits: {
         Args: { user_uuid: string }
         Returns: {
@@ -1230,6 +1557,10 @@ export type Database = {
         }
         Returns: string
       }
+      mark_story_ready: {
+        Args: { story_uuid: string }
+        Returns: Json
+      }
       set_visibility_setting: {
         Args: { p_setting_key: string; p_setting_value: Json }
         Returns: boolean
@@ -1244,6 +1575,10 @@ export type Database = {
           user_uuid: string
         }
         Returns: boolean
+      }
+      unfinalize_story: {
+        Args: { story_uuid: string }
+        Returns: Json
       }
     }
     Enums: {
@@ -1373,7 +1708,11 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
 } as const
+

@@ -5,6 +5,7 @@ import { ResponseHandler, ERROR_CODES } from '../_shared/response-handlers.ts';
 import { logger } from '../_shared/logger.ts';
 import { InputValidator, InputSanitizer, RateLimiter, SecurityAuditor } from '../_shared/validation.ts';
 import { createSupabaseClient } from '../_shared/supabase-client.ts';
+import { PromptTemplateManager } from '../_shared/prompt-templates.ts';
 
 interface CharacterImageRequest {
   character_id: string;
@@ -108,36 +109,16 @@ serve(async (req) => {
       operation: 'character-image-generation'
     });
 
-    // Build age-appropriate style descriptor
-    const styleByAge: Record<string, string> = {
-      '4-6': 'soft, whimsical watercolor illustration with rounded shapes, gentle colors, and simple composition',
-      '7-9': 'vibrant, detailed digital illustration with rich colors and dynamic composition',
-      '10-12': 'sophisticated, semi-realistic illustration with detailed textures and atmospheric lighting'
-    };
-
-    const ageStyle = age_group && styleByAge[age_group] 
-      ? styleByAge[age_group] 
-      : 'colorful children\'s book illustration style';
-
-    // Build comprehensive character prompt using narrative description
-    const personalityDesc = personality_traits && personality_traits.length > 0
-      ? ` The character has a ${personality_traits.slice(0, 3).join(', ')} personality.`
-      : '';
-
-    const backstoryDesc = backstory 
-      ? ` Background: ${backstory.slice(0, 150)}.`
-      : '';
-
-    // Create detailed, narrative prompt for character reference image
-    const characterPrompt = `A portrait-style character reference illustration of ${character_name}, a ${character_type}. 
-${character_description}.${personalityDesc}${backstoryDesc}
-
-This is a character reference image for a children's story, showing the character from the front in a neutral, friendly pose. 
-The illustration should be in a ${ageStyle}. 
-Clear, well-defined features that can be used as a reference for maintaining character consistency across multiple scenes.
-Warm, inviting lighting. Soft shadows. Colorful but not overly saturated.
-Portrait orientation (3:4 aspect ratio). White or simple gradient background to keep focus on the character.
-Safe for children, friendly, and engaging. High quality illustration suitable for children's books.`;
+    // Generate character reference prompt using centralized method (Nano-banana optimized)
+    const characterPrompt = PromptTemplateManager.generateCharacterReferencePrompt({
+      ageGroup: age_group || '7-9',
+      genre: 'Character Reference',
+      characterName: character_name,
+      characterDescription: character_description,
+      characterType: character_type,
+      backstory: backstory,
+      personalityTraits: personality_traits
+    });
 
     logger.info('Character prompt created', {
       promptLength: characterPrompt.length,

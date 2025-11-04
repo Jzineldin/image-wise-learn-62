@@ -5,6 +5,7 @@ import { ResponseHandler, ERROR_CODES } from '../_shared/response-handlers.ts';
 import { logger } from '../_shared/logger.ts';
 import { InputValidator, InputSanitizer, RateLimiter, SecurityAuditor } from '../_shared/validation.ts';
 import { createSupabaseClient } from '../_shared/supabase-client.ts';
+import { PromptTemplateManager } from '../_shared/prompt-templates.ts';
 
 interface ImageRequest {
   prompt?: string;
@@ -148,90 +149,16 @@ serve(async (req) => {
       }
     }
 
-    // Build age-appropriate style descriptor
-    const ageStyleMap: Record<string, { style: string; mood: string; composition: string }> = {
-      '4-6': {
-        style: 'soft, whimsical watercolor illustration with rounded shapes, gentle colors, and simple composition',
-        mood: 'warm, comforting, and playful with soft lighting and gentle shadows',
-        composition: 'centered, clear focal point, uncluttered background'
-      },
-      '7-9': {
-        style: 'vibrant, detailed digital illustration with rich colors and dynamic composition',
-        mood: 'adventurous, exciting, and engaging with bright lighting and colorful atmosphere',
-        composition: 'dynamic angles, detailed environment, sense of depth and movement'
-      },
-      '10-12': {
-        style: 'sophisticated, semi-realistic illustration with detailed textures and atmospheric lighting',
-        mood: 'immersive, dramatic, and emotionally resonant with cinematic lighting and mood',
-        composition: 'complex composition, detailed background, atmospheric perspective'
-      }
-    };
-
-    const ageStyle = ageGroup && ageStyleMap[ageGroup]
-      ? ageStyleMap[ageGroup]
-      : {
-          style: 'colorful children\'s book illustration style',
-          mood: 'friendly and engaging with warm lighting',
-          composition: 'clear and balanced composition'
-        };
-
-    // Build narrative-based prompt (not keyword lists)
+    // Use centralized prompt generation (Nano-banana optimized)
     let finalPrompt = prompt;
     if (!finalPrompt && storyContent) {
-      // Extract character information with detailed descriptions
-      const charDescriptions = (characters || [])
-        .slice(0, 3)
-        .map((c: any) => {
-          const name = c?.name ? String(c.name) : '';
-          const desc = c?.description ? String(c.description) : '';
-          const personality = c?.personality ? String(c.personality) : '';
-          const type = c?.character_type ? String(c.character_type) : '';
-
-          if (!name) return '';
-
-          // Build narrative character description
-          let charDesc = name;
-          if (type && type !== 'human') charDesc += `, a ${type}`;
-          if (desc) charDesc += `, ${desc}`;
-          if (personality) charDesc += ` with a ${personality} personality`;
-
-          return charDesc;
-        })
-        .filter(Boolean);
-
-      // Extract scene from story content (narrative description)
-      const scene = storyContent.slice(0, 250).replace(/\s+/g, ' ').trim();
-
-      // Build comprehensive narrative prompt
-      if (charDescriptions.length > 0) {
-        // With characters - use reference images for consistency
-        finalPrompt = `A children's book illustration showing ${scene}
-
-Featuring: ${charDescriptions.join('; ')}.
-
-The scene is rendered in a ${ageStyle.style}.
-The mood is ${ageStyle.mood}.
-Composition: ${ageStyle.composition}.
-
-Camera angle: eye-level perspective, inviting and accessible for young readers.
-Lighting: ${ageGroup === '4-6' ? 'soft, diffused natural light' : ageGroup === '7-9' ? 'bright, colorful lighting with clear shadows' : 'dramatic, atmospheric lighting with depth'}.
-
-This illustration is suitable for ages ${ageGroup || '4-12'} and maintains a safe, friendly, and engaging tone appropriate for children's literature.
-High quality, professional children's book illustration.`;
-      } else {
-        // Without characters - focus on scene
-        finalPrompt = `A children's book illustration depicting ${scene}
-
-The scene is rendered in a ${ageStyle.style}.
-The mood is ${ageStyle.mood}.
-Composition: ${ageStyle.composition}.
-
-Camera angle: eye-level perspective, inviting and accessible for young readers.
-Lighting: ${ageGroup === '4-6' ? 'soft, diffused natural light' : ageGroup === '7-9' ? 'bright, colorful lighting with clear shadows' : 'dramatic, atmospheric lighting with depth'}.
-
-This illustration is suitable for ages ${ageGroup || '4-12'} and maintains a safe, friendly, and engaging tone appropriate for children's literature.
-High quality, professional children's book illustration.`;
-      }
+      finalPrompt = PromptTemplateManager.generateImagePrompt({
+        ageGroup: ageGroup || '7-9',
+        genre: genre || 'Adventure',
+        storySegment: storyContent,
+        characters: characters || [],
+        style
+      });
     }
 
     if (!finalPrompt) {

@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles, RotateCcw, Lock, ArrowRight } from 'lucide-react';
 import { AudioControls } from './AudioControls';
 import { OptimizedImage } from '@/components/ui/optimized-image';
+import { VideoGenerationPanel } from './VideoGenerationPanel';
 import { isStoryCompleted } from '@/lib/helpers/story-helpers';
 import {
   Tooltip,
@@ -151,6 +152,15 @@ export const StorySegmentDisplay = ({
         </CardContent>
       </Card>
 
+      {/* Video Generation Panel - Only in creation mode for owners with image */}
+      {viewMode === 'creation' && isOwner && segment.image_url && (
+        <VideoGenerationPanel
+          segmentId={segment.id}
+          storyId={story.id}
+          imageUrl={segment.image_url}
+          segmentContent={segment.content}
+        />
+      )}
 
       {/* Interactive Choices */}
       {segment.choices && segment.choices.length > 0 && viewMode === 'creation' && (

@@ -3,12 +3,15 @@ import { CreditService, CREDIT_COSTS, validateCredits, deductCreditsAfterSuccess
 import { createAIService } from '../_shared/ai-service.ts';
 import { createImageService } from '../_shared/image-service.ts';
 import { AGE_GUIDELINES, PromptTemplateManager } from '../_shared/prompt-templates.ts';
+import { EnhancedPromptTemplateManager } from '../_shared/prompt-templates-enhanced.ts';
 import { parseWordRange, countWords, trimToMaxWords } from '../_shared/response-handlers.ts';
 import { ResponseHandler, Validators, withTiming } from '../_shared/response-handlers.ts';
 import { logger } from '../_shared/logger.ts';
 import { InputValidator, InputSanitizer, RateLimiter, SecurityAuditor } from '../_shared/validation.ts';
 import { createSupabaseClient } from '../_shared/supabase-client.ts';
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
+import { PromptTemplateManager as PromptMgr } from '../_shared/prompt-templates.ts';
+import { FEATURE_FLAGS, shouldUseEnhancedPrompts, logFeatureFlags } from '../_shared/feature-flags.ts';
 
 
 interface SegmentRequest {
@@ -130,7 +133,7 @@ Deno.serve(async (req) => {
 
     // Sanitize inputs
     const story_id = body.story_id || body.storyId;
-    const choice = body.choice ? InputSanitizer.sanitizeText(body.choice) : undefined;
+    const choice = body.choice || body.choiceText ? InputSanitizer.sanitizeText(body.choice || body.choiceText) : undefined;
     const segment_number = body.segment_number || body.segmentNumber;
 
     // Validate credits first (no deduction yet)
@@ -249,15 +252,48 @@ Deno.serve(async (req) => {
     const ageGuide = AGE_GUIDELINES[story.age_group as keyof typeof AGE_GUIDELINES] || AGE_GUIDELINES['10-12'];
     const wordRange = ageGuide.wordCount; // e.g., "80-110 words"
 
+    // Log feature flags on first use
+    if (segment_number === 1) {
+      logFeatureFlags();
+    }
+
+    // Extract child name from metadata if using personalization
+    const childName = shouldUseEnhancedPrompts() && story.metadata?.childName
+      ? String(story.metadata.childName)
+      : undefined;
+
     // Build structured prompt using centralized template (JSON schema enforced)
-    const tmpl = PromptTemplateManager.generateStorySegment({
-      ageGroup: story.age_group,
-      genre: story.genre,
-      language: story.language_code,
-      previousContent,
-      choiceText: choice || '',
-      segmentNumber: segment_number || ((segments?.length || 0) + 1),
-      shouldBeEnding: false,
+    // Detect if this should be an ending segment (when choice is "THE_END")
+    const isEndingSegment = choice?.toUpperCase() === 'THE_END';
+
+    // Use enhanced prompts if feature flag is enabled
+    const tmpl = shouldUseEnhancedPrompts()
+      ? EnhancedPromptTemplateManager.generateStorySegment({
+          ageGroup: story.age_group,
+          genre: story.genre,
+          language: story.language_code,
+          characters: story.metadata?.characters || [],
+          previousContent,
+          choiceText: choice || '',
+          segmentNumber: segment_number || ((segments?.length || 0) + 1),
+          shouldBeEnding: isEndingSegment,
+          childName,
+        })
+      : PromptTemplateManager.generateStorySegment({
+          ageGroup: story.age_group,
+          genre: story.genre,
+          language: story.language_code,
+          previousContent,
+          choiceText: choice || '',
+          segmentNumber: segment_number || ((segments?.length || 0) + 1),
+          shouldBeEnding: isEndingSegment,
+        });
+
+    logger.info('Using prompt system', {
+      enhanced: shouldUseEnhancedPrompts(),
+      personalized: !!childName,
+      isEnding: isEndingSegment,
+      requestId
     });
 
 
@@ -307,10 +343,12 @@ Deno.serve(async (req) => {
       impact: choice.impact ? validateAndCorrectText(choice.impact, story.age_group) : undefined
     }));
 
-    logger.info('Story segment generated successfully', { 
-      requestId, 
-      provider: aiResponse.provider, 
+    logger.info('Story segment generated successfully', {
+      requestId,
+      provider: aiResponse.provider,
       model: aiResponse.model,
+      choicesCount: choices.length,
+      isEnding: choices.length === 0,
       operation: 'ai-generation'
     });
 
@@ -343,31 +381,31 @@ Deno.serve(async (req) => {
     let imagePrompt = '';
 
     try {
-      // Build image prompt from segment content
+      // Build image prompt from segment content using centralized prompt (Nano-banana optimized)
       // Extract characters from metadata JSONB field
       const characters = story.metadata?.characters || [];
-      const charDescriptions = (Array.isArray(characters) ? characters : [])
-        .slice(0, 3)
-        .map((c: any) => {
-          const name = c?.name ? String(c.name) : '';
-          const desc = c?.description ? String(c.description) : '';
-          const type = c?.character_type ? String(c.character_type) : '';
 
-          let charDesc = name;
-          if (desc) charDesc += ` (${desc})`;
-          if (type && type !== 'human') charDesc += ` [${type}]`;
+      // Use enhanced image prompts if feature flag is enabled
+      imagePrompt = FEATURE_FLAGS.USE_ENHANCED_IMAGE_PROMPTS
+        ? EnhancedPromptTemplateManager.generateImagePrompt({
+            ageGroup: story.age_group || '7-9',
+            genre: story.genre || 'Adventure',
+            storySegment: segmentContent,
+            characters: Array.isArray(characters) ? characters : [],
+            style: 'digital_storybook'
+          })
+        : PromptTemplateManager.generateImagePrompt({
+            ageGroup: story.age_group || '7-9',
+            genre: story.genre || 'Adventure',
+            storySegment: segmentContent,
+            characters: Array.isArray(characters) ? characters : [],
+            style: 'digital_storybook'
+          });
 
-          return charDesc;
-        })
-        .filter(Boolean);
-
-      const scene = segmentContent.slice(0, 200).replace(/\s+/g, ' ').trim();
-
-      if (charDescriptions.length > 0) {
-        imagePrompt = `${scene}. Characters: ${charDescriptions.join(', ')}`;
-      } else {
-        imagePrompt = scene;
-      }
+      logger.info('Using image prompt system', {
+        enhanced: FEATURE_FLAGS.USE_ENHANCED_IMAGE_PROMPTS,
+        requestId
+      });
 
       // Derive a stable seed from story/segment for consistency
       const hashToSeed = (input: string) => {

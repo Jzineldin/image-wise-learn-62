@@ -44,11 +44,25 @@ export const useSubscription = () => {
 
     try {
       setSubscriptionStatus(prev => ({ ...prev, loading: true, error: null }));
-      
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        // No token yet (race condition or expired). Fall back silently to free.
+        setSubscriptionStatus({
+          subscribed: false,
+          tier: 'free',
+          product_id: null,
+          subscription_end: null,
+          credits_per_month: 10,
+          loading: false,
+          error: null,
+        });
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('check-subscription', {
-        headers: {
-          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (error) throw error;
@@ -86,11 +100,15 @@ export const useSubscription = () => {
     }
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        throw new Error('No auth token available');
+      }
+
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { price_id: priceId, type },
-        headers: {
-          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (error) throw error;
@@ -123,10 +141,14 @@ export const useSubscription = () => {
     }
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        throw new Error('No auth token available');
+      }
+
       const { data, error } = await supabase.functions.invoke('customer-portal', {
-        headers: {
-          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-        },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (error) throw error;

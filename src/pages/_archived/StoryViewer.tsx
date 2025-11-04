@@ -1,0 +1,1790 @@
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
+import { useStoryCredits } from '@/hooks/useStoryCredits';
+import { VOICE_LANGUAGE_MAP } from '@/constants/translations';
+import { VoiceSelector } from '@/components/VoiceSelector';
+import { ReadingModeControls } from '@/components/ReadingModeControls';
+import { StoryModeToggle, StoryModeIndicator } from '@/components/story-viewer/StoryModeToggle';
+const AudioControls = lazy(() => import('@/components/story-viewer/AudioControls').then(m => ({ default: m.AudioControls })));
+const FloatingAudioControls = lazy(() => import('@/components/story-viewer/AudioControls').then(m => ({ default: m.FloatingAudioControls })));
+const StorySegmentDisplay = lazy(() => import('@/components/story-viewer/StorySegmentDisplay').then(m => ({ default: m.StorySegmentDisplay })));
+const StoryNavigation = lazy(() => import('@/components/story-viewer/StoryNavigation').then(m => ({ default: m.StoryNavigation })));
+const StoryMetadata = lazy(() => import('@/components/story-viewer/StoryMetadata').then(m => ({ default: m.StoryMetadata })));
+const StorySidebar = lazy(() => import('@/components/story-viewer/StorySidebar').then(m => ({ default: m.StorySidebar })));
+
+import { StoryControls } from '@/components/story-viewer/StoryControls';
+import { StoryProgressTracker } from '@/components/story-viewer/StoryProgressTracker';
+
+import { logger as debugLogger, generateRequestId } from '@/lib/utils/debug';
+import { logger } from '@/lib/logger';
+import { AIClient, InsufficientCreditsError, AIClientError } from '@/lib/api/ai-client';
+import HeroBackground from '@/components/HeroBackground';
+const InsufficientCreditsDialog = lazy(() => import('@/components/InsufficientCreditsDialog'));
+import { calculateTTSCredits } from '@/lib/api/credit-api';
+import { generateAudio as generateAudioAPI } from '@/lib/api/story-api';
+import { isStoryCompleted } from '@/lib/helpers/story-helpers';
+import { CheckCircle2, BookOpen, Home, ChevronLeft, ChevronRight, Sparkles, Loader2, Volume2, Video, Play, Pause } from 'lucide-react';
+import { FEATURES } from '@/lib/config/features';
+import { EndStoryDialog } from '@/components/story-viewer/EndStoryDialog';
+// PDF export loaded dynamically to reduce bundle size
+
+type ViewMode = 'creation' | 'experience';
+
+// Helper function to parse function errors from supabase-js wrapper
+const parseFunctionError = (error: any): string => {
+  // Handle FunctionsHttpError from supabase-js
+  if (error?.context?.message) {
+    return error.context.message;
+  }
+
+  // Handle direct error messages
+  if (error?.message) {
+    return error.message;
+  }
+
+  // Fallback
+  return 'Unknown error occurred';
+};
+
+interface StorySegment {
+  id: string;
+  segment_number: number;
+  content: string;
+  image_url?: string;
+  audio_url?: string;
+  choices: Array<{
+    id: number;
+    text: string;
+    impact?: string;
+  }>;
+  is_ending?: boolean;
+}
+
+interface Story {
+  id: string;
+  title: string;
+  description: string;
+  author_id: string;
+  user_id?: string;
+  genre: string;
+  age_group: string;
+  status: string;
+  is_completed?: boolean;
+  is_complete?: boolean;
+  visibility?: string;
+  metadata: any;
+  cover_image?: string;
+}
+
+const StoryViewer = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { selectedLanguage } = useLanguage();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Credit system states
+  const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
+  const [creditError, setCreditError] = useState<{ required: number; available: number } | null>(null);
+  // Add credit lock reference
+  const creditLock = useRef(false);
+
+  const [story, setStory] = useState<Story | null>(null);
+  const [segments, setSegments] = useState<StorySegment[]>([]);
+  const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('creation');
+  const [isOwner, setIsOwner] = useState(false);
+  const [generatingSegment, setGeneratingSegment] = useState(false);
+  const [generatingAudio, setGeneratingAudio] = useState(false);
+  const [generatingEnding, setGeneratingEnding] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState<string | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [retryAttempts, setRetryAttempts] = useState<{[key: string]: number}>({});
+  const [selectedVoice, setSelectedVoice] = useState('9BWtsMINqrJLrRacOk9x'); // Default Aria
+
+  // Track segments we've already attempted to auto-generate images for (per session)
+  const attemptedImagesRef = useRef<Record<string, boolean>>({});
+
+  // Calculate real credit usage for this story
+  const { totalCredits, creditsUsed, breakdown, isLoading: creditsLoading } = useStoryCredits(id, segments);
+
+  // Ensure we stop audio playback when this page unmounts or when the audio element changes
+  useEffect(() => {
+    return () => {
+      try {
+        if (audioElement) {
+          audioElement.pause();
+          // Clearing src helps some browsers stop buffering
+          audioElement.src = '';
+        }
+      } catch (e) {
+        // no-op
+      }
+    };
+  }, [audioElement]);
+
+  // Also stop audio on page visibility change (e.g., quick navs)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden && audioElement && !audioElement.paused) {
+        audioElement.pause();
+        setIsPlaying(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [audioElement]);
+
+  const [isReadingMode, setIsReadingMode] = useState(false);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fontSize, setFontSize] = useState(18);
+  const [autoPlaySpeed, setAutoPlaySpeed] = useState(5);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [showEndStoryDialog, setShowEndStoryDialog] = useState(false);
+
+  // Ensure voice selection matches current language
+  useEffect(() => {
+    const voices = VOICE_LANGUAGE_MAP[selectedLanguage as keyof typeof VOICE_LANGUAGE_MAP];
+    const allVoices = [
+      ...(voices?.female || []),
+      ...(voices?.male || []),
+      ...(voices?.neutral || [])
+    ];
+    if (!allVoices.includes(selectedVoice)) {
+      const defaultVoice = voices?.female?.[0] || voices?.male?.[0] || voices?.neutral?.[0] || '9BWtsMINqrJLrRacOk9x';
+      setSelectedVoice(defaultVoice);
+    }
+  }, [selectedLanguage]);
+
+  const [autoPlayTimeout, setAutoPlayTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (id) {
+      loadStory();
+    }
+  }, [id]);
+
+  useEffect(() => {
+    // Auto-play audio in experience mode
+    const currentSeg = segments[currentSegmentIndex];
+    if (viewMode === 'experience' && currentSeg?.audio_url && !isPlaying) {
+      setTimeout(() => toggleAudio(), 500); // Small delay to ensure smooth transition
+    }
+  }, [viewMode, currentSegmentIndex, segments]);
+
+  useEffect(() => {
+    // Determine view mode from URL params, default based on ownership
+    const modeParam = searchParams.get('mode') as ViewMode;
+    if (modeParam && ['creation', 'experience'].includes(modeParam)) {
+      setViewMode(modeParam);
+    } else {
+      // Default to creation mode for owners, experience mode for viewers
+      const defaultMode = story && user && (story.author_id === user.id || story.user_id === user.id) ? 'creation' : 'experience';
+      setViewMode(defaultMode);
+    }
+
+    // Set ownership status
+    if (story && user) {
+      const isUserStory = story.author_id === user.id || story.user_id === user.id;
+      setIsOwner(isUserStory);
+      logger.info('🔒 Ownership check', {
+        isOwner: isUserStory,
+        userId: user.id,
+        authorId: story.author_id,
+        storyUserId: story.user_id,
+        viewMode,
+        isCompleted: isStoryCompleted(story)
+      });
+    }
+  }, [searchParams, story, user]);
+
+  // Clear the optimistic image spinner as soon as the target segment receives an image URL
+  useEffect(() => {
+    if (!generatingImage) return;
+    const seg = segments.find(s => s.id === generatingImage);
+    if (seg && seg.image_url) {
+      setGeneratingImage(null);
+      // Clean the hint param once image appears
+      if (searchParams.get('imgPending') === '1') {
+        searchParams.delete('imgPending');
+        setSearchParams(searchParams);
+      }
+    }
+  }, [segments, generatingImage]);
+
+  // Poll for image_url when we know an image is being generated (e.g., after creation flow)
+  useEffect(() => {
+    const isImgPending = searchParams.get('imgPending') === '1';
+
+    // Only start polling if spinner is shown or imgPending hint is set
+    if (!isImgPending && !generatingImage) return;
+
+    let cancelled = false;
+    const startedAt = Date.now();
+    console.info('[DIAG:image-poll] start', {
+      isImgPending,
+      generatingImage,
+      ts: new Date().toISOString()
+    });
+
+    const poll = async () => {
+      if (cancelled) return;
+      const elapsed = Date.now() - startedAt;
+      console.info('[DIAG:image-poll] tick', { elapsedMs: elapsed });
+      try {
+        const segs = await reloadSegments();
+        const firstSeg = segs.find(s => s.segment_number === 1);
+        if (firstSeg?.image_url) {
+          console.info('[DIAG:image-poll] image_url detected', {
+            segmentId: firstSeg.id,
+            elapsedMs: Date.now() - startedAt,
+          });
+          // Mark as attempted so auto-generation won't re-fire on subsequent reloads
+          attemptedImagesRef.current[firstSeg.id] = true;
+          // Image is ready - clear spinner and URL hint
+          setGeneratingImage(null);
+          if (searchParams.get('imgPending') === '1') {
+            searchParams.delete('imgPending');
+            setSearchParams(searchParams);
+          }
+          return; // stop polling
+        }
+      } catch (e) {
+        console.warn('[DIAG:image-poll] error', {
+          message: (e && ((e as any).message || e.toString())) || 'unknown'
+        });
+      }
+
+      // Stop after 30s max
+      if (Date.now() - startedAt > 30_000) {
+        console.warn('[DIAG:image-poll] timeout', { elapsedMs: Date.now() - startedAt });
+        try {
+          // Fallback: if first segment still lacks image, trigger generation now
+          const segsAfter = await reloadSegments();
+          const firstSegAfter = segsAfter.find(s => s.segment_number === 1);
+          if (firstSegAfter && !firstSegAfter.image_url && firstSegAfter.content) {
+            console.info('[DIAG:image-poll] timeout fallback → triggering image generation', { segmentId: firstSegAfter.id });
+            await generateSegmentImage(firstSegAfter);
+          }
+        } catch {}
+        setGeneratingImage(null);
+        // Clear imgPending hint to avoid re-poll loops
+        if (searchParams.get('imgPending') === '1') {
+          searchParams.delete('imgPending');
+          setSearchParams(searchParams);
+        }
+        return;
+      }
+
+      // Schedule next poll
+      setTimeout(poll, 2_000);
+    };
+
+    // Kick off immediately
+    poll();
+
+    return () => {
+      console.info('[DIAG:image-poll] cancelled');
+      cancelled = true;
+    };
+  }, [generatingImage, searchParams]);
+
+
+
+  const generateSegmentImage = async (segment: StorySegment) => {
+    logger.imageGeneration(segment.id, { operation: 'user_initiated' });
+    if (!story) return;
+
+    // Check if credit operation is in progress
+    if (creditLock.current) {
+      toast({
+        title: "Please wait",
+        description: "Another operation is in progress. Try again in a moment.",
+        variant: "default",
+      });
+      return;
+    }
+
+    const requestId = generateRequestId();
+    const retryKey = `image-${segment.id}`;
+    const currentRetries = retryAttempts[retryKey] || 0;
+
+    if (currentRetries >= 3) {
+      logger.warn('Max image generation retries reached', {
+        requestId,
+        segmentId: segment.id,
+        attempts: currentRetries
+      });
+      toast({
+        title: "Image generation failed",
+        description: `Max retry attempts reached. Please try again later. (ID: ${requestId})`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    logger.imageGeneration(segment.id, { requestId, attempts: currentRetries + 1 });
+    setGeneratingImage(segment.id);
+    creditLock.current = true; // Lock credits during image generation
+
+    try {
+      const requestBody = {
+        storyContent: segment.content,
+        storyTitle: story.title,
+        ageGroup: story.age_group,
+        genre: story.genre,
+        segmentNumber: segment.segment_number,
+        storyId: story.id,
+        segmentId: segment.id,
+        characters: story.metadata?.characters || [],
+        requestId
+      };
+
+      debugLogger.edgeFunction('generate-story-image', requestId, requestBody);
+
+      const imageResult = await AIClient.generateStoryImage({
+        storyContent: segment.content,
+        storyTitle: story.title,
+        ageGroup: story.age_group,
+        genre: story.genre,
+        segmentNumber: segment.segment_number,
+        storyId: story.id,
+        segmentId: segment.id,
+        characters: story.metadata?.characters || [],
+        requestId
+      });
+
+      debugLogger.edgeFunctionResponse('generate-story-image', requestId, imageResult);
+
+      // Update segment with image URL when ready
+      setSegments(prev => prev.map(s =>
+        s.id === segment.id
+          ? { ...s, image_url: imageResult.data?.imageUrl }
+          : s
+      ));
+
+      // Clear retry counter on success
+      setRetryAttempts(prev => {
+        const newAttempts = { ...prev };
+        delete newAttempts[retryKey];
+        return newAttempts;
+      });
+
+      toast({
+        title: "Image generated!",
+        description: "Story artwork is ready.",
+      });
+
+    } catch (error: any) {
+      logger.error('Image generation failed', error, {
+        requestId,
+        segmentId: segment.id,
+        attempt: currentRetries + 1
+      });
+      setRetryAttempts(prev => ({ ...prev, [retryKey]: currentRetries + 1 }));
+
+      // Show better error messages
+      if (error.code === 'INSUFFICIENT_CREDITS') {
+        toast({
+          title: "Insufficient Credits",
+          description: `Need ${error.required} credits, but only have ${error.available}. Please upgrade your plan.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Image generation failed",
+          description: error.message || "Failed to generate story image. Retrying...",
+          variant: "destructive",
+        });
+      }
+
+      setTimeout(() => {
+        generateSegmentImage(segment);
+      }, 2000 * (currentRetries + 1));
+    } finally {
+      setGeneratingImage(null);
+      creditLock.current = false; // Release credit lock
+    }
+  };
+
+  const loadStory = async () => {
+    try {
+      setLoading(true);
+
+      // Load story details
+      const { data: storyData, error: storyError } = await supabase
+        .from('stories')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (storyError) throw storyError;
+      if (!storyData) {
+        throw new Error('Story not found');
+      }
+      setStory(storyData);
+
+      await reloadSegments();
+
+    } catch (error) {
+      debugLogger.error('Story loading failed', error, { storyId: id, mode: searchParams.get('mode') });
+      toast({
+        title: "Error loading story",
+        description: "Failed to load the story. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const reloadSegments = async () => {
+    try {
+      // Load story segments from database
+      const { data: segmentsData, error: segmentsError } = await supabase
+        .from('story_segments')
+        .select('*')
+        .eq('story_id', id)
+        .order('segment_number', { ascending: true });
+
+      if (segmentsError) throw segmentsError;
+
+      // Transform Supabase data to match our interface
+      const transformedSegments: StorySegment[] = (segmentsData || []).map(segment => {
+        // Normalize content to a plain string for rendering
+        const raw = (segment as any).content;
+        let contentStr = '';
+        try {
+          if (typeof raw === 'string') contentStr = raw;
+          else if (raw && typeof raw === 'object') {
+            if (typeof (raw as any).text === 'string') contentStr = (raw as any).text;
+            else if (typeof (raw as any).content === 'string') contentStr = (raw as any).content;
+            else if (Array.isArray((raw as any).paragraphs)) contentStr = (raw as any).paragraphs.join('\n\n');
+            else contentStr = JSON.stringify(raw);
+          } else if (raw != null) {
+            contentStr = String(raw);
+          }
+        } catch {}
+
+        return {
+          id: segment.id,
+          segment_number: segment.segment_number,
+          content: contentStr,
+          image_url: segment.image_url,
+          audio_url: segment.audio_url,
+          choices: (() => {
+            try {
+              // Handle both string (legacy) and array formats
+              const rawChoices = segment.choices;
+              if (Array.isArray(rawChoices)) {
+                return rawChoices.map((choice: any) => ({
+                  id: choice?.id ?? 0,
+                  text: choice?.text ?? '',
+                  impact: choice?.impact
+                }));
+              } else if (typeof rawChoices === 'string') {
+                const parsed = JSON.parse(rawChoices);
+                return Array.isArray(parsed) ? parsed.map((choice: any) => ({
+                  id: choice?.id ?? 0,
+                  text: choice?.text ?? '',
+                  impact: choice?.impact
+                })) : [];
+              }
+              return [];
+            } catch {
+              return [];
+            }
+          })(),
+          is_ending: !!segment.is_ending
+        };
+      });
+
+      setSegments(transformedSegments);
+
+      // If we navigated here with an image-pending hint from creation flow, show a spinner for segment 1
+      const isImgPending = searchParams.get('imgPending') === '1';
+      if (isImgPending) {
+        const firstSeg = transformedSegments.find(s => s.segment_number === 1);
+        if (firstSeg && !firstSeg.image_url) {
+          setGeneratingImage(firstSeg.id);
+        }
+      }
+
+      // Auto-generate images for segments that need them (prioritize segment 1, then latest/ending) if not credit locked
+      // Skip if we already have an imgPending hint to avoid duplicate generation
+      if (transformedSegments.length > 0 && !creditLock.current && !isImgPending) {
+        // First, check if segment 1 needs an image (critical for first-time story viewing)
+        const firstSegment = transformedSegments.find(s => s.segment_number === 1);
+        if (firstSegment && !firstSegment.image_url && firstSegment.content) {
+          if (!attemptedImagesRef.current[firstSegment.id]) {
+            attemptedImagesRef.current[firstSegment.id] = true;
+            logger.info('🖼️ Auto-generating image for first segment on load', { segmentId: firstSegment.id });
+            generateSegmentImage(firstSegment);
+          } else {
+            debugLogger.debug('Skip auto-image: already attempted for first segment', { segmentId: firstSegment.id });
+          }
+        } else {
+          // If segment 1 has an image, check the latest/ending segment
+          const endingCandidate = [...transformedSegments].reverse().find(s => s.is_ending) || transformedSegments[transformedSegments.length - 1];
+          if (endingCandidate && !endingCandidate.image_url && endingCandidate.content && endingCandidate.segment_number !== 1) {
+            if (!attemptedImagesRef.current[endingCandidate.id]) {
+              attemptedImagesRef.current[endingCandidate.id] = true;
+              logger.info('🖼️ Auto-generating image for latest/ending segment on load', { segmentId: endingCandidate.id });
+              generateSegmentImage(endingCandidate);
+            } else {
+              debugLogger.debug('Skip auto-image: already attempted for ending/latest', { segmentId: endingCandidate.id });
+            }
+          }
+        }
+      }
+
+      return transformedSegments;
+
+    } catch (error) {
+      debugLogger.error('Story segments loading failed', error, { storyId: id });
+      toast({
+        title: "Error loading segments",
+        description: "Failed to load story segments. Please refresh the page.",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+
+  const handleChoice = async (choiceId: number, choiceText: string) => {
+    if (!story || !user) return;
+
+    // Block choices if story is completed
+    if (isStoryCompleted(story)) {
+      toast({
+        title: "Story Completed",
+        description: "This story has already been completed. You can only read it now.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Block if credit operation is in progress
+    if (creditLock.current) {
+      toast({
+        title: "Please wait",
+        description: "Another operation is in progress. Please wait and try again.",
+        variant: "default",
+      });
+      return;
+    }
+
+    const currentSegment = segments[currentSegmentIndex];
+    if (!currentSegment) return;
+
+    const requestId = generateRequestId();
+
+    debugLogger.group('Story Segment Generation', { requestId, storyId: story.id });
+    debugLogger.storySegmentGeneration(story.id, segments.length + 1, requestId);
+
+    setGeneratingSegment(true);
+    creditLock.current = true; // Lock credits during segment generation
+    try {
+      const requestBody = {
+        storyId: story.id,
+        choiceId,
+        choiceText,
+        previousSegmentContent: currentSegment.content,
+        storyContext: {
+          title: story.title,
+          description: story.description,
+          ageGroup: story.age_group,
+          genre: story.genre,
+          languageCode: selectedLanguage,
+          characters: story.metadata?.characters || []
+        },
+        segmentNumber: segments.length + 1,
+        requestId
+      };
+
+      debugLogger.edgeFunction(FEATURES.USE_V2_GENERATION ? 'generate-story-page-v2' : 'generate-story-segment', requestId, requestBody);
+
+      // Generate next segment based on choice using unified AI client
+      let generationResult;
+
+      if (FEATURES.USE_V2_GENERATION) {
+        // V2: Google AI Studio with Master Storyteller prompts
+        logger.info('🎨 V2: Generating next segment with Master Storyteller', {
+          choiceText,
+          segmentNumber: segments.length + 1,
+          ageGroup: story.age_group
+        });
+
+        const mainCharacter = story.characters?.[0] || story.metadata?.characters?.[0];
+        const characterName = mainCharacter?.name || 'the hero';
+        const characterTraits = mainCharacter?.personality?.join?.(', ') || mainCharacter?.personality_traits?.join?.(', ');
+
+        const v2Result = await AIClient.generateStoryPageV2({
+          childName: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Reader',
+          ageGroup: story.age_group as '4-6 years old' | '7-9 years old' | '10-12 years old' | '13+ years old',
+          theme: story.genre || 'Fantasy',
+          character: characterName,
+          traits: characterTraits,
+          prompt: choiceText,
+          storyId: story.id,
+          segmentNumber: segments.length + 1
+        });
+
+        logger.info('✅ V2 Segment Generated', {
+          hasSegment: !!v2Result.data?.segment,
+          hasImage: !!v2Result.data?.segment?.image_url,
+          hasChoices: v2Result.data?.segment?.choices?.length || 0
+        });
+
+        // Map V2 response structure to expected format
+        const v2Segment = v2Result.data.segment;
+        generationResult = {
+          success: true,
+          data: {
+            segment: {
+              id: v2Segment.id,
+              segment_number: segments.length + 1,
+              content: v2Segment.content,
+              segment_text: v2Segment.content,
+              choices: v2Segment.choices,
+              is_ending: v2Segment.is_ending || false,
+              image_url: v2Segment.image_url,
+              image_generation_status: 'completed',
+              metadata: {
+                generatedWith: 'google-ai-studio-v2',
+                model: 'gemini-2.5-pro',
+                imageModel: 'imagen-4'
+              }
+            },
+            creditsUsed: v2Result.data.credits_used
+          }
+        };
+      } else {
+        // OLD: Legacy system (fallback)
+        logger.info('Using legacy segment generation');
+        generationResult = await AIClient.generateStorySegment({
+          storyId: story.id,
+          choiceId,
+          choiceText,
+          previousSegmentContent: currentSegment.content,
+          storyContext: {
+            title: story.title,
+            description: story.description,
+            ageGroup: story.age_group,
+            genre: story.genre,
+            languageCode: selectedLanguage,
+            characters: story.metadata?.characters || []
+          },
+          segmentNumber: segments.length + 1,
+          requestId
+        });
+      }
+
+      debugLogger.debug('AI Client response', {
+        requestId,
+        success: generationResult.success,
+        hasData: !!generationResult.data,
+        dataType: typeof generationResult.data
+      });
+
+      // Extract the segment data from the response
+      if (!generationResult.data?.segment) {
+        const errorMsg = 'No segment data returned from generation';
+        debugLogger.error('Invalid response structure', new Error(errorMsg), {
+          requestId,
+          dataStructure: generationResult.data
+        });
+        throw new Error(`${errorMsg} (Request ID: ${requestId})`);
+      }
+
+      logger.info('✅ Segment generated successfully', {
+        requestId,
+        segmentId: generationResult.data.segment.id,
+        contentLength: generationResult.data.segment.content?.length
+      });
+
+      // Reload segments from database to ensure state consistency
+      debugLogger.debug('Reloading segments from database', { requestId });
+      const updatedSegments = await reloadSegments();
+
+      // Navigate to the latest segment (last one in the array)
+      if (updatedSegments.length > 0) {
+        setCurrentSegmentIndex(updatedSegments.length - 1);
+
+        // Automatically generate image for the new segment
+        const newSegment = updatedSegments[updatedSegments.length - 1];
+        if (newSegment && !newSegment.image_url) {
+          if (!attemptedImagesRef.current[newSegment.id]) {
+            attemptedImagesRef.current[newSegment.id] = true;
+            debugLogger.debug('Auto-generating image for new segment', {
+              requestId,
+              segmentId: newSegment.id
+            });
+            logger.imageGeneration(newSegment.id, { requestId });
+
+            // Wait for credit lock to be released then generate image
+            const autoGenerateImage = async () => {
+              // Wait a bit for credit system to update
+              await new Promise(resolve => setTimeout(resolve, 500));
+
+              // Ensure credit lock is released
+              creditLock.current = false;
+
+              // Now generate the image
+              await generateSegmentImage(newSegment);
+            };
+
+            // Execute in background
+            autoGenerateImage().catch(error => {
+              debugLogger.error('Auto-image generation failed', error, {
+                requestId,
+                segmentId: newSegment.id
+              });
+            });
+          } else {
+            debugLogger.debug('Skip auto-image: already attempted for new segment', { segmentId: newSegment.id });
+          }
+        }
+      }
+
+      toast({
+        title: "Story continues!",
+        description: "Your choice has shaped the adventure.",
+      });
+
+    } catch (error: any) {
+      debugLogger.error('Story segment generation failed', error, {
+        requestId,
+        storyId: story.id,
+        choiceId,
+        segmentNumber: segments.length + 1
+      });
+
+      // Handle specific AI client errors
+      if (error instanceof InsufficientCreditsError) {
+        setCreditError({
+          required: error.required,
+          available: error.available
+        });
+        setShowInsufficientCredits(true);
+        return;
+      }
+
+      toast({
+        title: "Generation failed",
+        description: `${error.message || "Failed to continue the story. Please try again."} (ID: ${requestId})`,
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingSegment(false);
+      creditLock.current = false; // Release credit lock
+      debugLogger.groupEnd();
+    }
+  };
+
+
+  const generateAudio = async (segmentId: string, content: string) => {
+    logger.audioGeneration(segmentId, {
+      contentLength: content.length,
+      component: 'StoryViewer'
+    });
+    // Calculate credit cost for TTS
+    const { credits: ttsCost, priceBreakdown } = calculateTTSCredits(content);
+
+    // Check if credit operation is in progress
+    if (creditLock.current) {
+      toast({
+        title: "Please wait",
+        description: "Another operation is in progress. Try again in a moment.",
+        variant: "default",
+      });
+      return;
+    }
+
+    // Check if audio already exists without reloading all segments
+    // This avoids triggering the auto-image generation side effect
+    const targetSegment = segments.find(s => s.id === segmentId);
+    if (targetSegment?.audio_url) {
+      toast({
+        title: "Audio already exists",
+        description: "This segment already has audio.",
+      });
+      return;
+    }
+
+    const requestId = generateRequestId();
+
+    // Determine voice ID to use (prefer current selection; otherwise pick a language-appropriate default)
+    let voiceIdToUse = selectedVoice;
+    const languageVoices = VOICE_LANGUAGE_MAP[selectedLanguage as keyof typeof VOICE_LANGUAGE_MAP];
+
+    if (!voiceIdToUse) {
+      const female = languageVoices?.female?.[0];
+      const male = languageVoices?.male?.[0];
+      const neutral = languageVoices?.neutral?.[0];
+      voiceIdToUse = female || male || neutral || '9BWtsMINqrJLrRacOk9x';
+    }
+
+    logger.audioGeneration(segmentId, { requestId, voiceId: voiceIdToUse });
+    setGeneratingAudio(true);
+    creditLock.current = true; // Lock credits during audio generation
+
+      // Diagnostic: estimate required credits and log current balance before calling Edge Function
+      try {
+        const wordCount = content.trim().split(/\s+/).length;
+        const estimatedRequired = Math.ceil(wordCount / 100);
+        if (user?.id) {
+          const { data: userCredits, error: userCreditsError } = await supabase
+            .from('user_credits')
+            .select('current_balance')
+            .eq('user_id', user.id)
+            .single();
+          logger.info('Pre-audio credit check', {
+            wordCount,
+            estimatedRequired,
+            currentBalance: userCredits?.current_balance,
+            userCreditsError: userCreditsError?.message
+          });
+        } else {
+          logger.info('Pre-audio credit check skipped: no user');
+        }
+      } catch (e) {
+        logger.error('Pre-audio credit check failed', e);
+      }
+
+    try {
+      // Use the generateAudio function from story-api which has the proper interface
+      const audioResult = await generateAudioAPI({
+        text: content,
+        voice: voiceIdToUse,
+        languageCode: selectedLanguage,
+        storyId: story?.id,
+        segmentId: segmentId,
+        modelId: selectedLanguage === 'sv' ? 'eleven_multilingual_v2' : 'eleven_monolingual_v1'
+      });
+
+      logger.info('Audio generation successful', { segmentId, requestId, audioUrl: audioResult.audioUrl });
+
+      // Update segment with audio URL
+      const audioUrl = audioResult.audioUrl;
+      if (audioUrl) {
+        setSegments(prev => prev.map(s =>
+          s.id === segmentId
+            ? { ...s, audio_url: audioUrl }
+            : s
+        ));
+      }
+
+      toast({
+        title: "Audio generated!",
+        description: "You can now listen to this segment.",
+      });
+
+    } catch (error: any) {
+      logger.error('Audio generation failed', error, {
+        requestId,
+        segmentId,
+        voiceId: voiceIdToUse
+      });
+
+      // Check if it's a credit error
+      if (error instanceof InsufficientCreditsError) {
+        setCreditError({
+          required: error.required,
+          available: error.available
+        });
+        setShowInsufficientCredits(true);
+        return;
+      }
+
+      toast({
+        title: "Audio generation failed",
+        description: `${error.message} (ID: ${requestId})`,
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingAudio(false);
+      creditLock.current = false; // Release credit lock
+    }
+  };
+
+  const toggleAudio = () => {
+    const currentSegment = segments[currentSegmentIndex];
+    if (!currentSegment?.audio_url) return;
+
+    if (isPlaying && audioElement) {
+      audioElement.pause();
+      setIsPlaying(false);
+    } else {
+      if (audioElement) {
+        audioElement.pause();
+      }
+
+      const audio = new Audio(currentSegment.audio_url);
+      audio.onended = () => {
+        setIsPlaying(false);
+        // Auto-advance in experience mode
+        if (viewMode === 'experience' && currentSegmentIndex < segments.length - 1) {
+          setTimeout(() => navigateSegment('next'), 1000); // 1 second delay between segments
+        }
+      };
+      audio.onplay = () => setIsPlaying(true);
+      audio.onpause = () => setIsPlaying(false);
+
+      setAudioElement(audio);
+      audio.play();
+    }
+  };
+
+  const navigateSegment = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && currentSegmentIndex > 0) {
+      setCurrentSegmentIndex(currentSegmentIndex - 1);
+    } else if (direction === 'next' && currentSegmentIndex < segments.length - 1) {
+      setCurrentSegmentIndex(currentSegmentIndex + 1);
+    }
+
+    // Stop current audio
+    if (audioElement) {
+      audioElement.pause();
+      setIsPlaying(false);
+    }
+
+    // Handle auto-play in reading mode
+    if (isAutoPlaying && isReadingMode) {
+      startAutoPlayTimer();
+    }
+  };
+
+  const jumpToSegment = (segmentIndex: number) => {
+    if (segmentIndex >= 0 && segmentIndex < segments.length) {
+      setCurrentSegmentIndex(segmentIndex);
+
+      // Stop current audio
+      if (audioElement) {
+        audioElement.pause();
+        setIsPlaying(false);
+      }
+
+      // Handle auto-play in reading mode
+      if (isAutoPlaying && isReadingMode) {
+        startAutoPlayTimer();
+      }
+    }
+  };
+
+  const toggleAutoPlay = () => {
+    setIsAutoPlaying(!isAutoPlaying);
+    if (!isAutoPlaying && isReadingMode) {
+      startAutoPlayTimer();
+    } else {
+      clearAutoPlayTimer();
+    }
+  };
+
+  const startAutoPlayTimer = () => {
+    clearAutoPlayTimer();
+    if (currentSegmentIndex < segments.length - 1) {
+      const timeout = setTimeout(() => {
+        navigateSegment('next');
+      }, autoPlaySpeed * 1000);
+      setAutoPlayTimeout(timeout);
+    }
+  };
+
+  const clearAutoPlayTimer = () => {
+    if (autoPlayTimeout) {
+      clearTimeout(autoPlayTimeout);
+      setAutoPlayTimeout(null);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!story) return;
+
+    if (story.visibility === 'private') {
+      toast({
+        title: "Story is private",
+        description: "Go to My Stories → Settings to make this story public before sharing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const shareData = {
+      title: story.title,
+      text: `Check out "${story.title}" - ${story.description}`,
+      url: window.location.href
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast({
+          title: "Story shared!",
+          description: "Thank you for sharing this adventure.",
+        });
+      } else {
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(`${shareData.title}\n\n${shareData.text}\n\n${shareData.url}`);
+        toast({
+          title: "Link copied!",
+          description: "Story link has been copied to your clipboard.",
+        });
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        logger.error('Story sharing failed', error, { storyId: id });
+        toast({
+          title: "Sharing failed",
+          description: "Please try again or copy the URL manually.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const toggleReadingMode = () => {
+    setIsReadingMode(!isReadingMode);
+    if (!isReadingMode) {
+      // Entering reading mode
+      setIsAutoPlaying(false);
+      clearAutoPlayTimer();
+    }
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
+  // Clear auto-play timer on unmount
+  useEffect(() => {
+    return () => {
+      clearAutoPlayTimer();
+    };
+  }, []);
+
+  // Handle auto-play timer when dependencies change
+  useEffect(() => {
+    if (isAutoPlaying && isReadingMode) {
+      startAutoPlayTimer();
+    } else {
+      clearAutoPlayTimer();
+    }
+  }, [currentSegmentIndex, isAutoPlaying, isReadingMode, autoPlaySpeed]);
+
+  const makePictureAndVoice = async (segment: any) => {
+    if (!segment?.content) {
+      toast({ title: 'Cannot create', description: 'This part has no text yet.', variant: 'destructive' });
+      return;
+    }
+    try {
+      if (!segment.image_url) {
+        await generateSegmentImage(segment);
+      }
+      if (!segment.audio_url) {
+        await generateAudio(segment.id, segment.content);
+      }
+    } catch (err) {
+      logger.error('makePictureAndVoice failed', err);
+      toast({ title: 'Something went wrong', description: 'Please try again.', variant: 'destructive' });
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!story || segments.length === 0) {
+      toast({
+        title: "Cannot export PDF",
+        description: "Story must have at least one segment to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsExportingPDF(true);
+
+      // Export the story to PDF (dynamically imported to reduce bundle size)
+      const { exportStoryToPDF } = await import('@/lib/pdf-export');
+      await exportStoryToPDF(story.title, segments);
+
+      toast({
+        title: "PDF exported successfully!",
+        description: `${story.title}.pdf has been downloaded.`,
+      });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast({
+        title: "Export failed",
+        description: error instanceof Error ? error.message : "Failed to export PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+
+  const handleEndStory = async () => {
+    if (!story || !user) return;
+
+    const endingSegment = segments.find(s => s.is_ending);
+
+    // If ending exists and has all media, mark as complete and celebrate
+    if (endingSegment && endingSegment.image_url && endingSegment.audio_url) {
+      // Show dialog to confirm finishing
+      setShowEndStoryDialog(true);
+      return;
+    }
+
+    // If ending exists but missing media, prompt user
+    if (endingSegment) {
+      toast({
+        title: "Complete your ending",
+        description: "Generate image and audio for the final segment before finishing your story.",
+        variant: "default",
+      });
+      // Jump to ending segment
+      const endingIndex = segments.findIndex(s => s.is_ending);
+      if (endingIndex >= 0) {
+        setCurrentSegmentIndex(endingIndex);
+      }
+      return;
+    }
+
+    // No ending exists yet - show dialog to generate it
+    setShowEndStoryDialog(true);
+  };
+
+  const handleConfirmEndStory = async () => {
+    setShowEndStoryDialog(false);
+
+    const endingSegment = segments.find(s => s.is_ending);
+
+    // If ending complete, mark story as completed
+    if (endingSegment && endingSegment.image_url && endingSegment.audio_url) {
+      try {
+        const { error } = await supabase
+          .from('stories')
+          .update({
+            status: 'completed',
+            is_complete: true,
+            is_completed: true
+          })
+          .eq('id', story!.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Story completed!",
+          description: "Your adventure is now complete and saved.",
+        });
+
+        // Navigate to celebration page
+        navigate(`/story/${id}/complete`);
+      } catch (error: any) {
+        logger.error('Failed to mark story as completed', error);
+        toast({
+          title: "Failed to complete story",
+          description: error.message || "Please try again.",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+
+    // Generate ending segment
+    try {
+      setGeneratingEnding(true);
+
+      toast({
+        title: "Generating final segment...",
+        description: "Our AI is crafting the conclusion to your adventure.",
+      });
+
+      // Call the generate ending function
+      const { data, error } = await supabase.functions.invoke('generate-story-ending', {
+        body: {
+          storyId: story!.id,
+          currentSegments: segments.map(s => ({
+            segment_number: s.segment_number,
+            content: s.content || ''
+          })),
+          genre: story!.genre,
+          ageGroup: story!.age_group,
+          characters: story!.metadata?.characters || []
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error((data as any)?.error || 'Failed to generate ending');
+      }
+
+      // Reload segments so the new final segment is available
+      const updated = await reloadSegments();
+      if (updated.length > 0) {
+        // Jump to the new last segment (the ending)
+        setCurrentSegmentIndex(updated.length - 1);
+      }
+
+      // Inform user to generate image/audio now
+      toast({
+        title: "Ending generated",
+        description: "Review the final segment. Generate image and audio, then click 'Finish Story' when ready.",
+      });
+
+      // Proactively trigger auto-image for the ending if possible
+      const endingSeg = updated.find(s => s.is_ending) || updated[updated.length - 1];
+      if (endingSeg && !endingSeg.image_url && endingSeg.content && !creditLock.current) {
+        generateSegmentImage(endingSeg);
+      }
+
+    } catch (error: any) {
+      logger.error('Story ending generation failed', error, { storyId: id });
+      toast({
+        title: "Failed to generate ending",
+        description: error?.message || "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingEnding(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="loading-spinner h-8 w-8" />
+      </div>
+    );
+  }
+
+  if (!story) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-heading mb-4">Story not found</h2>
+          <Button onClick={() => navigate('/dashboard')}>
+            Return to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const currentSegment = segments[currentSegmentIndex];
+  const isCompletedStory = isStoryCompleted(story);
+  const hasEnding = segments.some(s => s.is_ending);
+
+  const endingSeg = segments.find(s => s.is_ending);
+  const endingReady = !!(endingSeg && endingSeg.content && endingSeg.image_url && endingSeg.audio_url);
+  const endActionLabel = endingSeg ? 'Finish Story' : 'Create Ending';
+
+  return (
+    <div className={`min-h-screen relative ${isFullscreen ? 'fixed inset-0 z-40 overflow-auto' : ''}`}>
+      <HeroBackground />
+
+      {/* Modern Header for Experience Mode */}
+      {viewMode === 'experience' ? (
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container flex h-16 items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/my-stories')}>
+                <Home className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-lg font-bold">{story.title}</h1>
+                <p className="text-sm text-muted-foreground">
+                  Chapter {currentSegmentIndex + 1} of {segments.length}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Mode Toggle */}
+              <StoryModeToggle
+                viewMode={viewMode}
+                onModeChange={(mode) => {
+                  setViewMode(mode);
+                  setSearchParams(prev => {
+                    prev.set('mode', mode);
+                    return prev;
+                  });
+                }}
+              />
+
+              {/* Navigation Buttons */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateSegment('prev')}
+                disabled={currentSegmentIndex === 0}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigateSegment('next')}
+                disabled={currentSegmentIndex >= segments.length - 1}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </header>
+      ) : (
+        /* Keep existing StoryControls for creation mode */
+        <StoryControls
+          viewMode={viewMode}
+          isOwner={isOwner}
+          isLiked={isLiked}
+          isReadingMode={isReadingMode}
+          isFullscreen={isFullscreen}
+          isCompleted={isCompletedStory}
+          generatingEnding={generatingEnding}
+          isExportingPDF={isExportingPDF}
+          onModeChange={(mode) => {
+            setViewMode(mode);
+            setSearchParams(prev => {
+              prev.set('mode', mode);
+              return prev;
+            });
+          }}
+          onShare={handleShare}
+          onToggleLike={() => setIsLiked(!isLiked)}
+          onToggleReadingMode={toggleReadingMode}
+          onToggleFullscreen={toggleFullscreen}
+          onEndStory={handleEndStory}
+          onExportPDF={handleExportPDF}
+          hasEnding={hasEnding}
+          endActionLabel={endActionLabel}
+        />
+      )}
+
+      <div className="container mx-auto px-4 py-6 overflow-x-hidden">
+        <div className="max-w-6xl mx-auto">
+          {/* Completed Story Banner */}
+          {isCompletedStory && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border-2 border-emerald-500/30 rounded-xl shadow-lg">
+              <div className="flex items-center justify-center gap-3">
+                <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
+                    Story Completed
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    This story is finished and in read-only mode. {isOwner ? 'You can view and share it, but cannot make changes.' : 'Enjoy reading this completed adventure!'}
+                  </p>
+                </div>
+                <BookOpen className="h-6 w-6 text-blue-500" />
+              </div>
+            </div>
+          )}
+
+          {/* Story Progress Tracker */}
+          {viewMode === 'creation' && segments.length > 0 && (
+            <StoryProgressTracker
+              currentSegmentIndex={currentSegmentIndex}
+              totalSegments={segments.length}
+              isCompleted={isCompletedStory}
+            />
+          )}
+
+          {/* Main Content Area */}
+          {viewMode === 'experience' ? (
+            /* NEW: 2-column layout for experience mode */
+            <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8 py-8">
+              {/* LEFT COLUMN: Media (Image/Video) */}
+              <div className="space-y-4">
+                {/* Image or Video Display */}
+                <div className="relative aspect-video rounded-lg overflow-hidden bg-muted border">
+                  {currentSegment?.image_url || currentSegment?.audio_url ? (
+                    currentSegment.image_url ? (
+                      <img
+                        src={currentSegment.image_url}
+                        alt={`Scene ${currentSegment.segment_number}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-4 p-8">
+                        <p className="text-muted-foreground text-center">No image yet</p>
+                        {isOwner && (
+                          <Button
+                            onClick={() => generateSegmentImage(currentSegment)}
+                            disabled={generatingImage === currentSegment.id}
+                          >
+                            {generatingImage === currentSegment.id ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-4 h-4 mr-2" />
+                                Generate Image
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Voice Selector */}
+                {isOwner && (
+                  <div className="bg-card/70 border rounded-lg p-4">
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <Volume2 className="w-5 h-5 text-primary" />
+                        <span className="text-sm font-medium">Narration voice</span>
+                      </div>
+                      <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+                        <SelectTrigger className="w-full sm:w-[220px]">
+                          <SelectValue placeholder="Select voice" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="9BWtsMINqrJLrRacOk9x">Aria (Female)</SelectItem>
+                          <SelectItem value="pNInz6obpgDQGcFmaJgB">Adam (Male)</SelectItem>
+                          <SelectItem value="EXAVITQu4vr4xnSDxMaL">Bella (Female)</SelectItem>
+                          <SelectItem value="ErXwobaYiN019PkySvjV">Antoni (Male)</SelectItem>
+                          <SelectItem value="MF3mGyEYCl7XYWbV9V6O">Elli (Female)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Audio Player */}
+                {currentSegment?.audio_url && (
+                  <div className="bg-card border rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <Volume2 className="w-5 h-5 text-muted-foreground" />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={toggleAudio}
+                        className="flex-1"
+                      >
+                        {isPlaying ? (
+                          <>
+                            <Pause className="w-4 h-4 mr-2" />
+                            Pause
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4 mr-2" />
+                            Play Narration
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Media Generation Buttons (only for owners) */}
+                {isOwner && (
+                  <div className="flex gap-2">
+                    {!currentSegment?.audio_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (!currentSegment?.content) {
+                            toast({
+                              title: "Cannot generate audio",
+                              description: "This segment has no content to convert to audio.",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+                          generateAudio(currentSegment.id, currentSegment.content);
+                        }}
+                        disabled={generatingAudio}
+                        className="flex-1"
+                      >
+                        {generatingAudio ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="w-4 h-4 mr-2" />
+                            Add Narration
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* RIGHT COLUMN: Text & Choices */}
+              <div className="flex flex-col justify-between">
+                {/* Story Text */}
+                <div className="prose prose-lg dark:prose-invert mb-8">
+                  <p className="text-lg leading-relaxed">{currentSegment?.content}</p>
+                </div>
+
+                {/* Choices or Navigation */}
+                <div className="space-y-3">
+                  {!currentSegment?.is_ending && currentSegment?.choices && currentSegment.choices.length > 0 ? (
+                    <>
+                      <p className="text-sm font-semibold text-muted-foreground mb-2">
+                        What happens next?
+                      </p>
+                      {currentSegment.choices.map((choice, idx) => (
+                        <Button
+                          key={choice.id || idx}
+                          variant="outline"
+                          className="w-full justify-start text-left h-auto py-4 px-6"
+                          onClick={() => handleChoice(choice.id, choice.text)}
+                          disabled={generatingSegment || currentSegmentIndex < segments.length - 1 || isCompletedStory}
+                        >
+                          <span className="flex-1">{choice.text}</span>
+                          {choice.impact && (
+                            <span className="text-xs text-muted-foreground ml-4">
+                              {choice.impact}
+                            </span>
+                          )}
+                        </Button>
+                      ))}
+                      {generatingSegment && (
+                        <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Creating next chapter...
+                        </div>
+                      )}
+                    </>
+                  ) : currentSegment?.is_ending ? (
+                    <div className="text-center py-8 space-y-4">
+                      <p className="text-2xl font-bold">The End</p>
+                      <Button onClick={() => navigate('/my-stories')}>
+                        Return to Stories
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* KEEP: Existing creation mode layout */
+            <div className='grid grid-cols-1 lg:grid-cols-[1fr,380px] gap-6 items-start'>
+              {/* Story Main Content */}
+              <div className="space-y-6 min-w-0">
+                {/* Current Segment Display */}
+                {currentSegment && (
+                  <Suspense fallback={<div className="aspect-video w-full rounded-lg bg-muted/30 animate-pulse" /> }>
+                    <StorySegmentDisplay
+                      segment={currentSegment}
+                      story={story}
+                      viewMode={viewMode}
+                      isOwner={isOwner}
+                      generatingSegment={generatingSegment}
+                      generatingImage={generatingImage}
+                      onChoice={handleChoice}
+                      onGenerateImage={generateSegmentImage}
+                      fontSize={fontSize}
+                      isPlaying={isPlaying}
+                      generatingAudio={generatingAudio}
+                      onToggleAudio={toggleAudio}
+                      onGenerateAudio={() => {
+                        if (!currentSegment.content) {
+                          toast({
+                            title: "Cannot generate audio",
+                            description: "This segment has no content to convert to audio.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        generateAudio(currentSegment.id, currentSegment.content);
+                      }}
+                      selectedVoice={selectedVoice}
+                      onVoiceChange={setSelectedVoice}
+                    />
+                  </Suspense>
+                )}
+
+                {/* Ending helper hint: guide user to generate missing content */}
+                {currentSegment?.is_ending && isOwner && !isCompletedStory && !!currentSegment.content && ((!currentSegment.image_url) || (!currentSegment.audio_url)) && (
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 text-amber-900 p-4 mt-2 mb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h4 className="font-semibold">Finalize your ending</h4>
+                        <p className="text-sm">
+                          {(!currentSegment.image_url && !currentSegment.audio_url) && 'Generate image and audio for the ending segment.'}
+                          {(currentSegment.image_url && !currentSegment.audio_url) && 'Generate audio for the ending segment.'}
+                          {(!currentSegment.image_url && currentSegment.audio_url) && 'Generate an image for the ending segment.'}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {!currentSegment.image_url && (
+                          <Button
+                            variant="outline"
+                            onClick={() => generateSegmentImage(currentSegment)}
+                            disabled={creditLock.current || generatingImage === currentSegment.id}
+                          >
+                            {generatingImage === currentSegment.id ? 'Generating image…' : 'Generate Image'}
+                          </Button>
+                        )}
+                        {!currentSegment.audio_url && (
+                          <Button
+                            variant="default"
+                            size="lg"
+                            onClick={() => currentSegment.content && generateAudio(currentSegment.id, currentSegment.content)}
+                            disabled={creditLock.current || generatingAudio}
+                          >
+                            {generatingAudio ? 'Generating audio…' : 'Generate Audio'}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sidebar for Creation Mode */}
+              {currentSegment && (
+              <Suspense fallback={<div className="h-[420px] rounded-lg bg-muted/30 animate-pulse" /> }>
+                <div className="lg:sticky lg:top-6 min-w-0">
+                  <StorySidebar
+                    story={story}
+                    currentSegment={currentSegment}
+                    segmentNumber={currentSegmentIndex + 1}
+                    totalSegments={segments.length}
+                    creditsUsed={creditsUsed}
+                    totalCredits={totalCredits}
+                    isPlaying={isPlaying}
+                    generatingAudio={generatingAudio}
+                    generatingImage={generatingImage === currentSegment.id}
+                    generatingEnding={generatingEnding}
+                    generatingSegment={generatingSegment}
+                    selectedVoice={selectedVoice}
+                    onVoiceChange={setSelectedVoice}
+                    onGenerateAudio={() => {
+                      if (!currentSegment.content) {
+                        toast({
+                          title: "Cannot generate audio",
+                          description: "This segment has no content to convert to audio.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      generateAudio(currentSegment.id, currentSegment.content);
+                    }}
+                    onToggleAudio={toggleAudio}
+                    onGenerateImage={() => generateSegmentImage(currentSegment)}
+                    onEndStory={handleEndStory}
+                    isOwner={isOwner}
+                    isCompleted={isCompletedStory}
+                    creditLocked={creditLock.current}
+                    hasEnding={hasEnding}
+                    onMakePictureAndVoice={() => makePictureAndVoice(currentSegment)}
+                    endActionLabel={endActionLabel}
+                  />
+                </div>
+              </Suspense>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <InsufficientCreditsDialog
+        open={showInsufficientCredits}
+        onOpenChange={setShowInsufficientCredits}
+        requiredCredits={creditError?.required || 0}
+        availableCredits={creditError?.available || 0}
+        operation="perform this action"
+      />
+
+      <EndStoryDialog
+        open={showEndStoryDialog}
+        onConfirm={handleConfirmEndStory}
+        onCancel={() => setShowEndStoryDialog(false)}
+        hasExistingEnding={!!segments.find(s => s.is_ending)}
+      />
+
+      {/* Enhanced Reading Controls */}
+      {(isReadingMode || viewMode === 'experience') && (
+        <ReadingModeControls
+          isAutoPlaying={isAutoPlaying}
+          onAutoPlayToggle={toggleAutoPlay}
+          currentSegment={currentSegmentIndex}
+          totalSegments={segments.length}
+          onNavigate={navigateSegment}
+          onJumpToSegment={jumpToSegment}
+          isFullscreen={isFullscreen}
+          onFullscreenToggle={toggleFullscreen}
+          fontSize={fontSize}
+          onFontSizeChange={setFontSize}
+          autoPlaySpeed={autoPlaySpeed}
+          onAutoPlaySpeedChange={setAutoPlaySpeed}
+          mode={viewMode}
+        />
+      )}
+
+      {/* Floating Audio Controls for Experience Mode */}
+      {viewMode === 'experience' && !isReadingMode && (
+        <Suspense fallback={<div className="fixed bottom-4 left-1/2 -translate-x-1/2 h-12 w-[90%] max-w-xl rounded-full bg-muted/30 animate-pulse" /> }>
+          <FloatingAudioControls
+            audioUrl={currentSegment?.audio_url}
+            isPlaying={isPlaying}
+            isGenerating={generatingAudio}
+            onToggleAudio={toggleAudio}
+            onGenerateAudio={() => {
+              if (!currentSegment || !currentSegment.content) {
+                toast({
+                  title: "Cannot generate audio",
+                  description: "This segment has no content to convert to audio.",
+                  variant: "destructive",
+                });
+                return;
+              }
+              generateAudio(currentSegment.id, currentSegment.content);
+            }}
+            onSkipForward={() => navigateSegment('next')}
+            onSkipBack={() => navigateSegment('prev')}
+            canSkipForward={currentSegmentIndex < segments.length - 1}
+            canSkipBack={currentSegmentIndex > 0}
+            disabled={creditLock.current}
+            selectedVoice={selectedVoice}
+            onVoiceChange={setSelectedVoice}
+            showVoiceSelector={true}
+          />
+        </Suspense>
+      )}
+      {generatingSegment && (
+        <div className="fixed inset-0 z-[1000] bg-black/50 backdrop-blur-sm flex items-center justify-center" aria-busy>
+          <div className="glass-card rounded-xl p-6 text-center shadow-2xl">
+            <div className="loading-spinner h-6 w-6 mx-auto mb-3" />
+            <div className="font-medium">Continuing your story…</div>
+            <div className="text-sm text-muted-foreground mt-1">This usually takes ~15s.</div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+export default StoryViewer;
