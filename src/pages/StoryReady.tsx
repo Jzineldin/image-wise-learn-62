@@ -6,7 +6,7 @@
  * before finalizing the story.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/ui/glass-card';
@@ -30,6 +30,7 @@ import {
   Play,
   Trash2,
   RefreshCw,
+  Unlock,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -39,6 +40,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { FinalizeModal } from '@/components/story-lifecycle/FinalizeModal';
+import { UnfinalizeDialog } from '@/components/story-lifecycle/UnfinalizeDialog';
 import { VoiceGenerationDrawer } from '@/components/story-lifecycle/VoiceGenerationDrawer';
 import { AnimationGenerationDrawer } from '@/components/story-lifecycle/AnimationGenerationDrawer';
 import { ChapterDetailsDrawer } from '@/components/story-lifecycle/ChapterDetailsDrawer';
@@ -81,6 +83,8 @@ interface Story {
   id: string;
   title: string;
   lifecycle_status: string;
+  visibility?: string;
+  version?: number;
   user_id: string;
 }
 
@@ -137,6 +141,7 @@ export default function StoryReady() {
   const [readiness, setReadiness] = useState<ReadinessSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [showUnfinalizeDialog, setShowUnfinalizeDialog] = useState(false);
 
   // Drawer states
   const [voiceDrawerOpen, setVoiceDrawerOpen] = useState(false);
@@ -144,20 +149,26 @@ export default function StoryReady() {
   const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
 
-  useEffect(() => {
-    if (id && user) {
-      loadStoryData();
-    }
-  }, [id, user]);
+  // Prevent concurrent loads
+  const loadingRef = useRef(false);
 
-  const loadStoryData = async () => {
+  const loadStoryData = useCallback(async () => {
+    if (!id || !user) return;
+    if (loadingRef.current) {
+      console.log('[StoryReady] Already loading, skipping...');
+      return;
+    }
+
+    loadingRef.current = true;
+
     try {
       setLoading(true);
+      console.log('[StoryReady] Loading data for story:', id);
 
       // Load story
       const { data: storyData, error: storyError } = await supabase
         .from('stories')
-        .select('id, title, lifecycle_status, user_id')
+        .select('id, title, lifecycle_status, visibility, version, user_id')
         .eq('id', id)
         .single();
 
@@ -165,13 +176,8 @@ export default function StoryReady() {
       if (!storyData) throw new Error('Story not found');
 
       // Check ownership
-      if (storyData.user_id !== user?.id) {
-        toast({
-          title: 'Access Denied',
-          description: 'You do not have permission to view this story.',
-          variant: 'destructive',
-        });
-        navigate('/my-stories');
+      if (storyData.user_id !== user.id) {
+        console.error('Access denied - user does not own this story');
         return;
       }
 
@@ -212,19 +218,21 @@ export default function StoryReady() {
       if (!readinessError && readinessData) {
         setReadiness(readinessData);
       }
-
-      logger.info('Story Ready page loaded', { storyId: id, chapters: chaptersData?.length });
     } catch (error) {
       logger.error('Failed to load story data', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load story data. Please try again.',
-        variant: 'destructive',
-      });
+      console.error('Failed to load story data:', error);
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
-  };
+  }, [id, user]);
+
+  useEffect(() => {
+    if (id && user) {
+      loadStoryData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user]);
 
   const handleOpenVoiceDrawer = (chapter: Chapter) => {
     setSelectedChapter(chapter);
@@ -244,6 +252,12 @@ export default function StoryReady() {
   const handleFinalize = () => {
     setShowFinalizeModal(true);
   };
+
+  const handleUnfinalize = () => {
+    setShowUnfinalizeDialog(true);
+  };
+
+  const isFinalized = story?.lifecycle_status === 'finalized';
 
   if (loading) {
     return <Loading.Page text="Loading story..." />;
@@ -265,11 +279,20 @@ export default function StoryReady() {
             <Sparkles className="w-12 h-12 text-primary" />
           </div>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-[#F4E3B2] tracking-wide mb-4">
-            Story Ready
+            {isFinalized ? 'Finalized Story' : 'Story Ready'}
           </h1>
           <p className="text-lg md:text-xl text-[#C9C5D5] max-w-3xl mx-auto">
-            Your story is content-complete. Manage voices, animations, and details per chapter before you finalize.
+            {isFinalized
+              ? 'This story is finalized. You can unfinalize to make changes, then refinalize when ready.'
+              : 'Your story is content-complete. Manage voices, animations, and details per chapter before you finalize.'}
           </p>
+          {isFinalized && story.visibility && (
+            <div className="mt-4">
+              <Badge variant="default" className="text-base px-4 py-2">
+                {story.visibility === 'public' ? 'Public' : 'Private'} • v{story.version || 1}
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Readiness Summary */}
@@ -309,15 +332,37 @@ export default function StoryReady() {
         )}
 
         {/* Primary CTA */}
-        <div className="flex justify-center mb-8">
-          <Button
-            onClick={handleFinalize}
-            size="lg"
-            className="bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border-2 border-[rgba(242,181,68,.35)] hover:bg-[rgba(242,181,68,.25)] px-12 py-6 text-xl font-heading rounded-2xl"
-          >
-            <Sparkles className="w-5 h-5 mr-2" />
-            Finalize Story
-          </Button>
+        <div className="flex justify-center gap-4 mb-8">
+          {isFinalized ? (
+            <>
+              <Button
+                onClick={handleUnfinalize}
+                size="lg"
+                variant="outline"
+                className="px-8 py-6 text-lg font-heading rounded-2xl"
+              >
+                <RefreshCw className="w-5 h-5 mr-2" />
+                Unfinalize & Edit
+              </Button>
+              <Button
+                onClick={() => navigate(`/story/${story.id}/viewer`)}
+                size="lg"
+                className="bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border-2 border-[rgba(242,181,68,.35)] hover:bg-[rgba(242,181,68,.25)] px-8 py-6 text-lg font-heading rounded-2xl"
+              >
+                <Play className="w-5 h-5 mr-2" />
+                Read Story
+              </Button>
+            </>
+          ) : (
+            <Button
+              onClick={handleFinalize}
+              size="lg"
+              className="bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border-2 border-[rgba(242,181,68,.35)] hover:bg-[rgba(242,181,68,.25)] px-12 py-6 text-xl font-heading rounded-2xl"
+            >
+              <Sparkles className="w-5 h-5 mr-2" />
+              Finalize Story
+            </Button>
+          )}
         </div>
 
         {/* Chapter List */}
@@ -447,6 +492,20 @@ export default function StoryReady() {
           readinessSummary={readiness}
           onSuccess={() => {
             navigate(`/story/${story.id}/complete`);
+          }}
+        />
+      )}
+
+      {showUnfinalizeDialog && story && (
+        <UnfinalizeDialog
+          open={showUnfinalizeDialog}
+          onClose={() => setShowUnfinalizeDialog(false)}
+          storyId={story.id}
+          storyTitle={story.title}
+          currentVersion={story.version || 1}
+          onSuccess={() => {
+            loadStoryData();
+            navigate(`/story/${story.id}/ready`);
           }}
         />
       )}

@@ -7,11 +7,8 @@
 -- ============================================
 
 -- 1. Update stories table for new lifecycle
-ALTER TABLE stories
-  -- Add new status enum values if not exists
-  DROP CONSTRAINT IF EXISTS stories_status_check,
-  ADD CONSTRAINT stories_status_check
-    CHECK (status IN ('draft', 'in_progress', 'ready', 'finalized', 'completed'));
+-- Note: We DON'T modify the existing status column constraint to avoid breaking existing data
+-- Instead, we use a separate lifecycle_status column for the new workflow
 
 -- Add lifecycle tracking fields
 ALTER TABLE stories

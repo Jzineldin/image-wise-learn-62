@@ -781,28 +781,28 @@ const handleGenerateAudio = async () => {
         // Reload segments to get the new ending
         await loadStory();
 
-        // Mark story as completed now that ending exists
+        // Mark story as "ready" (content complete, ready for asset management)
         try {
-          const { error: updateError } = await supabase
-            .from('stories')
-            .update({ status: 'completed' })
-            .eq('id', id);
+          const { data: readyData, error: readyError } = await supabase
+            .rpc('mark_story_ready', { story_uuid: id });
 
-          if (updateError) {
-            logger.error('Failed to mark story as completed', updateError);
+          if (readyError) {
+            logger.error('Failed to mark story as ready', readyError);
             // Don't throw - story ending was generated successfully
+          } else {
+            logger.info('Story marked as ready', readyData);
           }
         } catch (err) {
-          logger.error('Error updating story status', err);
+          logger.error('Error updating story status to ready', err);
         }
 
         toast({
-          title: 'Story Complete!',
-          description: 'Your adventure has reached its conclusion.',
+          title: 'Story Ready!',
+          description: 'Your story content is complete. Now manage per-chapter assets before finalizing.',
         });
 
-        // Navigate to completion page
-        navigate(`/story/${id}/complete`);
+        // Navigate to Ready page for asset management
+        navigate(`/story/${id}/ready`);
       }
     } catch (error: any) {
       logger.error('Failed to generate ending', error);

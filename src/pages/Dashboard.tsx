@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Plus, Book, Users, TrendingUp, Zap, Crown, Sparkles, Settings, Compass } from 'lucide-react';
+import { Plus, Book, Users, TrendingUp, Zap, Crown, Sparkles, Settings, Compass, Lock, Globe, CheckCircle, Edit3, MoreVertical } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import FloatingFeedbackButton from '@/components/FloatingFeedbackButton';
@@ -15,6 +15,52 @@ import { logger } from '@/lib/logger';
 import { Loading } from '@/components/ui/loading';
 import { useFounderWelcome } from '@/hooks/useFounderWelcome';
 import FounderBadge from '@/components/FounderBadge';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+
+// Status badge component for story lifecycle
+const StoryStatusBadge = ({ story }: { story: any }) => {
+  const lifecycleStatus = story.lifecycle_status || (story.status === 'completed' ? 'finalized' : 'draft');
+  const visibility = story.visibility || (story.is_public ? 'public' : 'private');
+
+  if (lifecycleStatus === 'finalized') {
+    return (
+      <Badge variant="default" className="gap-1.5">
+        {visibility === 'public' ? (
+          <>
+            <Globe className="w-3 h-3" />
+            Public
+          </>
+        ) : (
+          <>
+            <Lock className="w-3 h-3" />
+            Private
+          </>
+        )}
+      </Badge>
+    );
+  } else if (lifecycleStatus === 'ready') {
+    return (
+      <Badge variant="secondary" className="gap-1.5 bg-yellow-500/15 text-yellow-200 border-yellow-500/30">
+        <CheckCircle className="w-3 h-3" />
+        Ready
+      </Badge>
+    );
+  } else {
+    return (
+      <Badge variant="outline" className="gap-1.5">
+        <Edit3 className="w-3 h-3" />
+        Draft
+      </Badge>
+    );
+  }
+};
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -34,10 +80,10 @@ const Dashboard = () => {
   // Show welcome toast for new founders
   useFounderWelcome();
 
-  // Separate stories into in-progress and completed
-  const { inProgressStories, completedStories } = useMemo(() => {
-    const inProgress = stories
-      .filter((story: any) => story.status !== 'completed')
+  // Separate stories by lifecycle status
+  const { draftStories, readyStories, finalizedStories } = useMemo(() => {
+    const drafts = stories
+      .filter((story: any) => story.lifecycle_status === 'draft' || (!story.lifecycle_status && story.status !== 'completed'))
       .slice(0, 4)
       .map((story: any) => ({
         ...story,
@@ -46,15 +92,23 @@ const Dashboard = () => {
         content_segments: story.story_segments?.filter((seg: any) => seg.content?.trim().length > 0).length || 0,
       }));
 
-    const completed = stories
-      .filter((story: any) => story.status === 'completed')
+    const ready = stories
+      .filter((story: any) => story.lifecycle_status === 'ready')
+      .slice(0, 4)
+      .map((story: any) => ({
+        ...story,
+        segment_count: story.story_segments?.length || 0,
+      }));
+
+    const finalized = stories
+      .filter((story: any) => story.lifecycle_status === 'finalized' || (story.status === 'completed' && !story.lifecycle_status))
       .slice(0, 8)
       .map((story: any) => ({
         ...story,
         segment_count: story.story_segments?.length || 0,
       }));
 
-    return { inProgressStories: inProgress, completedStories: completed };
+    return { draftStories: drafts, readyStories: ready, finalizedStories: finalized };
   }, [stories]);
 
   useEffect(() => {
@@ -178,7 +232,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             <Loading.Skeleton.Card count={3} />
           </div>
-        ) : inProgressStories.length === 0 && completedStories.length === 0 ? (
+        ) : draftStories.length === 0 && readyStories.length === 0 && finalizedStories.length === 0 ? (
           <div className="text-center py-16 mb-12">
             <div className="p-6 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full w-24 h-24 mx-auto mb-6 flex items-center justify-center">
               <Book className="w-12 h-12 text-primary" />
@@ -197,7 +251,7 @@ const Dashboard = () => {
               Create Your First Story
             </Button>
           </div>
-        ) : inProgressStories.length > 0 ? (
+        ) : draftStories.length > 0 || readyStories.length > 0 ? (
           <>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl md:text-3xl font-heading font-bold text-[#F4E3B2] tracking-wide">
@@ -205,62 +259,107 @@ const Dashboard = () => {
               </h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-              {inProgressStories.map((story) => (
-              <Link
-                key={story.id}
-                to={`/story/${story.id}`}
-                className="group block"
-              >
-                <div className="rounded-3xl overflow-hidden ring-1 ring-[rgba(242,181,68,.18)] hover:ring-[rgba(242,181,68,.35)] shadow-[0_12px_48px_rgba(0,0,0,.45)] hover:shadow-[0_12px_48px_rgba(242,181,68,.2)] transition-all duration-300 hover:-translate-y-2 bg-[rgba(17,17,22,.85)] backdrop-blur-md relative">
-                  {/* Story Image - 4:3 landscape aspect ratio */}
-                  <div className="aspect-[4/3] w-full overflow-hidden relative">
-                    {story.preview_image_url ? (
-                      <img
-                        src={story.preview_image_url}
-                        alt={story.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : story.story_segments?.[0]?.image_url ? (
-                      <img
-                        src={story.story_segments[0].image_url}
-                        alt={story.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                        <Book className="w-20 h-20 text-primary/50" />
-                      </div>
-                    )}
-                    {/* Overlay gradient for better text visibility */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              {[...draftStories, ...readyStories].map((story) => {
+                const lifecycleStatus = story.lifecycle_status || (story.status === 'completed' ? 'finalized' : 'draft');
+                const isReady = lifecycleStatus === 'ready';
 
-                    {/* Story Info - Overlaid on bottom of image */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <h3 className="font-heading font-bold text-white text-lg mb-1 drop-shadow-lg">
-                        {story.title}
-                      </h3>
-                      {story.segment_count > 0 && (
-                        <p className="text-white/80 text-sm drop-shadow">
-                          {story.segment_count} {story.segment_count === 1 ? 'segment' : 'segments'}
-                        </p>
-                      )}
+                return (
+                <div
+                  key={story.id}
+                  className="group relative"
+                >
+                  <Link to={`/story/${story.id}`} className="block">
+                    <div className="rounded-3xl overflow-hidden ring-1 ring-[rgba(242,181,68,.18)] hover:ring-[rgba(242,181,68,.35)] shadow-[0_12px_48px_rgba(0,0,0,.45)] hover:shadow-[0_12px_48px_rgba(242,181,68,.2)] transition-all duration-300 hover:-translate-y-2 bg-[rgba(17,17,22,.85)] backdrop-blur-md relative">
+                      {/* Story Image - 4:3 landscape aspect ratio */}
+                      <div className="aspect-[4/3] w-full overflow-hidden relative">
+                        {story.preview_image_url ? (
+                          <img
+                            src={story.preview_image_url}
+                            alt={story.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        ) : story.story_segments?.[0]?.image_url ? (
+                          <img
+                            src={story.story_segments[0].image_url}
+                            alt={story.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                            <Book className="w-20 h-20 text-primary/50" />
+                          </div>
+                        )}
+                        {/* Overlay gradient for better text visibility */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+                        {/* Status Badge - Top right */}
+                        <div className="absolute top-3 right-3">
+                          <StoryStatusBadge story={story} />
+                        </div>
+
+                        {/* Story Info - Overlaid on bottom of image */}
+                        <div className="absolute bottom-0 left-0 right-0 p-4">
+                          <h3 className="font-heading font-bold text-white text-lg mb-1 drop-shadow-lg">
+                            {story.title}
+                          </h3>
+                          {story.segment_count > 0 && (
+                            <p className="text-white/80 text-sm drop-shadow">
+                              {story.segment_count} {story.segment_count === 1 ? 'segment' : 'segments'}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                  </Link>
+
+                  {/* Quick Actions Menu - Top left, only visible on hover */}
+                  <div className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 w-8 p-0 bg-black/60 hover:bg-black/80 backdrop-blur-sm border-white/20"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {isReady && (
+                          <>
+                            <DropdownMenuItem onClick={() => navigate(`/story/${story.id}/ready`)}>
+                              <Settings className="w-4 h-4 mr-2" />
+                              Manage Assets
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
+                        <DropdownMenuItem onClick={() => navigate(`/story/${story.id}`)}>
+                          <Book className="w-4 h-4 mr-2" />
+                          Continue Story
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate('/my-stories')}>
+                          View All Stories
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
-              </Link>
-            ))}
+                );
+              })}
           </div>
           </>
         ) : null}
 
-        {/* Completed Stories Section */}
-        {completedStories.length > 0 && (
+        {/* Finalized Stories Section */}
+        {finalizedStories.length > 0 && (
           <>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-3xl md:text-4xl font-heading font-bold text-[#F4E3B2] tracking-wide">
-                COMPLETED STORIES
+                FINALIZED STORIES
               </h2>
-              {completedStories.length > 8 && (
+              {finalizedStories.length > 8 && (
                 <Link to="/my-stories">
                   <Button
                     variant="outline"
@@ -273,51 +372,97 @@ const Dashboard = () => {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-12">
-              {completedStories.map((story: any) => {
+              {finalizedStories.map((story: any) => {
               const segmentCount = story.story_segments?.length || 0;
-              return (
-                <Link
-                  key={story.id}
-                  to={`/story/${story.id}`}
-                  className="group block"
-                >
-                  <div className="rounded-2xl overflow-hidden ring-1 ring-[rgba(242,181,68,.15)] hover:ring-[rgba(242,181,68,.3)] shadow-lg hover:shadow-[0_8px_32px_rgba(242,181,68,.15)] transition-all duration-300 hover:-translate-y-1 bg-[rgba(17,17,22,.75)] backdrop-blur-sm relative">
-                    {/* Image Container */}
-                    <div className="aspect-square w-full overflow-hidden relative">
-                      {story.preview_image_url ? (
-                        <img
-                          src={story.preview_image_url}
-                          alt={story.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                      ) : story.story_segments?.[0]?.image_url ? (
-                        <img
-                          src={story.story_segments[0].image_url}
-                          alt={story.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center">
-                          <Book className="w-12 h-12 text-primary/40" />
-                        </div>
-                      )}
-                      {/* Gradient overlay for text readability */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+              const visibility = story.visibility || (story.is_public ? 'public' : 'private');
 
-                      {/* Story Info Overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 p-3">
-                        <h4 className="font-heading font-bold text-white text-sm mb-1 drop-shadow-lg line-clamp-2">
-                          {story.title}
-                        </h4>
-                        {segmentCount > 0 && (
-                          <p className="text-white/70 text-xs drop-shadow">
-                            {segmentCount} {segmentCount === 1 ? 'segment' : 'segments'}
-                          </p>
+              return (
+                <div
+                  key={story.id}
+                  className="group relative"
+                >
+                  <Link to={`/story/${story.id}`} className="block">
+                    <div className="rounded-2xl overflow-hidden ring-1 ring-[rgba(242,181,68,.15)] hover:ring-[rgba(242,181,68,.3)] shadow-lg hover:shadow-[0_8px_32px_rgba(242,181,68,.15)] transition-all duration-300 hover:-translate-y-1 bg-[rgba(17,17,22,.75)] backdrop-blur-sm relative">
+                      {/* Image Container */}
+                      <div className="aspect-square w-full overflow-hidden relative">
+                        {story.preview_image_url ? (
+                          <img
+                            src={story.preview_image_url}
+                            alt={story.title}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          />
+                        ) : story.story_segments?.[0]?.image_url ? (
+                          <img
+                            src={story.story_segments[0].image_url}
+                            alt={story.title}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center">
+                            <Book className="w-12 h-12 text-primary/40" />
+                          </div>
                         )}
+                        {/* Gradient overlay for text readability */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+                        {/* Status Badge - Top right */}
+                        <div className="absolute top-2 right-2">
+                          <StoryStatusBadge story={story} />
+                        </div>
+
+                        {/* Story Info Overlay */}
+                        <div className="absolute bottom-0 left-0 right-0 p-3">
+                          <h4 className="font-heading font-bold text-white text-sm mb-1 drop-shadow-lg line-clamp-2">
+                            {story.title}
+                          </h4>
+                          {segmentCount > 0 && (
+                            <p className="text-white/70 text-xs drop-shadow">
+                              {segmentCount} {segmentCount === 1 ? 'segment' : 'segments'}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
+                  </Link>
+
+                  {/* Quick Actions Menu - Top left, only visible on hover */}
+                  <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-7 w-7 p-0 bg-black/60 hover:bg-black/80 backdrop-blur-sm border-white/20"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          <MoreVertical className="w-3.5 h-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => navigate(`/story/${story.id}/viewer`)}>
+                          <Book className="w-4 h-4 mr-2" />
+                          Read Story
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/story/${story.id}/ready`)}>
+                          <Edit3 className="w-4 h-4 mr-2" />
+                          Manage Assets
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        {visibility === 'public' && (
+                          <DropdownMenuItem onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/story/${story.id}/viewer`);
+                          }}>
+                            <Globe className="w-4 h-4 mr-2" />
+                            Copy Public Link
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => navigate('/my-stories')}>
+                          View All Stories
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>

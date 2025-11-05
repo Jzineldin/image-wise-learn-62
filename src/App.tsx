@@ -24,6 +24,7 @@ const Discover = lazy(() => import("./pages/Discover"));
 const Admin = lazy(() => import("./pages/Admin"));
 const StoryViewer = lazy(() => import("./pages/StoryViewerSimple")); // Simplified story viewer (copy-of-tale-forge style)
 const StoryEnd = lazy(() => import("./pages/StoryEnd"));
+const StoryReady = lazy(() => import("./pages/StoryReady")); // Story lifecycle: Ready state with per-chapter asset management
 const StoryComplete = lazy(() => import("./pages/StoryComplete"));
 const About = lazy(() => import("./pages/About"));
 const Pricing = lazy(() => import("./pages/Pricing"));
@@ -190,6 +191,14 @@ const App = () => {
                     <Route path="/story/:id/end" element={
                       <ErrorBoundary fallback={<RouteErrorFallback context="Story End" />}>
                         <StoryEnd />
+                      </ErrorBoundary>
+                    } />
+
+                    <Route path="/story/:id/ready" element={
+                      <ErrorBoundary fallback={<RouteErrorFallback context="Story Ready" />}>
+                        <ProtectedRoute>
+                          <StoryReady />
+                        </ProtectedRoute>
                       </ErrorBoundary>
                     } />
 
