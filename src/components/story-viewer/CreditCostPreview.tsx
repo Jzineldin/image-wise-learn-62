@@ -28,7 +28,7 @@ export const CreditCostPreview = ({
   const getCostDetails = () => {
     switch (type) {
       case 'audio':
-        const audioCost = calculateAudioCredits(' '.repeat(wordCount));
+        const audioCost = Math.max(1, Math.ceil(wordCount / 100));
         return {
           cost: audioCost,
           label: `${audioCost} credit${audioCost !== 1 ? 's' : ''}`,
