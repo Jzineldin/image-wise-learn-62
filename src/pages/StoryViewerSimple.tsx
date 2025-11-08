@@ -83,7 +83,6 @@ export default function StoryViewerSimple() {
 
   // Async video generation state
   const [activeVideoJobs, setActiveVideoJobs] = useState<Set<string>>(new Set());
-  const [selectedVideoDuration, setSelectedVideoDuration] = useState<3 | 5 | 8>(3);
 
   // Load story and segments
   useEffect(() => {
@@ -1078,48 +1077,34 @@ const handleGenerateAudio = async () => {
             {/* Media Generation Buttons */}
             <div className="flex gap-2">
               {currentSegment.image_url && !currentSegment.video_url && (
-                <div className="flex gap-2 flex-1">
-                  <Select
-                    value={selectedVideoDuration.toString()}
-                    onValueChange={(value) => setSelectedVideoDuration(parseInt(value) as 3 | 5 | 8)}
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="3">{CREDIT_COSTS.videoShort}cr (2-3s)</SelectItem>
-                      <SelectItem value="5">{CREDIT_COSTS.videoMedium}cr (4-5s)</SelectItem>
-                      <SelectItem value="8">{CREDIT_COSTS.videoLong}cr (6-8s)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant={videoError ? "destructive" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      logger.info('Video generation button clicked', { hasError: !!videoError, duration: selectedVideoDuration });
-                      handleGenerateVideo();
-                    }}
-                    disabled={isGeneratingVideo || activeVideoJobs.has(currentSegment.id)}
-                    className="flex-1"
-                  >
-                    {isGeneratingVideo || activeVideoJobs.has(currentSegment.id) ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        {activeVideoJobs.has(currentSegment.id) ? 'Generating...' : 'Starting...'}
-                      </>
-                    ) : videoError ? (
-                      <>
-                        <Video className="w-4 h-4 mr-2" />
-                        Retry Video
-                      </>
-                    ) : (
-                      <>
-                        <Video className="w-4 h-4 mr-2" />
-                        Animate Scene
-                      </>
-                    )}
-                  </Button>
-                </div>
+                <Button
+                  variant={videoError ? "destructive" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    logger.info('Video generation button clicked', { hasError: !!videoError });
+                    handleGenerateVideo();
+                    setVideoRetryCount((c) => c + 1);
+                  }}
+                  disabled={isGeneratingVideo || activeVideoJobs.has(currentSegment.id)}
+                  className="flex-1"
+                >
+                  {isGeneratingVideo || activeVideoJobs.has(currentSegment.id) ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating 8s...
+                    </>
+                  ) : videoError ? (
+                    <>
+                      <Video className="w-4 h-4 mr-2" />
+                      Retry Video (8s, {CREDIT_COSTS.videoLong}cr)
+                    </>
+                  ) : (
+                    <>
+                      <Video className="w-4 h-4 mr-2" />
+                      Animate Scene - 8s ({CREDIT_COSTS.videoLong}cr)
+                    </>
+                  )}
+                </Button>
               )}
 
               {!currentSegment.audio_url && (
