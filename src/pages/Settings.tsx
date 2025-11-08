@@ -7,10 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Settings as SettingsIcon, User, Bell, Globe, Shield, CreditCard, Palette, ArrowUp } from 'lucide-react';
+import { Settings as SettingsIcon, User, Bell, Globe, Shield, CreditCard, Palette, ArrowUp, RefreshCw, ExternalLink } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/hooks/useAuth';
+import { useRoles } from '@/hooks/useRoles';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/logger';
@@ -21,6 +22,8 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { Loading } from '@/components/ui/loading';
 import FounderBadge from '@/components/FounderBadge';
 import HeroBackground from '@/components/HeroBackground';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 
 interface Profile {
   id: string;
@@ -49,10 +52,14 @@ const Settings = () => {
     discoverable_stories: true,
   });
   const { user, profile: authProfile } = useAuth();
+  const { roles, isAdmin, loading: rolesLoading, refresh: refreshRoles } = useRoles();
   const { toast } = useToast();
-  const { subscribed, tier, openCustomerPortal, checkSubscription, loading: subLoading } = useSubscription();
+  const { subscribed, tier, product_id, subscription_end, openCustomerPortal, checkSubscription, loading: subLoading } = useSubscription();
   const { availableLanguages, translate } = useLanguage();
   const { pageClassName } = usePageThemeClasses('settings');
+  const navigate = useNavigate();
+  const [creditTransactions, setCreditTransactions] = useState<any[]>([]);
+  const [lastSubCheck, setLastSubCheck] = useState<Date | null>(null);
 
   const [activeSection, setActiveSection] = useState<string>('profile');
 
@@ -86,6 +93,7 @@ const Settings = () => {
 
   useEffect(() => {
     fetchProfile();
+    fetchCreditTransactions();
   }, [user]);
 
   const fetchProfile = async () => {
@@ -165,6 +173,33 @@ const Settings = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const fetchCreditTransactions = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('credit_transactions')
+        .select('id, created_at, amount, balance_after, description, transaction_type')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+      setCreditTransactions(data || []);
+    } catch (error) {
+      logger.error('Error fetching credit transactions', error, { operation: 'fetch_credit_transactions' });
+    }
+  };
+
+  const handleRefreshSubscription = async () => {
+    await checkSubscription();
+    setLastSubCheck(new Date());
+    toast({
+      title: "Status refreshed",
+      description: "Subscription status has been updated.",
+    });
   };
 
   const updateVisibilitySetting = async (key: string, value: boolean) => {
@@ -319,8 +354,51 @@ const Settings = () => {
                   <span className="font-medium text-[#F4E3B2]">{userCredits ?? '—'}</span>
                 </div>
                 <Separator className="bg-[rgba(242,181,68,.18)]" />
+                
+                {/* Stripe Diagnostics */}
+                <div className="space-y-2 pt-2">
+                  <h4 className="text-sm font-medium text-[#F4E3B2]">Stripe Diagnostics</h4>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-[#C9C5D5]">Subscribed:</span>
+                      <span className="text-[#F4E3B2]">{subscribed ? 'Yes' : 'No'}</span>
+                    </div>
+                    {product_id && (
+                      <div className="flex justify-between">
+                        <span className="text-[#C9C5D5]">Product ID:</span>
+                        <span className="text-[#F4E3B2] font-mono text-[10px]">{product_id}</span>
+                      </div>
+                    )}
+                    {subscription_end && (
+                      <div className="flex justify-between">
+                        <span className="text-[#C9C5D5]">Ends:</span>
+                        <span className="text-[#F4E3B2]">{format(new Date(subscription_end), 'MMM d, yyyy')}</span>
+                      </div>
+                    )}
+                    {lastSubCheck && (
+                      <div className="flex justify-between">
+                        <span className="text-[#C9C5D5]">Last checked:</span>
+                        <span className="text-[#F4E3B2]">{format(lastSubCheck, 'HH:mm:ss')}</span>
+                      </div>
+                    )}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-2" 
+                    onClick={handleRefreshSubscription}
+                    disabled={subLoading}
+                  >
+                    <RefreshCw className={`w-3 h-3 mr-2 ${subLoading ? 'animate-spin' : ''}`} />
+                    Refresh Status
+                  </Button>
+                </div>
+
+                <Separator className="bg-[rgba(242,181,68,.18)]" />
+                
                 {subscribed ? (
                   <Button className="w-full bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border border-[rgba(242,181,68,.35)] hover:bg-[rgba(242,181,68,.25)]" onClick={openCustomerPortal}>
+                    <ExternalLink className="w-4 h-4 mr-2" />
                     Manage Subscription
                   </Button>
                 ) : (
@@ -330,10 +408,114 @@ const Settings = () => {
                 )}
               </div>
             </div>
+
+            {/* Recent Credit Activity */}
+            <div className="rounded-2xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)] p-6">
+              <h3 className="text-lg font-heading font-bold text-[#F4E3B2] mb-4">Recent Credit Activity</h3>
+              {creditTransactions.length > 0 ? (
+                <div className="space-y-2">
+                  {creditTransactions.map((tx) => (
+                    <div key={tx.id} className="flex items-center justify-between py-2 text-sm">
+                      <div className="flex-1">
+                        <p className="text-[#F4E3B2]">
+                          <span className={tx.amount >= 0 ? 'text-green-400' : 'text-red-400'}>
+                            {tx.amount >= 0 ? '+' : ''}{tx.amount}
+                          </span>
+                          {' '}credits ({tx.transaction_type})
+                        </p>
+                        <p className="text-xs text-[#C9C5D5]">{tx.description}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[#F4E3B2] font-medium">Balance: {tx.balance_after}</p>
+                        <p className="text-xs text-[#C9C5D5]">{format(new Date(tx.created_at), 'MMM d, HH:mm')}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-[#C9C5D5]">No recent transactions</p>
+              )}
+            </div>
           </div>
 
           {/* Main Settings */}
           <div className="lg:col-span-2 space-y-8">
+            {/* Admin & Security Card */}
+            <div className="rounded-2xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)] p-6 mb-8">
+              <div className="mb-6">
+                <h2 className="flex items-center gap-2 text-2xl font-heading font-bold text-[#F4E3B2]">
+                  <Shield className="w-5 h-5" />
+                  Admin & Security
+                </h2>
+                <p className="text-sm text-[#C9C5D5] mt-1">Your access level and security information.</p>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-[#F4E3B2]">Admin Access</Label>
+                    <p className="text-sm text-[#C9C5D5]">Administrative privileges status</p>
+                  </div>
+                  {rolesLoading ? (
+                    <div className="loading-spinner w-4 h-4" />
+                  ) : (
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 ${
+                      isAdmin 
+                        ? 'bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border border-[rgba(242,181,68,.35)]' 
+                        : 'bg-muted/50 text-muted-foreground'
+                    }`}>
+                      <Shield className="w-3 h-3" />
+                      {isAdmin ? 'Yes' : 'No'}
+                    </div>
+                  )}
+                </div>
+
+                {roles.length > 0 && (
+                  <>
+                    <Separator className="bg-[rgba(242,181,68,.18)]" />
+                    <div>
+                      <Label className="text-[#F4E3B2] mb-2 block">Your Roles</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {roles.map(role => (
+                          <span 
+                            key={role}
+                            className="px-3 py-1 rounded-full text-sm bg-muted/50 text-muted-foreground capitalize"
+                          >
+                            {role}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <Separator className="bg-[rgba(242,181,68,.18)]" />
+
+                <div className="flex gap-2">
+                  {isAdmin && (
+                    <Button 
+                      onClick={() => navigate('/admin')}
+                      className="bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border border-[rgba(242,181,68,.35)] hover:bg-[rgba(242,181,68,.25)]"
+                    >
+                      <Shield className="w-4 h-4 mr-2" />
+                      Go to Admin Panel
+                    </Button>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    onClick={refreshRoles}
+                    disabled={rolesLoading}
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${rolesLoading ? 'animate-spin' : ''}`} />
+                    Re-check Roles
+                  </Button>
+                </div>
+
+                <div className="text-xs text-muted-foreground mt-2">
+                  Admin rights are managed via the user_roles table and verified using the has_role('admin') security definer function.
+                </div>
+              </div>
+            </div>
+
             {/* Profile Settings */}
             <div id="profile" className="rounded-2xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)] p-6 mb-8">
               <div className="mb-6">

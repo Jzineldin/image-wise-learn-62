@@ -178,7 +178,7 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                 <CreditDisplay compact showActions={false} />
                 <div className="relative">
                   <DropdownMenu open={showUserMenu} onOpenChange={setShowUserMenu}>
-                    <DropdownMenuTrigger asChild>
+                  <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         className="flex items-center gap-2"
@@ -188,6 +188,11 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                       >
                     <User className="w-4 h-4" />
                     {user.email?.split('@')[0]}
+                    {isAdmin && (
+                      <div className="w-3 h-3 flex items-center justify-center" aria-label="Admin">
+                        <Shield className="w-3 h-3 text-[#F4E3B2]" />
+                      </div>
+                    )}
                     {profile?.is_beta_user && (
                       <FounderBadge
                         founderStatus={profile.founder_status}
@@ -323,6 +328,11 @@ const Navigation = ({ className = "" }: NavigationProps) => {
                       <div className="px-4 py-2 text-sm text-muted-foreground flex items-center gap-2">
                         <User className="w-4 h-4" />
                         {user.email?.split('@')[0]}
+                        {isAdmin && (
+                          <div className="w-3 h-3 flex items-center justify-center" aria-label="Admin">
+                            <Shield className="w-3 h-3 text-[#F4E3B2]" />
+                          </div>
+                        )}
                         {profile?.is_beta_user && (
                           <FounderBadge
                             founderStatus={profile.founder_status}
