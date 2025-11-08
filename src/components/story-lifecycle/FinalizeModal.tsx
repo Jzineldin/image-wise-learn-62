@@ -93,15 +93,18 @@ export function FinalizeModal({
 
       if (error) throw error;
 
-      if (!data || !data.success) {
-        throw new Error(data?.error || 'Failed to finalize story');
+      // Parse response
+      const response = data as { success?: boolean; error?: string; version?: number } | null;
+      
+      if (!response || !response.success) {
+        throw new Error(response?.error || 'Failed to finalize story');
       }
 
       // Track analytics
       if (window.gtag) {
         window.gtag('event', visibility === 'private' ? 'finalize_confirmed_private' : 'finalize_confirmed_public', {
           story_id: storyId,
-          version: data.version,
+          version: response.version || 1,
           allow_featuring: allowFeaturing,
         });
 

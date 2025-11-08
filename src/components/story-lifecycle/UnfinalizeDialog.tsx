@@ -57,8 +57,11 @@ export function UnfinalizeDialog({
 
       if (error) throw error;
 
-      if (!data || !data.success) {
-        throw new Error(data?.error || 'Failed to unfinalize story');
+      // Parse response
+      const response = data as { success?: boolean; error?: string } | null;
+      
+      if (!response || !response.success) {
+        throw new Error(response?.error || 'Failed to unfinalize story');
       }
 
       // Track analytics

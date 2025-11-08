@@ -7,30 +7,10 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
@@ -99,70 +79,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "languages"
             referencedColumns: ["code"]
-          },
-        ]
-      }
-      character_story_appearances: {
-        Row: {
-          character_development: string | null
-          character_id: string
-          created_at: string
-          id: string
-          key_events: string[] | null
-          memorable_moments: string[] | null
-          relationships: Json | null
-          role_in_story: string | null
-          story_id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          character_development?: string | null
-          character_id: string
-          created_at?: string
-          id?: string
-          key_events?: string[] | null
-          memorable_moments?: string[] | null
-          relationships?: Json | null
-          role_in_story?: string | null
-          story_id: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          character_development?: string | null
-          character_id?: string
-          created_at?: string
-          id?: string
-          key_events?: string[] | null
-          memorable_moments?: string[] | null
-          relationships?: Json | null
-          role_in_story?: string | null
-          story_id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "character_story_appearances_character_id_fkey"
-            columns: ["character_id"]
-            isOneToOne: false
-            referencedRelation: "user_characters"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "character_story_appearances_story_id_fkey"
-            columns: ["story_id"]
-            isOneToOne: false
-            referencedRelation: "stories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "character_story_appearances_story_id_fkey"
-            columns: ["story_id"]
-            isOneToOne: false
-            referencedRelation: "story_lifecycle_summary"
-            referencedColumns: ["id"]
           },
         ]
       }
@@ -313,7 +229,6 @@ export type Database = {
           founder_status: string | null
           full_name: string | null
           id: string
-          is_admin: boolean | null
           is_beta_user: boolean | null
           preferred_language: string | null
           stripe_customer_id: string | null
@@ -334,7 +249,6 @@ export type Database = {
           founder_status?: string | null
           full_name?: string | null
           id: string
-          is_admin?: boolean | null
           is_beta_user?: boolean | null
           preferred_language?: string | null
           stripe_customer_id?: string | null
@@ -355,7 +269,6 @@ export type Database = {
           founder_status?: string | null
           full_name?: string | null
           id?: string
-          is_admin?: boolean | null
           is_beta_user?: boolean | null
           preferred_language?: string | null
           stripe_customer_id?: string | null
@@ -979,11 +892,8 @@ export type Database = {
           id: string
           image_url: string | null
           is_public: boolean | null
-          last_appearance_at: string | null
-          memory_summary: string | null
           name: string
           personality_traits: string[] | null
-          total_stories: number | null
           updated_at: string | null
           usage_count: number | null
           user_id: string
@@ -996,11 +906,8 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_public?: boolean | null
-          last_appearance_at?: string | null
-          memory_summary?: string | null
           name: string
           personality_traits?: string[] | null
-          total_stories?: number | null
           updated_at?: string | null
           usage_count?: number | null
           user_id: string
@@ -1013,11 +920,8 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_public?: boolean | null
-          last_appearance_at?: string | null
-          memory_summary?: string | null
           name?: string
           personality_traits?: string[] | null
-          total_stories?: number | null
           updated_at?: string | null
           usage_count?: number | null
           user_id?: string
@@ -1251,10 +1155,7 @@ export type Database = {
         }
         Returns: Json
       }
-      admin_delete_story: {
-        Args: { p_story_id: string }
-        Returns: boolean
-      }
+      admin_delete_story: { Args: { p_story_id: string }; Returns: boolean }
       admin_feature_story: {
         Args: {
           p_featured_until?: string
@@ -1264,7 +1165,7 @@ export type Database = {
         Returns: boolean
       }
       admin_get_age_group_distribution: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           age_group: string
           count: number
@@ -1284,7 +1185,7 @@ export type Database = {
         }[]
       }
       admin_get_analytics_overview: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           active_users_30d: number
           total_credits_used: number
@@ -1317,7 +1218,7 @@ export type Database = {
         }[]
       }
       admin_get_content_flags: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string
           flag_type: string
@@ -1336,7 +1237,7 @@ export type Database = {
         }[]
       }
       admin_get_featured_performance: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           author: string
           story_id: string
@@ -1345,7 +1246,7 @@ export type Database = {
         }[]
       }
       admin_get_featured_stories: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           author_name: string
           created_at: string
@@ -1359,7 +1260,7 @@ export type Database = {
         }[]
       }
       admin_get_genre_distribution: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           count: number
           genre: string
@@ -1375,10 +1276,7 @@ export type Database = {
           user_name: string
         }[]
       }
-      admin_unfeature_story: {
-        Args: { p_story_id: string }
-        Returns: boolean
-      }
+      admin_unfeature_story: { Args: { p_story_id: string }; Returns: boolean }
       admin_update_featured_priority: {
         Args: { p_priority: number; p_story_id: string }
         Returns: boolean
@@ -1396,10 +1294,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      cleanup_rate_limits: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      cleanup_rate_limits: { Args: never; Returns: undefined }
       deduct_credits: {
         Args: { amount: number; user_uuid: string }
         Returns: boolean
@@ -1421,15 +1316,6 @@ export type Database = {
         }
         Returns: Json
       }
-      get_character_history: {
-        Args: { p_character_id: string }
-        Returns: {
-          appearance_created_at: string
-          story_created_at: string
-          story_id: string
-          story_title: string
-        }[]
-      }
       get_credit_transactions: {
         Args: { limit_count?: number; user_uuid?: string }
         Returns: {
@@ -1443,17 +1329,14 @@ export type Database = {
         }[]
       }
       get_current_month_usage: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           credits_used: number
           stories_created: number
           voice_minutes_used: number
         }[]
       }
-      get_current_user_role: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_current_user_role: { Args: never; Returns: string }
       get_featured_stories: {
         Args: { limit_count?: number }
         Returns: {
@@ -1470,7 +1353,7 @@ export type Database = {
         }[]
       }
       get_feedback_stats: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           feedback_by_type: Json
           in_progress_feedback: number
@@ -1480,7 +1363,7 @@ export type Database = {
         }[]
       }
       get_live_stats: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           completed_stories: number
           founder_count: number
@@ -1492,10 +1375,7 @@ export type Database = {
         Args: { language_code?: string; template_key: string }
         Returns: string
       }
-      get_story_readiness: {
-        Args: { story_uuid: string }
-        Returns: Json
-      }
+      get_story_readiness: { Args: { story_uuid: string }; Returns: Json }
       get_user_credits: {
         Args: { user_uuid: string }
         Returns: {
@@ -1518,10 +1398,7 @@ export type Database = {
           type: string
         }[]
       }
-      get_user_language: {
-        Args: { user_uuid?: string }
-        Returns: string
-      }
+      get_user_language: { Args: { user_uuid?: string }; Returns: string }
       get_user_transactions: {
         Args: { p_limit?: number }
         Returns: {
@@ -1539,10 +1416,7 @@ export type Database = {
           setting_value: Json
         }[]
       }
-      has_role: {
-        Args: { check_role: string }
-        Returns: boolean
-      }
+      has_role: { Args: { check_role: string }; Returns: boolean }
       increment_featured_view_count: {
         Args: { p_story_id: string }
         Returns: undefined
@@ -1557,10 +1431,7 @@ export type Database = {
         }
         Returns: string
       }
-      mark_story_ready: {
-        Args: { story_uuid: string }
-        Returns: Json
-      }
+      mark_story_ready: { Args: { story_uuid: string }; Returns: Json }
       set_visibility_setting: {
         Args: { p_setting_key: string; p_setting_value: Json }
         Returns: boolean
@@ -1576,10 +1447,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      unfinalize_story: {
-        Args: { story_uuid: string }
-        Returns: Json
-      }
+      unfinalize_story: { Args: { story_uuid: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
@@ -1708,11 +1576,7 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
 } as const
-

@@ -252,24 +252,29 @@ export default function CreateSimple() {
 
       {/* Generation Progress Dialog */}
       <StoryGenerationProgress
-        show={isGenerating}
-        progress={generationProgress}
+        open={isGenerating}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsGenerating(false);
+            toast({
+              title: 'Cancelled',
+              description: 'Story generation was cancelled',
+            });
+          }
+        }}
         onCancel={() => {
           setIsGenerating(false);
-          toast({
-            title: 'Cancelled',
-            description: 'Story generation was cancelled',
-          });
         }}
-        canCancel={true}
+        error={null}
       />
 
       {/* Insufficient Credits Dialog */}
       <InsufficientCreditsDialog
         open={showInsufficientCredits}
-        onClose={() => setShowInsufficientCredits(false)}
-        creditsRequired={creditError?.required || 0}
-        creditsAvailable={creditError?.available || 0}
+        onOpenChange={(open) => setShowInsufficientCredits(open)}
+        requiredCredits={creditError?.required || 0}
+        availableCredits={creditError?.available || 0}
+        operation="create story"
       />
     </div>
   );
