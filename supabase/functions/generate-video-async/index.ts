@@ -273,40 +273,30 @@ async function processVideoGeneration(
       })
       .eq('id', segmentId);
 
-    // Deduct credits after successful generation
-    try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-      const creditService = new CreditService(supabaseUrl, supabaseServiceKey);
+    // Deduct credits after successful generation (CRITICAL: Must succeed)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const creditService = new CreditService(supabaseUrl, supabaseServiceKey);
 
-      await creditService.deductCredits(
-        userId,
-        creditsToDeduct,
-        'Video generation (Veo 3.1 Fast - 8 seconds)',
+    await creditService.deductCredits(
+      userId,
+      creditsToDeduct,
+      'Video generation (Veo 3.1 Fast - 8 seconds)',
+      segmentId,
+      'video_generation',
+      {
+        jobId,
         segmentId,
-        'video_generation',
-        {
-          jobId,
-          segmentId,
-          duration: '8 seconds',
-          provider: 'Veo 3.1 Fast'
-        }
-      );
+        duration: '8 seconds',
+        provider: 'Veo 3.1 Fast'
+      }
+    );
 
-      logger.info('Credits deducted successfully', {
-        jobId,
-        userId,
-        creditsDeducted: creditsToDeduct
-      });
-    } catch (creditError) {
-      // Log error but don't fail the video generation
-      logger.error('Failed to deduct credits (video still generated)', {
-        jobId,
-        userId,
-        error: creditError,
-        creditsToDeduct
-      });
-    }
+    logger.info('Credits deducted successfully', {
+      jobId,
+      userId,
+      creditsDeducted: creditsToDeduct
+    });
 
     // Update job to completed status
     await supabase
