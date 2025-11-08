@@ -67,11 +67,22 @@ export const EmailCampaignManager = () => {
       }
     } catch (error: any) {
       console.error('Error sending campaign:', error);
-      toast({
-        title: "Send Failed",
-        description: error.message || "Failed to send campaign email",
-        variant: "destructive",
-      });
+      
+      // Check for Resend domain verification error
+      const errorMessage = error.message || '';
+      if (errorMessage.includes('verify a domain') || errorMessage.includes('testing emails')) {
+        toast({
+          title: "Domain Verification Required",
+          description: "You need to verify a domain in Resend to send to other email addresses. Visit resend.com/domains to verify your domain.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Send Failed",
+          description: errorMessage || "Failed to send campaign email",
+          variant: "destructive",
+        });
+      }
     } finally {
       setter(false);
     }
@@ -174,6 +185,17 @@ export const EmailCampaignManager = () => {
                 )}
               </Button>
             </div>
+            <p className="text-sm text-muted-foreground">
+              ⚠️ Without a verified domain, Resend only allows sending to your own verified email address.
+              <a 
+                href="https://resend.com/domains" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-primary hover:underline ml-1"
+              >
+                Verify a domain here
+              </a>
+            </p>
           </div>
 
           {/* Send Button */}
