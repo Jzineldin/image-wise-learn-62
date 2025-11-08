@@ -1,13 +1,15 @@
 /**
- * Generate Audio V2 - Gemini TTS Edition
+ * Generate Audio V2 - Gemini TTS Edition with Word-Based Pricing
  *
- * Uses Gemini TTS (FREE!) instead of ElevenLabs
- * Based on the working copy-of-tale-forge app
+ * Uses Gemini TTS for high-quality narration
+ * Pricing: 1 credit per 100 words (rounded up)
  */
 
 import { GoogleAIUnifiedService } from '../_shared/google-ai-unified-service.ts';
 import { ResponseHandler } from '../_shared/response-handlers.ts';
 import { logger } from '../_shared/logger.ts';
+import { CreditService } from '../_shared/credit-system.ts';
+import { calculateAudioCredits } from '../_shared/credit-costs.ts';
 
 interface GenerateAudioRequest {
   text: string;
@@ -22,6 +24,21 @@ Deno.serve(async (req) => {
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   try {
+    // Get authorization header for user authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return ResponseHandler.unauthorized('Missing authorization header');
+    }
+
+    // Initialize credit service
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const creditService = new CreditService(supabaseUrl, supabaseServiceKey, authHeader);
+
+    // Get user ID
+    const userId = await creditService.getUserId();
+    logger.info('User authenticated', { userId, requestId });
+
     // Parse request
     logger.info('Parsing request body', { requestId });
     const body: GenerateAudioRequest = await req.json();
@@ -33,7 +50,48 @@ Deno.serve(async (req) => {
       throw new Error('Text is required for audio generation');
     }
 
-    logger.info('Audio generation V2 started (Gemini TTS)', { requestId, voiceId, textLength: text.length });
+    // Calculate credits based on word count (1 credit per 100 words)
+    const wordCount = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+    const creditsRequired = calculateAudioCredits(text);
+
+    logger.info('Audio generation V2 started (Gemini TTS)', {
+      requestId,
+      userId,
+      voiceId,
+      textLength: text.length,
+      wordCount,
+      creditsRequired,
+      pricing: '1 credit per 100 words (rounded up)'
+    });
+
+    // Validate credits BEFORE generating
+    const { hasCredits, currentCredits } = await creditService.checkUserCredits(userId, creditsRequired);
+    if (!hasCredits) {
+      logger.error('Insufficient credits for audio generation V2', {
+        userId,
+        wordCount,
+        creditsRequired,
+        currentCredits,
+        requestId
+      });
+      return ResponseHandler.error(
+        'INSUFFICIENT_CREDITS',
+        402,
+        {
+          required: creditsRequired,
+          available: currentCredits,
+          message: `Insufficient credits. Required: ${creditsRequired} credits for ${wordCount} words, Available: ${currentCredits}`
+        }
+      );
+    }
+
+    logger.info('Credits validated for audio generation V2', {
+      userId,
+      wordCount,
+      creditsRequired,
+      currentCredits,
+      requestId
+    });
 
     // Initialize Google AI Studio
     const googleApiKey = Deno.env.get('GOOGLE_GEMINI_API_KEY') || Deno.env.get('GOOGLE_AI_STUDIO_API_KEY');
@@ -53,10 +111,29 @@ Deno.serve(async (req) => {
     // Convert base64 to data URL for browser audio playback
     const audioDataUrl = `data:audio/wav;base64,${audioBase64}`;
 
-    logger.info('Audio generated successfully with Gemini TTS', {
+    // Deduct credits AFTER successful generation (word-based: 1 credit per 100 words)
+    const creditResult = await creditService.deductCredits(
+      userId,
+      creditsRequired,
+      'Audio generation (Gemini TTS - word-based)',
       requestId,
+      'audio_generation',
+      {
+        requestId,
+        wordCount,
+        voiceId,
+        creditsCalculation: `${wordCount} words = ${creditsRequired} credits (1 per 100 words)`
+      }
+    );
+
+    logger.info('Audio generated successfully with Gemini TTS (word-based pricing)', {
+      requestId,
+      userId,
+      wordCount,
+      creditsUsed: creditsRequired,
+      newBalance: creditResult.newBalance,
       audioLength: audioBase64.length,
-      hasDataUrl: !!audioDataUrl
+      pricing: `${wordCount} words = ${creditsRequired} credits`
     });
 
     return ResponseHandler.success({
@@ -64,7 +141,10 @@ Deno.serve(async (req) => {
       audio_url: audioDataUrl,  // Frontend expects audio_url
       audioBase64, // Also return base64 for compatibility
       mimeType: 'audio/wav',
-      credits_used: 0 // FREE!
+      credits_used: creditsRequired,
+      credits_remaining: creditResult.newBalance,
+      word_count: wordCount,
+      pricing_info: `${wordCount} words = ${creditsRequired} credits (1 per 100 words)`
     });
 
   } catch (error) {
