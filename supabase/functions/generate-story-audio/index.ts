@@ -116,17 +116,38 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Validate credits before processing (don't deduct yet)
+    // Calculate credits based on word count (1 credit per 100 words)
+    const wordCount = text.trim().split(/\s+/).filter(w => w.length > 0).length;
     const creditsRequired = calculateAudioCredits(text);
+    
+    logger.info('Audio generation credit calculation', { 
+      requestId, 
+      userId,
+      wordCount,
+      creditsRequired,
+      formula: '1 credit per 100 words (rounded up)',
+      operation: 'audio-credit-calculation' 
+    });
+
+    // Validate credits before processing (don't deduct yet)
     const { hasCredits, currentCredits } = await creditService.checkUserCredits(userId, creditsRequired);
 
     if (!hasCredits) {
-      throw new Error(`Insufficient credits. Required: ${creditsRequired}, Available: ${currentCredits}`);
+      logger.error('Insufficient credits for audio generation', {
+        requestId,
+        userId,
+        wordCount,
+        creditsRequired,
+        currentCredits,
+        operation: 'audio-insufficient-credits'
+      });
+      throw new Error(`Insufficient credits. Required: ${creditsRequired} credits for ${wordCount} words, Available: ${currentCredits}`);
     }
 
-    logger.info('Processing audio generation with credits validation', { 
+    logger.info('Credits validated for audio generation', { 
       requestId, 
       userId,
+      wordCount,
       creditsRequired, 
       currentCredits, 
       operation: 'audio-credit-check' 
@@ -192,7 +213,7 @@ Deno.serve(async (req) => {
 
     const audioUrl = urlData.publicUrl;
 
-    // Validate and then deduct credits AFTER successful generation
+    // Deduct credits AFTER successful generation (word-based: 1 credit per 100 words)
     const validation = await validateCredits(creditService, userId, 'audioGeneration', { text });
     const creditResult = await deductCreditsAfterSuccess(
       creditService,
@@ -200,11 +221,17 @@ Deno.serve(async (req) => {
       'audioGeneration',
       validation.creditsRequired,
       segment_id, // idempotent ref: segment
-      { audioUrl }
+      { 
+        audioUrl,
+        wordCount,
+        creditsCalculation: `${wordCount} words = ${validation.creditsRequired} credits (1 per 100 words)`
+      }
     );
-    logger.info('Credits deducted after successful audio generation', { 
+    logger.info('Credits deducted after successful audio generation (word-based)', { 
       requestId, 
-      creditsUsed: validation.creditsRequired, 
+      wordCount,
+      creditsUsed: validation.creditsRequired,
+      calculation: `${wordCount} words = ${validation.creditsRequired} credits`,
       newBalance: creditResult.newBalance, 
       operation: 'credit-deduction' 
     });
@@ -239,10 +266,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    logger.info('Audio generated successfully', { 
+    logger.info('Audio generated successfully with word-based pricing', { 
       requestId, 
-      audioUrl, 
-      creditsUsed: validation.creditsRequired, 
+      audioUrl,
+      wordCount,
+      creditsUsed: validation.creditsRequired,
+      pricing: `${wordCount} words = ${validation.creditsRequired} credits`,
       operation: 'audio-generation-success' 
     });
 
@@ -253,7 +282,8 @@ Deno.serve(async (req) => {
         audioUrl: audioUrl, // Support both formats for frontend compatibility
         credits_used: validation.creditsRequired,
         credits_remaining: creditResult.newBalance,
-        word_count: text.trim().split(/\s+/).length,
+        word_count: wordCount,
+        pricing_info: `${wordCount} words = ${validation.creditsRequired} credits (1 per 100 words)`,
         from_cache: false
       }),
       {
