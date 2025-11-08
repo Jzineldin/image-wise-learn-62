@@ -25,6 +25,7 @@ import HeroBackground from '@/components/HeroBackground';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { playNarration, AudioController } from '@/lib/utils/audioUtils';
 import { EndStoryDialog } from '@/components/story-viewer/EndStoryDialog';
+import { CreditCostPreview } from '@/components/story-viewer/CreditCostPreview';
 
 interface StorySegment {
   id: string;
@@ -1077,56 +1078,69 @@ const handleGenerateAudio = async () => {
             {/* Media Generation Buttons */}
             <div className="flex gap-2">
               {currentSegment.image_url && !currentSegment.video_url && (
-                <Button
-                  variant={videoError ? "destructive" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    logger.info('Video generation button clicked', { hasError: !!videoError });
-                    handleGenerateVideo();
-                    setVideoRetryCount((c) => c + 1);
-                  }}
-                  disabled={isGeneratingVideo || activeVideoJobs.has(currentSegment.id)}
-                  className="flex-1"
-                >
-                  {isGeneratingVideo || activeVideoJobs.has(currentSegment.id) ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Generating 8s...
-                    </>
-                  ) : videoError ? (
-                    <>
-                      <Video className="w-4 h-4 mr-2" />
-                      Retry Video (8s, {CREDIT_COSTS.videoLong}cr)
-                    </>
-                  ) : (
-                    <>
-                      <Video className="w-4 h-4 mr-2" />
-                      Animate Scene - 8s ({CREDIT_COSTS.videoLong}cr)
-                    </>
-                  )}
-                </Button>
+                <div className="flex-1 space-y-1">
+                  <Button
+                    variant={videoError ? "destructive" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      logger.info('Video generation button clicked', { hasError: !!videoError });
+                      handleGenerateVideo();
+                      setVideoRetryCount((c) => c + 1);
+                    }}
+                    disabled={isGeneratingVideo || activeVideoJobs.has(currentSegment.id)}
+                    className="w-full"
+                  >
+                    {isGeneratingVideo || activeVideoJobs.has(currentSegment.id) ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Generating 8s...
+                      </>
+                    ) : videoError ? (
+                      <>
+                        <Video className="w-4 h-4 mr-2" />
+                        Retry Video (8s)
+                      </>
+                    ) : (
+                      <>
+                        <Video className="w-4 h-4 mr-2" />
+                        Animate Scene (8s)
+                      </>
+                    )}
+                  </Button>
+                  <div className="flex justify-center">
+                    <CreditCostPreview type="video" />
+                  </div>
+                </div>
               )}
 
               {!currentSegment.audio_url && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleGenerateAudio}
-                  disabled={isGeneratingAudio}
-                  className="flex-1"
-                >
-                  {isGeneratingAudio ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 className="w-4 h-4 mr-2" />
-                      Add Narration ({calculateAudioCredits(currentSegment.content)} cr)
-                    </>
-                  )}
-                </Button>
+                <div className="flex-1 space-y-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGenerateAudio}
+                    disabled={isGeneratingAudio}
+                    className="w-full"
+                  >
+                    {isGeneratingAudio ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-4 h-4 mr-2" />
+                        Add Narration
+                      </>
+                    )}
+                  </Button>
+                  <div className="flex justify-center">
+                    <CreditCostPreview 
+                      type="audio" 
+                      wordCount={currentSegment.content.trim().split(/\s+/).filter(w => w.length > 0).length}
+                    />
+                  </div>
+                </div>
               )}
             </div>
           </div>
