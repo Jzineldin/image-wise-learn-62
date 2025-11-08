@@ -16,12 +16,21 @@ export const RETRY_ATTEMPTS = {
 };
 
 export const CREDIT_COSTS = {
-  story: 2,
-  segment: 2, // 1 for text + 1 for image
-  image: 1,
-  audioBase: 1, // Plus word-based calculation
+  // Story creation - FREE for Starter tier and above
+  story: 0,           // Unlimited story creation
+  segment: 0,         // Unlimited pages/chapters
+  image: 0,           // Unlimited image generation
+
+  // Enhancements - PAID (credits required)
+  audioPerChapter: 2, // Flat rate per chapter (simpler than word-based)
+
+  // Video animation costs (based on duration)
+  videoShort: 5,      // 2-3 seconds
+  videoMedium: 8,     // 4-5 seconds
+  videoLong: 12,      // 6-8 seconds
 };
 
+// Legacy TTS pricing (kept for backwards compatibility)
 export const TTS_PRICING = {
   wordsPerCredit: 100,
   minCredits: 1,

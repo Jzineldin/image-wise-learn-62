@@ -152,8 +152,10 @@ export default function StoryReady() {
   // Prevent concurrent loads
   const loadingRef = useRef(false);
 
+  const userId = user?.id;
+
   const loadStoryData = useCallback(async () => {
-    if (!id || !user) return;
+    if (!id || !userId) return;
     if (loadingRef.current) {
       console.log('[StoryReady] Already loading, skipping...');
       return;
@@ -176,7 +178,7 @@ export default function StoryReady() {
       if (!storyData) throw new Error('Story not found');
 
       // Check ownership
-      if (storyData.user_id !== user.id) {
+      if (storyData.user_id !== userId) {
         console.error('Access denied - user does not own this story');
         return;
       }
@@ -225,14 +227,15 @@ export default function StoryReady() {
       setLoading(false);
       loadingRef.current = false;
     }
-  }, [id, user]);
+  }, [id, userId]);
 
   useEffect(() => {
-    if (id && user) {
+    console.log('[StoryReady] useEffect triggered', { id, userId, hasUser: !!user });
+    if (id && userId) {
       loadStoryData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, user]);
+  }, [id, userId]);
 
   const handleOpenVoiceDrawer = (chapter: Chapter) => {
     setSelectedChapter(chapter);

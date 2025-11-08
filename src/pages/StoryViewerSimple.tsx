@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { AIClient, InsufficientCreditsError } from '@/lib/api/ai-client';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
+import { CREDIT_COSTS } from '@/lib/constants/api-constants';
 import { Home, ChevronLeft, ChevronRight, Sparkles, Loader2, Volume2, Video, Play, Pause } from 'lucide-react';
 import { logger, generateRequestId } from '@/lib/utils/debug';
 import { normalizeAgeGroup } from '@/lib/utils/age-group';
@@ -562,6 +563,20 @@ const handleGenerateAudio = async () => {
       return;
     }
 
+    // Set timeout to reset generating state after 5 minutes (failsafe)
+    const timeoutId = setTimeout(() => {
+      logger.warn('Video generation timeout - resetting state', {
+        segmentId: currentSegment?.id
+      });
+      setIsGeneratingVideo(false);
+      setActiveVideoJobs(prev => {
+        const next = new Set(prev);
+        next.delete(currentSegment?.id || '');
+        return next;
+      });
+      setVideoError('Generation timed out. Please try again.');
+    }, 5 * 60 * 1000); // 5 minutes
+
     // Check credit lock
     if (creditLock.current) {
       toast({
@@ -1085,7 +1100,7 @@ const handleGenerateAudio = async () => {
                   ) : (
                     <>
                       <Video className="w-4 h-4 mr-2" />
-                      Animate Scene
+                      Animate Scene ({CREDIT_COSTS.videoShort} cr)
                     </>
                   )}
                 </Button>
@@ -1107,7 +1122,7 @@ const handleGenerateAudio = async () => {
                   ) : (
                     <>
                       <Volume2 className="w-4 h-4 mr-2" />
-                      Add Narration
+                      Add Narration ({CREDIT_COSTS.audioPerChapter} cr)
                     </>
                   )}
                 </Button>

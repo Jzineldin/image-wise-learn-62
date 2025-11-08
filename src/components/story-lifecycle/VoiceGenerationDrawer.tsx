@@ -65,15 +65,14 @@ const AVAILABLE_VOICES = [
   { id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Rachel (Calm)', language: 'en' },
 ];
 
-// Calculate word count for credit estimation
+// Calculate word count for display purposes
 const countWords = (text: string): number => {
   return text.trim().split(/\s+/).length;
 };
 
-// Calculate audio credits (1 credit per 100 words)
-const calculateAudioCredits = (text: string): number => {
-  const wordCount = countWords(text);
-  return Math.ceil(wordCount / 100);
+// Flat rate audio credits per chapter
+const calculateAudioCredits = (): number => {
+  return CREDIT_COSTS.audioPerChapter;
 };
 
 export function VoiceGenerationDrawer({
@@ -92,7 +91,7 @@ export function VoiceGenerationDrawer({
   const [playing, setPlaying] = useState(false);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
 
-  const creditsRequired = calculateAudioCredits(chapter.content);
+  const creditsRequired = calculateAudioCredits();
   const wordCount = countWords(chapter.content);
 
   useEffect(() => {
@@ -177,6 +176,7 @@ export function VoiceGenerationDrawer({
 
       // Call audio generation API
       const result = await AIClient.invoke('generate-story-audio', {
+        text: chapter.content,
         segment_id: chapter.id,
         voice_id: voiceId,
         speed,
@@ -278,7 +278,7 @@ export function VoiceGenerationDrawer({
               <p className="text-sm text-[#C9C5D5] line-clamp-6">{chapter.content}</p>
             </div>
             <p className="text-xs text-[#C9C5D5] mt-1">
-              {wordCount} words • {creditsRequired} credit{creditsRequired !== 1 ? 's' : ''} required
+              {wordCount} words • <span className="font-semibold text-primary">{creditsRequired} credits</span> to generate voice
             </p>
           </div>
 
@@ -406,14 +406,14 @@ export function VoiceGenerationDrawer({
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Generate ({creditsRequired} credit{creditsRequired !== 1 ? 's' : ''})
+                  Generate ({creditsRequired} credits)
                 </>
               )}
             </Button>
           </div>
 
           <p className="text-xs text-[#C9C5D5] text-center italic">
-            Voice generation uses your credit balance. Each 100 words costs 1 credit.
+            Voice generation uses your credit balance. Each chapter costs {CREDIT_COSTS.audioPerChapter} credits.
           </p>
         </div>
       </SheetContent>

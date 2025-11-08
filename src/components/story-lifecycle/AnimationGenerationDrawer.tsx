@@ -24,6 +24,7 @@ import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
+import { CREDIT_COSTS } from '@/lib/constants/api-constants';
 import { Video, Play, Loader2, Sparkles, AlertCircle, Image as ImageIcon } from 'lucide-react';
 
 interface Chapter {
@@ -50,8 +51,16 @@ interface AnimationGenerationDrawerProps {
   onSuccess: () => void;
 }
 
-// Video generation costs (estimated)
-const VIDEO_CREDIT_COST = 5; // 5 credits per video
+// Calculate video credits based on duration
+const calculateVideoCredits = (durationSec: number): number => {
+  if (durationSec <= 8) {
+    return CREDIT_COSTS.videoShort; // 5 credits for short videos (≤8s)
+  } else if (durationSec <= 15) {
+    return CREDIT_COSTS.videoMedium; // 8 credits for medium videos (9-15s)
+  } else {
+    return CREDIT_COSTS.videoLong; // 12 credits for long videos (16-30s)
+  }
+};
 
 export function AnimationGenerationDrawer({
   open,
@@ -73,6 +82,9 @@ export function AnimationGenerationDrawer({
   const [generating, setGenerating] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+
+  // Calculate credits required based on duration
+  const creditsRequired = calculateVideoCredits(duration);
 
   // Subscribe to job status updates
   useEffect(() => {
@@ -348,7 +360,7 @@ export function AnimationGenerationDrawer({
           <div>
             <div className="flex items-center justify-between mb-2">
               <Label className="text-[#F4E3B2]">Duration</Label>
-              <span className="text-sm text-[#C9C5D5]">{duration} seconds</span>
+              <span className="text-sm font-semibold text-primary">{duration}s • {creditsRequired} credits</span>
             </div>
             <Slider
               value={[duration]}
@@ -360,9 +372,9 @@ export function AnimationGenerationDrawer({
               disabled={generating}
             />
             <div className="flex justify-between text-xs text-[#C9C5D5] mt-1">
-              <span>5s (Short)</span>
-              <span>15s</span>
-              <span>30s (Long)</span>
+              <span>5s ({CREDIT_COSTS.videoShort} cr)</span>
+              <span>15s ({CREDIT_COSTS.videoMedium} cr)</span>
+              <span>30s ({CREDIT_COSTS.videoLong} cr)</span>
             </div>
           </div>
 
@@ -468,14 +480,14 @@ export function AnimationGenerationDrawer({
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Generate ({VIDEO_CREDIT_COST} credits)
+                  Generate ({creditsRequired} credits)
                 </>
               )}
             </Button>
           </div>
 
           <p className="text-xs text-[#C9C5D5] text-center italic">
-            Video generation costs {VIDEO_CREDIT_COST} credits and may take 2-5 minutes to complete.
+            Video generation costs <span className="font-semibold text-primary">{creditsRequired} credits</span> for {duration}s duration and may take 2-5 minutes to complete.
           </p>
         </div>
       </SheetContent>

@@ -120,7 +120,16 @@ export default function QuickStartForm() {
         });
       }
 
-      await supabase.from('stories').update({ status: 'active' }).eq('id', story.id);
+      const { error: updateError } = await supabase.from('stories').update({ status: 'active' }).eq('id', story.id);
+      if (updateError) {
+        console.error('[QuickStartForm] Failed to update story status:', updateError);
+      }
+      console.log('[QuickStartForm] Story created successfully:', {
+        storyId: story.id,
+        userId: user.id,
+        status: 'active',
+        navigatingTo: `/story/${story.id}`
+      });
       navigate(`/story/${story.id}`);
     } catch (err: any) {
       if (err instanceof InsufficientCreditsError) {
