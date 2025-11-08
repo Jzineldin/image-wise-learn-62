@@ -41,10 +41,136 @@ const AnalyticsDashboard = () => {
   const { toast } = useToast();
   const [userAnalytics, setUserAnalytics] = useState<UserAnalytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+  const [liveActivity, setLiveActivity] = useState<Array<{
+    id: string;
+    type: 'story' | 'credit' | 'user';
+    message: string;
+    timestamp: Date;
+  }>>([]);
+  const [isLive, setIsLive] = useState(false);
 
   useEffect(() => {
     fetchUserAnalytics();
   }, [timeRange]);
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    logger.info('Setting up real-time analytics subscriptions');
+    
+    const storiesChannel = supabase
+      .channel('realtime-stories')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'stories'
+        },
+        (payload) => {
+          logger.info('Real-time story created', payload);
+          const newStory = payload.new as any;
+          setLiveActivity(prev => [{
+            id: `story-${newStory.id}`,
+            type: 'story',
+            message: `New story created: "${newStory.title}" (${newStory.genre})`,
+            timestamp: new Date()
+          }, ...prev.slice(0, 19)]);
+          
+          // Update story count in analytics
+          if (userAnalytics) {
+            const today = format(new Date(), 'MMM dd');
+            setUserAnalytics(prev => {
+              if (!prev) return prev;
+              const updated = { ...prev };
+              const todayIndex = updated.storyCreationPattern.findIndex(d => d.date === today);
+              if (todayIndex >= 0) {
+                updated.storyCreationPattern[todayIndex].count++;
+              }
+              return updated;
+            });
+          }
+        }
+      )
+      .subscribe((status) => {
+        logger.info('Stories channel status', { status });
+        setIsLive(status === 'SUBSCRIBED');
+      });
+
+    const creditsChannel = supabase
+      .channel('realtime-credits')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'credit_transactions'
+        },
+        (payload) => {
+          logger.info('Real-time credit transaction', payload);
+          const newTx = payload.new as any;
+          const action = newTx.amount > 0 ? 'earned' : 'spent';
+          setLiveActivity(prev => [{
+            id: `credit-${newTx.id}`,
+            type: 'credit',
+            message: `User ${action} ${Math.abs(newTx.amount)} credits (${newTx.transaction_type})`,
+            timestamp: new Date()
+          }, ...prev.slice(0, 19)]);
+
+          // Update credit trend
+          if (userAnalytics) {
+            const today = format(new Date(), 'MMM dd');
+            setUserAnalytics(prev => {
+              if (!prev) return prev;
+              const updated = { ...prev };
+              const todayIndex = updated.creditUsageTrend.findIndex(d => d.date === today);
+              if (todayIndex >= 0) {
+                if (newTx.amount < 0) {
+                  updated.creditUsageTrend[todayIndex].spent += Math.abs(newTx.amount);
+                } else {
+                  updated.creditUsageTrend[todayIndex].earned += newTx.amount;
+                }
+              }
+              return updated;
+            });
+          }
+        }
+      )
+      .subscribe((status) => {
+        logger.info('Credits channel status', { status });
+      });
+
+    const usersChannel = supabase
+      .channel('realtime-users')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'profiles'
+        },
+        (payload) => {
+          logger.info('Real-time user created', payload);
+          const newUser = payload.new as any;
+          setLiveActivity(prev => [{
+            id: `user-${newUser.id}`,
+            type: 'user',
+            message: `New user joined: ${newUser.email || 'Anonymous'}`,
+            timestamp: new Date()
+          }, ...prev.slice(0, 19)]);
+        }
+      )
+      .subscribe((status) => {
+        logger.info('Users channel status', { status });
+      });
+
+    return () => {
+      logger.info('Cleaning up real-time subscriptions');
+      supabase.removeChannel(storiesChannel);
+      supabase.removeChannel(creditsChannel);
+      supabase.removeChannel(usersChannel);
+      setIsLive(false);
+    };
+  }, [userAnalytics]);
 
   const getDaysCount = (range: string) => {
     switch (range) {
@@ -233,9 +359,19 @@ const AnalyticsDashboard = () => {
     <div className="space-y-6">
       {/* Header with Controls */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold">Analytics Dashboard</h2>
-          <p className="text-text-secondary">Platform usage and performance metrics</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              Analytics Dashboard
+              {isLive && (
+                <span className="flex items-center gap-1 text-sm font-normal text-green-500">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  Live
+                </span>
+              )}
+            </h2>
+            <p className="text-text-secondary">Platform usage and performance metrics</p>
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <Select value={timeRange} onValueChange={setTimeRange}>
@@ -343,6 +479,58 @@ const AnalyticsDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Live Activity Feed */}
+      {liveActivity.length > 0 && (
+        <Card className="glass-card-elevated">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="w-5 h-5" />
+                Live Activity Feed
+                {isLive && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />}
+              </CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setLiveActivity([])}
+              >
+                Clear
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {liveActivity.map((activity) => (
+                <div 
+                  key={activity.id} 
+                  className={`flex items-start gap-3 p-3 rounded-lg border ${
+                    activity.type === 'story' 
+                      ? 'bg-blue-500/5 border-blue-500/20' 
+                      : activity.type === 'credit' 
+                      ? 'bg-yellow-500/5 border-yellow-500/20'
+                      : 'bg-green-500/5 border-green-500/20'
+                  } animate-in fade-in slide-in-from-right-2 duration-300`}
+                >
+                  <div className={`w-2 h-2 mt-2 rounded-full ${
+                    activity.type === 'story' 
+                      ? 'bg-blue-500' 
+                      : activity.type === 'credit' 
+                      ? 'bg-yellow-500'
+                      : 'bg-green-500'
+                  }`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm">{activity.message}</p>
+                    <p className="text-xs text-text-secondary mt-1">
+                      {format(activity.timestamp, 'HH:mm:ss')}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Detailed Analytics Charts */}
       {loadingAnalytics ? (
