@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { logger, generateRequestId } from '@/lib/debug';
 import { AIClient, AIClientError, InsufficientCreditsError } from '@/lib/api/ai-client';
+import { CreditCostPreview } from '@/components/story-viewer/CreditCostPreview';
 
 interface Story {
   id: string;
@@ -544,7 +545,7 @@ const StoryEnd = () => {
                   {segmentsWithoutAudio} segments don't have audio yet. Generate audio to create a fully immersive experience.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 space-y-3">
                 <Button
                   onClick={generateMissingAudio}
                   disabled={generatingAudio}
@@ -563,6 +564,11 @@ const StoryEnd = () => {
                     </>
                   )}
                 </Button>
+                {!generatingAudio && segmentsWithoutAudio > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    Estimated cost: {Math.ceil(segments.filter(s => !s.audio_url).reduce((acc, s) => acc + s.content.split(/\s+/).length, 0) / 100)} credits for {segmentsWithoutAudio} segment{segmentsWithoutAudio > 1 ? 's' : ''}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

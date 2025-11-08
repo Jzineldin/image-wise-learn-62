@@ -28,6 +28,7 @@ import {
   Coins
 } from 'lucide-react';
 import { logger } from '@/lib/logger';
+import { CreditCostPreview } from './CreditCostPreview';
 
 interface StorySidebarProps {
   story: {
@@ -160,24 +161,30 @@ export const StorySidebar = ({
             <VoiceSelector selectedVoice={selectedVoice} onVoiceChange={onVoiceChange} />
 
             {!hasAudio && (
-              <Button
-                onClick={() => {
-                  logger.userAction('Generate audio clicked', {
-                    segmentId: currentSegment?.id,
-                    component: 'StorySidebar'
-                  });
-                  onGenerateAudio();
-                }}
-                disabled={generatingAudio || creditLocked || isCompleted || !currentSegment?.content}
-                variant="outline"
-                className="w-full"
-              >
-                <Wand2 className="h-4 w-4 mr-2" />
-                {!currentSegment?.content ? 'No Content Available' : 'Add Voice Narration'}
+              <div className="space-y-2">
+                <Button
+                  onClick={() => {
+                    logger.userAction('Generate audio clicked', {
+                      segmentId: currentSegment?.id,
+                      component: 'StorySidebar'
+                    });
+                    onGenerateAudio();
+                  }}
+                  disabled={generatingAudio || creditLocked || isCompleted || !currentSegment?.content}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  {!currentSegment?.content ? 'No Content Available' : 'Add Voice Narration'}
+                </Button>
                 {currentSegment?.content && !generatingAudio && (
-                  <Badge variant="secondary" className="ml-2">2 credits</Badge>
+                  <CreditCostPreview 
+                    type="audio" 
+                    wordCount={currentSegment.content.split(/\s+/).filter(w => w.length > 0).length}
+                    className="justify-center"
+                  />
                 )}
-              </Button>
+              </div>
             )}
 
             {hasAudio && (
@@ -210,25 +217,27 @@ export const StorySidebar = ({
           </h3>
 
           <div className="space-y-3">
-            <Button
-              onClick={() => {
-                logger.userAction('Generate image clicked', {
-                  segmentId: currentSegment?.id,
-                  hasExistingImage: hasImage,
-                  component: 'StorySidebar'
-                });
-                onGenerateImage();
-              }}
-              disabled={generatingImage || creditLocked || isCompleted}
-              variant="outline"
-              className="w-full"
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              {hasImage ? 'Regenerate Image' : 'Add Illustration'}
+            <div className="space-y-2">
+              <Button
+                onClick={() => {
+                  logger.userAction('Generate image clicked', {
+                    segmentId: currentSegment?.id,
+                    hasExistingImage: hasImage,
+                    component: 'StorySidebar'
+                  });
+                  onGenerateImage();
+                }}
+                disabled={generatingImage || creditLocked || isCompleted}
+                variant="outline"
+                className="w-full"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                {hasImage ? 'Regenerate Image' : 'Add Illustration'}
+              </Button>
               {!hasImage && !generatingImage && (
-                <Badge variant="secondary" className="ml-2">1 credit</Badge>
+                <CreditCostPreview type="image" className="justify-center" />
               )}
-            </Button>
+            </div>
 
             {hasImage && (
               <div className="grid grid-cols-2 gap-2">

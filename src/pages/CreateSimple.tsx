@@ -20,6 +20,7 @@ import CreditDisplay from '@/components/CreditDisplay';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import { SimpleStoryForm } from '@/components/story-creation/SimpleStoryForm';
 import { StoryGenerationProgress } from '@/components/story-creation/StoryGenerationProgress';
+import { CreditCostPreview } from '@/components/story-viewer/CreditCostPreview';
 import { logger, generateRequestId } from '@/lib/utils/debug';
 import { normalizeAgeGroup, toDatabaseFormat } from '@/lib/utils/age-group';
 
@@ -214,9 +215,12 @@ export default function CreateSimple() {
           <h2 className="text-4xl md:text-5xl font-bold mb-4">
             Where Every Story Becomes an Adventure
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-4">
             Create personalized, interactive stories in seconds. Choose Quick Start for instant magic, or Story Wizard for complete control.
           </p>
+          <div className="flex justify-center">
+            <CreditCostPreview type="story" />
+          </div>
         </div>
 
         {/* Story Form */}

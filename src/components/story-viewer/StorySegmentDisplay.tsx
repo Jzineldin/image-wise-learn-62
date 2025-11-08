@@ -5,6 +5,7 @@ import { AudioControls } from './AudioControls';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { VideoGenerationPanel } from './VideoGenerationPanel';
 import { isStoryCompleted } from '@/lib/helpers/story-helpers';
+import { CreditCostPreview } from './CreditCostPreview';
 import {
   Tooltip,
   TooltipContent,
@@ -102,18 +103,21 @@ export const StorySegmentDisplay = ({
               ) : (
                 <>
                   <Sparkles className="h-12 w-12 text-muted-foreground mx-auto" />
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">No image yet</p>
                     {viewMode === 'creation' && isOwner && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onGenerateImage(segment)}
-                        className="text-xs"
-                      >
-                        <Sparkles className="h-3 w-3 mr-1" />
-                        Generate Image
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onGenerateImage(segment)}
+                          className="text-xs"
+                        >
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          Generate Image
+                        </Button>
+                        <CreditCostPreview type="image" />
+                      </>
                     )}
                   </div>
                 </>
