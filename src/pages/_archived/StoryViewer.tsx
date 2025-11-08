@@ -626,7 +626,7 @@ const StoryViewer = () => {
           ageGroup: story.age_group
         });
 
-        const mainCharacter = story.characters?.[0] || story.metadata?.characters?.[0];
+        const mainCharacter = story.metadata?.characters?.[0];
         const characterName = mainCharacter?.name || 'the hero';
         const characterTraits = mainCharacter?.personality?.join?.(', ') || mainCharacter?.personality_traits?.join?.(', ');
 
@@ -1316,7 +1316,8 @@ const StoryViewer = () => {
             <div className="flex items-center gap-2">
               {/* Mode Toggle */}
               <StoryModeToggle
-                viewMode={viewMode}
+                mode={viewMode}
+                isOwner={story?.user_id === user?.id}
                 onModeChange={(mode) => {
                   setViewMode(mode);
                   setSearchParams(prev => {

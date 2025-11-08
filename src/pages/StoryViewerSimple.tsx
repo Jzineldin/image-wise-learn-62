@@ -220,7 +220,7 @@ export default function StoryViewerSimple() {
               .select('*')
               .eq('story_id', story.id)
               .order('segment_number', { ascending: true });
-            setSegments(segs || []);
+            setSegments((segs || []) as unknown as StorySegment[]);
           } else {
             setPollTries((n) => n + 1);
           }
@@ -246,7 +246,7 @@ export default function StoryViewerSimple() {
       if (storyError) throw storyError;
       if (!storyData) throw new Error('Story not found');
 
-      setStory(storyData);
+      setStory(storyData as Story);
 
       // Load segments
       const { data: segmentData, error: segmentError } = await supabase
@@ -257,7 +257,7 @@ export default function StoryViewerSimple() {
 
       if (segmentError) throw segmentError;
 
-      setSegments(segmentData || []);
+      setSegments((segmentData || []) as unknown as StorySegment[]);
     } catch (error: any) {
       logger.error('Failed to load story', error);
       toast({
@@ -802,10 +802,10 @@ const handleGenerateAudio = async () => {
             .rpc('mark_story_ready', { story_uuid: id });
 
           if (readyError) {
-            logger.error('Failed to mark story as ready', readyError);
+            logger.error('Failed to mark story as ready', readyError as any);
             // Don't throw - story ending was generated successfully
           } else {
-            logger.info('Story marked as ready', readyData);
+            logger.info('Story marked as ready', readyData as any);
           }
         } catch (err) {
           logger.error('Error updating story status to ready', err);
@@ -1195,9 +1195,10 @@ const handleGenerateAudio = async () => {
       {/* Insufficient Credits Dialog */}
       <InsufficientCreditsDialog
         open={showInsufficientCredits}
-        onClose={() => setShowInsufficientCredits(false)}
-        creditsRequired={creditError?.required || 0}
-        creditsAvailable={creditError?.available || 0}
+        onOpenChange={(open) => setShowInsufficientCredits(open)}
+        requiredCredits={creditError?.required || 0}
+        availableCredits={creditError?.available || 0}
+        operation="continue the story"
       />
 
       {/* End Story Dialog */}

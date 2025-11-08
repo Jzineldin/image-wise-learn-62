@@ -41,10 +41,10 @@ export const exportStoryToPDF = async (
 
     // Configure PDF options
     const pdfOptions = {
-      margin: [0.5, 0.75, 0.5, 0.75], // top, right, bottom, left (in inches)
+      margin: [0.5, 0.75, 0.5, 0.75] as [number, number, number, number], // top, right, bottom, left (in inches)
       filename: generateFilename(title),
       image: {
-        type: 'jpeg',
+        type: 'jpeg' as const,
         quality: 0.95
       },
       html2canvas: {
@@ -59,7 +59,7 @@ export const exportStoryToPDF = async (
       jsPDF: {
         unit: 'in',
         format: 'letter',
-        orientation: 'portrait',
+        orientation: 'portrait' as const,
         compress: true
       },
       pagebreak: {

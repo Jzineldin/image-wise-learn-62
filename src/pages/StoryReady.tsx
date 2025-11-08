@@ -120,7 +120,14 @@ const StatusBadge = ({ status, type }: { status: string; type: 'voice' | 'animat
     },
   };
 
-  const config = variants[type][status as keyof typeof variants[typeof type]] || variants[type].none;
+  let config;
+  if (type === 'voice') {
+    config = variants.voice[status as keyof typeof variants.voice] || variants.voice.none;
+  } else if (type === 'animation') {
+    config = variants.animation[status as keyof typeof variants.animation] || variants.animation.none;
+  } else {
+    config = variants.details[status as keyof typeof variants.details] || variants.details.incomplete;
+  }
 
   return (
     <Badge variant={config.variant} className="gap-1">
@@ -211,14 +218,14 @@ export default function StoryReady() {
         .order('segment_number');
 
       if (chaptersError) throw chaptersError;
-      setChapters(chaptersData || []);
+      setChapters((chaptersData || []) as Chapter[]);
 
       // Get readiness summary
       const { data: readinessData, error: readinessError } = await supabase
         .rpc('get_story_readiness', { story_uuid: id });
 
       if (!readinessError && readinessData) {
-        setReadiness(readinessData);
+        setReadiness(readinessData as unknown as ReadinessSummary);
       }
     } catch (error) {
       logger.error('Failed to load story data', error);
