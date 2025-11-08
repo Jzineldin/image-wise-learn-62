@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { AIClient, InsufficientCreditsError } from '@/lib/api/ai-client';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
+import { calculateAudioCredits } from '@/../../shared/credit-costs';
 import { CREDIT_COSTS } from '@/lib/constants/api-constants';
 import { Home, ChevronLeft, ChevronRight, Sparkles, Loader2, Volume2, Video, Play, Pause } from 'lucide-react';
 import { logger, generateRequestId } from '@/lib/utils/debug';
@@ -83,6 +84,7 @@ export default function StoryViewerSimple() {
 
   // Async video generation state
   const [activeVideoJobs, setActiveVideoJobs] = useState<Set<string>>(new Set());
+  const [selectedVideoDuration, setSelectedVideoDuration] = useState<3 | 5 | 8>(3);
 
   // Load story and segments
   useEffect(() => {
@@ -1077,33 +1079,48 @@ const handleGenerateAudio = async () => {
             {/* Media Generation Buttons */}
             <div className="flex gap-2">
               {currentSegment.image_url && !currentSegment.video_url && (
-                <Button
-                  variant={videoError ? "destructive" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    logger.info('Video generation button clicked', { hasError: !!videoError });
-                    handleGenerateVideo();
-                  }}
-                  disabled={isGeneratingVideo || activeVideoJobs.has(currentSegment.id)}
-                  className="flex-1"
-                >
-                  {isGeneratingVideo || activeVideoJobs.has(currentSegment.id) ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      {activeVideoJobs.has(currentSegment.id) ? 'Generating...' : 'Starting...'}
-                    </>
-                  ) : videoError ? (
-                    <>
-                      <Video className="w-4 h-4 mr-2" />
-                      Retry Video
-                    </>
-                  ) : (
-                    <>
-                      <Video className="w-4 h-4 mr-2" />
-                      Animate Scene ({CREDIT_COSTS.videoShort} cr)
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2 flex-1">
+                  <Select
+                    value={selectedVideoDuration.toString()}
+                    onValueChange={(value) => setSelectedVideoDuration(parseInt(value) as 3 | 5 | 8)}
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3">{CREDIT_COSTS.videoShort}cr (2-3s)</SelectItem>
+                      <SelectItem value="5">{CREDIT_COSTS.videoMedium}cr (4-5s)</SelectItem>
+                      <SelectItem value="8">{CREDIT_COSTS.videoLong}cr (6-8s)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant={videoError ? "destructive" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      logger.info('Video generation button clicked', { hasError: !!videoError, duration: selectedVideoDuration });
+                      handleGenerateVideo();
+                    }}
+                    disabled={isGeneratingVideo || activeVideoJobs.has(currentSegment.id)}
+                    className="flex-1"
+                  >
+                    {isGeneratingVideo || activeVideoJobs.has(currentSegment.id) ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {activeVideoJobs.has(currentSegment.id) ? 'Generating...' : 'Starting...'}
+                      </>
+                    ) : videoError ? (
+                      <>
+                        <Video className="w-4 h-4 mr-2" />
+                        Retry Video
+                      </>
+                    ) : (
+                      <>
+                        <Video className="w-4 h-4 mr-2" />
+                        Animate Scene
+                      </>
+                    )}
+                  </Button>
+                </div>
               )}
 
               {!currentSegment.audio_url && (
@@ -1122,7 +1139,7 @@ const handleGenerateAudio = async () => {
                   ) : (
                     <>
                       <Volume2 className="w-4 h-4 mr-2" />
-                      Add Narration ({CREDIT_COSTS.audioPerChapter} cr)
+                      Add Narration ({calculateAudioCredits(currentSegment.content)} cr)
                     </>
                   )}
                 </Button>
