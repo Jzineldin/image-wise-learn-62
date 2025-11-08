@@ -65,3 +65,6 @@ verify_jwt = true
 
 [functions.generate-story-page-v2]
 verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false  # Stripe webhooks can't provide JWT - signature verified instead

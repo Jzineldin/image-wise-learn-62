@@ -43,11 +43,16 @@ export class AIClientError extends Error {
 }
 
 export class InsufficientCreditsError extends AIClientError {
+  public creditsRequired: number;
+  public creditsAvailable: number;
+  
   constructor(
     public required: number,
     public available: number
   ) {
     super(`Insufficient credits. Required: ${required}, Available: ${available}`, 'INSUFFICIENT_CREDITS', 400);
+    this.creditsRequired = required;
+    this.creditsAvailable = available;
   }
 }
 

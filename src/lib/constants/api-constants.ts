@@ -15,20 +15,11 @@ export const RETRY_ATTEMPTS = {
   image: 2,
 };
 
-export const CREDIT_COSTS = {
-  // Story creation - FREE for Starter tier and above
-  story: 0,           // Unlimited story creation
-  segment: 0,         // Unlimited pages/chapters
-  image: 0,           // Unlimited image generation
+// DEPRECATED: Use shared/credit-costs.ts instead
+// This is kept for backwards compatibility only
+import { CREDIT_COSTS as SHARED_COSTS } from '../../../shared/credit-costs';
 
-  // Enhancements - PAID (credits required)
-  audioPerChapter: 2, // Flat rate per chapter (simpler than word-based)
-
-  // Video animation costs (based on duration)
-  videoShort: 5,      // 2-3 seconds
-  videoMedium: 8,     // 4-5 seconds
-  videoLong: 12,      // 6-8 seconds
-};
+export const CREDIT_COSTS = SHARED_COSTS;
 
 // Legacy TTS pricing (kept for backwards compatibility)
 export const TTS_PRICING = {
