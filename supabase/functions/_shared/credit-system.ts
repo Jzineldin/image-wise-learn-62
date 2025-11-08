@@ -3,9 +3,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { logger } from './logger.ts';
 
-// SINGLE SOURCE OF TRUTH: Import from shared credit costs
-// @deno-types="../../../shared/credit-costs.ts"
-import { CREDIT_COSTS as SHARED_COSTS, calculateAudioCredits as sharedCalculateAudioCredits } from '../../../shared/credit-costs.ts';
+// Import from local edge functions copy
+import { CREDIT_COSTS as SHARED_COSTS, calculateAudioCredits as sharedCalculateAudioCredits } from './credit-costs.ts';
 
 export interface CreditCosts {
   storyGeneration: number;

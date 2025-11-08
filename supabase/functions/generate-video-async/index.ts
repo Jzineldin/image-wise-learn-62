@@ -11,8 +11,7 @@ import { ResponseHandler } from '../_shared/response-handlers.ts';
 import { logger } from '../_shared/logger.ts';
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import { CreditService } from '../_shared/credit-system.ts';
-// @deno-types="../../../shared/credit-costs.ts"
-import { CREDIT_COSTS } from '../../../shared/credit-costs.ts';
+import { CREDIT_COSTS } from '../_shared/credit-costs.ts';
 
 interface GenerateVideoRequest {
   segment_id: string;
