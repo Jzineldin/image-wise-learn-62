@@ -10,6 +10,9 @@ import { createSupabaseClient } from '../_shared/supabase-client.ts';
 import { ResponseHandler } from '../_shared/response-handlers.ts';
 import { logger } from '../_shared/logger.ts';
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
+import { CreditService } from '../_shared/credit-system.ts';
+// @deno-types="../../../shared/credit-costs.ts"
+import { CREDIT_COSTS } from '../../../shared/credit-costs.ts';
 
 interface GenerateVideoRequest {
   segment_id: string;
@@ -29,6 +32,21 @@ Deno.serve(async (req) => {
   try {
     logger.info('Async video generation started', { requestId });
 
+    // Get authorization header for user authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return ResponseHandler.unauthorized('Missing authorization header');
+    }
+
+    // Initialize credit service
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const creditService = new CreditService(supabaseUrl, supabaseServiceKey, authHeader);
+
+    // Get user ID
+    const userId = await creditService.getUserId();
+    logger.info('User authenticated', { userId, requestId });
+
     // Parse request
     let body: GenerateVideoRequest;
     try {
@@ -39,6 +57,36 @@ Deno.serve(async (req) => {
     }
 
     const { segment_id, imageUrl, imageBase64, prompt, includeNarration = false } = body;
+
+    // Videos are always 8 seconds with Veo 3.1 Fast (image-to-video limitation)
+    const VIDEO_CREDITS = CREDIT_COSTS.videoLong; // 12 credits for 8-second video
+
+    // Validate credits BEFORE creating job
+    const { hasCredits, currentCredits } = await creditService.checkUserCredits(userId, VIDEO_CREDITS);
+    if (!hasCredits) {
+      logger.error('Insufficient credits for video generation', {
+        userId,
+        required: VIDEO_CREDITS,
+        available: currentCredits,
+        requestId
+      });
+      return ResponseHandler.error(
+        'INSUFFICIENT_CREDITS',
+        402,
+        {
+          required: VIDEO_CREDITS,
+          available: currentCredits,
+          message: `Insufficient credits. Required: ${VIDEO_CREDITS}, Available: ${currentCredits}`
+        }
+      );
+    }
+
+    logger.info('Credits validated for video generation', {
+      userId,
+      creditsRequired: VIDEO_CREDITS,
+      availableCredits: currentCredits,
+      requestId
+    });
 
     // Get image as base64
     let imgBase64 = imageBase64;
@@ -86,12 +134,15 @@ Deno.serve(async (req) => {
     });
 
     // Start background processing (don't await!)
+    // Pass userId and VIDEO_CREDITS for deduction after success
     processVideoGeneration(
       job.id,
       segment_id,
       imgBase64,
       prompt,
-      includeNarration
+      includeNarration,
+      userId,
+      VIDEO_CREDITS
     ).catch(async (error) => {
       logger.error('Background video generation failed', {
         jobId: job.id,
@@ -143,7 +194,9 @@ async function processVideoGeneration(
   segmentId: string,
   imageBase64: string,
   prompt: string,
-  includeNarration: boolean
+  includeNarration: boolean,
+  userId: string,
+  creditsToDeduct: number
 ) {
   const supabase = createSupabaseClient(true);
 
@@ -220,6 +273,41 @@ async function processVideoGeneration(
         video_generation_status: 'completed'
       })
       .eq('id', segmentId);
+
+    // Deduct credits after successful generation
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const creditService = new CreditService(supabaseUrl, supabaseServiceKey);
+
+      await creditService.deductCredits(
+        userId,
+        creditsToDeduct,
+        'Video generation (Veo 3.1 Fast - 8 seconds)',
+        segmentId,
+        'video_generation',
+        {
+          jobId,
+          segmentId,
+          duration: '8 seconds',
+          provider: 'Veo 3.1 Fast'
+        }
+      );
+
+      logger.info('Credits deducted successfully', {
+        jobId,
+        userId,
+        creditsDeducted: creditsToDeduct
+      });
+    } catch (creditError) {
+      // Log error but don't fail the video generation
+      logger.error('Failed to deduct credits (video still generated)', {
+        jobId,
+        userId,
+        error: creditError,
+        creditsToDeduct
+      });
+    }
 
     // Update job to completed status
     await supabase
