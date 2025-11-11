@@ -45,16 +45,15 @@ export const VideoGenerationPanel = ({
         operation: 'video-generation-start'
       });
 
-      // Call the Edge Function to generate video
+      // Call the Edge Function to generate video (using v2 endpoint)
       const { data, error: functionError } = await supabase.functions.invoke(
-        'generate-story-video',
+        'generate-video-v2',
         {
           body: {
             segment_id: segmentId,
-            story_id: storyId,
-            image_url: imageUrl,
+            imageUrl: imageUrl,
             prompt: segmentContent.slice(0, 200), // Use first 200 chars as motion prompt
-            wait_for_completion: true // Wait for video to complete
+            includeNarration: false
           }
         }
       );
@@ -77,9 +76,8 @@ export const VideoGenerationPanel = ({
         throw new Error(data?.error || 'Failed to generate video');
       }
 
-      if (data.status === 'completed' && data.video_url) {
+      if (data.video_url) {
         setVideoUrl(data.video_url);
-        setTaskId(data.task_id);
         setStatus('completed');
         setProgress(100);
 

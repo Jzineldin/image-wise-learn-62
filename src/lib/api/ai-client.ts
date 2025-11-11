@@ -470,7 +470,7 @@ export class AIClient {
   }
 
   /**
-   * Generate video for story segment with proper error handling
+   * Generate video for story segment using v2 endpoint with subscription check
    */
   static async generateStoryVideo(params: {
     segmentId: string;
@@ -479,19 +479,17 @@ export class AIClient {
     prompt?: string;
     waitForCompletion?: boolean;
   }) {
-    // Map camelCase IDs to snake_case expected by the Edge Function
-    const { segmentId, storyId, imageUrl, waitForCompletion, ...rest } = params;
+    // Map to v2 endpoint parameters
+    const { segmentId, imageUrl, prompt } = params;
     const body = {
-      ...rest,
       segment_id: segmentId,
-      story_id: storyId,
-      image_url: imageUrl,
-      wait_for_completion: waitForCompletion || false
+      imageUrl: imageUrl,
+      prompt: prompt || '',
+      includeNarration: false
     };
 
-    // Longer timeout if waiting for completion (up to 5 minutes)
-    const timeout = waitForCompletion ? 300000 : 30000;
-    return this.invoke('generate-story-video', body, { timeout, retries: 1 });
+    // V2 endpoint handles video generation synchronously
+    return this.invoke('generate-video-v2', body, { timeout: 180000, retries: 1 });
   }
 
   /**

@@ -86,7 +86,7 @@ export const ChapterLimitDisplay = ({
           isZero ? 'text-destructive' : isLow ? 'text-warning' : 'text-primary'
         }`} />
         <span className="font-medium text-sm">
-          {remaining}/{limit} chapters left today
+          {remaining} {remaining === 1 ? 'chapter' : 'chapters'} remaining today
         </span>
         {isZero && (
           <Clock className="w-3 h-3 text-muted-foreground" />
