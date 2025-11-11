@@ -22,6 +22,7 @@ import { Home, ChevronLeft, ChevronRight, Sparkles, Loader2, Volume2, Video, Pla
 import { logger, generateRequestId } from '@/lib/utils/debug';
 import { normalizeAgeGroup } from '@/lib/utils/age-group';
 import HeroBackground from '@/components/HeroBackground';
+import Navigation from '@/components/Navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { playNarration, AudioController } from '@/lib/utils/audioUtils';
 import { EndStoryDialog } from '@/components/story-viewer/EndStoryDialog';
@@ -844,32 +845,41 @@ const handleGenerateAudio = async () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" />
-      </div>
+      <>
+        <Navigation />
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+      </>
     );
   }
 
   if (!story) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <p>Story not found</p>
-        <Button onClick={() => navigate('/my-stories')}>
-          <Home className="w-4 h-4 mr-2" />
-          Go Home
-        </Button>
-      </div>
+      <>
+        <Navigation />
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+          <p>Story not found</p>
+          <Button onClick={() => navigate('/my-stories')}>
+            <Home className="w-4 h-4 mr-2" />
+            Go Home
+          </Button>
+        </div>
+      </>
     );
   }
 
   if (segments.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-center">
+      <>
+        <Navigation />
+        <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-center">
         <Loader2 className="w-8 h-8 animate-spin" />
         <p>Preparing your story5</p>
         <p className="text-sm text-muted-foreground">This can take up to ~30 seconds. We'll load it as soon as it's ready.</p>
         <Button variant="outline" onClick={() => setPollTries(0)}>Refresh</Button>
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -890,10 +900,12 @@ const handleGenerateAudio = async () => {
   });
 
   return (
-    <div className="min-h-screen relative">
-      <HeroBackground />
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+    <>
+      <Navigation />
+      <div className="min-h-screen relative">
+        <HeroBackground />
+        {/* Header */}
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate('/my-stories')}>
@@ -1223,6 +1235,7 @@ const handleGenerateAudio = async () => {
         onCancel={() => setShowEndStoryDialog(false)}
         hasExistingEnding={!!segments.find(s => s.is_ending)}
       />
-    </div>
+      </div>
+    </>
   );
 }

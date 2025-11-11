@@ -7,6 +7,7 @@ import { useState } from "react";
 import HeroBackground from "@/components/HeroBackground";
 import QuickStartForm from "@/components/QuickStartForm";
 import StoryWizard from "@/components/StoryWizard";
+import Navigation from "@/components/Navigation";
 
 export default function CreatePage() {
 
@@ -16,8 +17,10 @@ export default function CreatePage() {
 
 
   return (
-    <div className="relative min-h-screen text-white">
-      <HeroBackground />
+    <>
+      <Navigation />
+      <div className="relative min-h-screen text-white">
+        <HeroBackground />
       <main className="relative z-10 mx-auto max-w-xl px-4 py-16">
         <div className="rounded-3xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)]">
           <header className="px-5 pt-6 md:px-8 md:pt-8 text-center">
@@ -59,7 +62,8 @@ export default function CreatePage() {
           </section>
         </div>
       </main>
-    </div>
+      </div>
+    </>
   );
 }
 
