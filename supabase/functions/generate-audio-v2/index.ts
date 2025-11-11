@@ -39,6 +39,36 @@ Deno.serve(async (req) => {
     const userId = await creditService.getUserId();
     logger.info('User authenticated', { userId, requestId });
 
+    // Check if user has paid subscription (TTS requires subscription)
+    const { data: userProfile, error: profileError } = await creditService.supabase
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', userId)
+      .single();
+
+    if (profileError || !userProfile) {
+      logger.error('Failed to fetch user profile', { userId, error: profileError });
+      throw new Error('Failed to verify subscription status');
+    }
+
+    const isPaidUser = userProfile.subscription_tier !== 'free';
+
+    if (!isPaidUser) {
+      logger.warn('Free user attempted to use TTS', { userId, requestId });
+      return ResponseHandler.error(
+        'TTS_REQUIRES_SUBSCRIPTION',
+        403, // Forbidden
+        {
+          error: 'feature_locked',
+          message: 'Text-to-Speech (TTS) narration is only available for paid subscribers. Upgrade to unlock!',
+          feature: 'tts',
+          upgradeUrl: '/pricing'
+        }
+      );
+    }
+
+    logger.info('Subscription check passed for TTS', { userId, tier: userProfile.subscription_tier });
+
     // Parse request
     logger.info('Parsing request body', { requestId });
     const body: GenerateAudioRequest = await req.json();

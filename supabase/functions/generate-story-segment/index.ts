@@ -101,6 +101,54 @@ Deno.serve(async (req) => {
     console.log('🔑 USER ID FROM JWT:', userId);
     logger.info('Story segment generation started', { requestId, userId, operation: 'story-segment-generation' });
 
+    // Check chapter limits (free users only)
+    // Call use_free_chapter RPC which checks and decrements if possible
+    const supabaseAdmin = createSupabaseClient(true);
+    const { data: chapterCheckData, error: chapterCheckError } = await supabaseAdmin.rpc('use_free_chapter', {
+      user_uuid: userId
+    });
+
+    if (chapterCheckError) {
+      logger.error('Failed to check chapter limits', { 
+        requestId, 
+        userId, 
+        error: chapterCheckError.message,
+        operation: 'chapter-limit-check'
+      });
+      // Continue anyway for paid users (they might not have the columns set up yet)
+      // But log the error for monitoring
+    } else if (chapterCheckData && !chapterCheckData.success) {
+      // Free user hit their daily limit
+      logger.warn('Daily chapter limit reached', {
+        requestId,
+        userId,
+        used: chapterCheckData.used,
+        limit: chapterCheckData.limit,
+        operation: 'chapter-limit-check'
+      });
+      
+      return ResponseHandler.error(
+        'Daily chapter limit reached. Upgrade for unlimited chapters!',
+        429, // Too Many Requests
+        { 
+          requestId,
+          error: 'daily_limit_reached',
+          used: chapterCheckData.used,
+          limit: chapterCheckData.limit,
+          remaining: chapterCheckData.remaining || 0,
+          resetAt: chapterCheckData.reset_at,
+          upgradeUrl: '/pricing'
+        }
+      );
+    }
+
+    logger.info('Chapter limit check passed', {
+      requestId,
+      userId,
+      isPaid: chapterCheckData?.is_paid || false,
+      remaining: chapterCheckData?.remaining || 'unlimited'
+    });
+
     // Rate limiting check
     const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
     const rateLimitKey = `segment_generation_${userId}_${clientIp}`;

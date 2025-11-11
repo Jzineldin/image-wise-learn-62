@@ -58,9 +58,67 @@ Deno.serve(async (req) => {
 
     const { segment_id, imageUrl, imageBase64, prompt, includeNarration = false } = body;
 
-    // Skip credit validation for now (like audio V2)
-    // TODO: Add credit validation when user auth is properly set up
-    logger.info('Skipping credit validation for V2', { operation: 'video-generation' });
+    // Get authorization header for user authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return ResponseHandler.unauthorized('Missing authorization header');
+    }
+
+    // Initialize credit service and get user ID
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    // Parse JWT to get user ID
+    let userId: string | null = null;
+    try {
+      const token = authHeader.replace('Bearer ', '');
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      userId = payload.sub;
+      logger.info('User authenticated for video', { userId, requestId });
+    } catch (e) {
+      logger.error('Failed to parse JWT', { error: String(e) });
+      return ResponseHandler.unauthorized('Invalid authorization token');
+    }
+
+    if (!userId) {
+      return ResponseHandler.unauthorized('User ID not found in token');
+    }
+
+    // Check if user has paid subscription (Video requires subscription)
+    const supabase = createSupabaseClient(true);
+    const { data: userProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('subscription_tier')
+      .eq('id', userId)
+      .single();
+
+    if (profileError || !userProfile) {
+      logger.error('Failed to fetch user profile', { userId, error: profileError });
+      throw new Error('Failed to verify subscription status');
+    }
+
+    const isPaidUser = userProfile.subscription_tier !== 'free';
+
+    if (!isPaidUser) {
+      logger.warn('Free user attempted to use Video', { userId, requestId });
+      return ResponseHandler.error(
+        'VIDEO_REQUIRES_SUBSCRIPTION',
+        403, // Forbidden
+        {
+          error: 'feature_locked',
+          message: 'Video animation is only available for paid subscribers. Upgrade to unlock!',
+          feature: 'video',
+          upgradeUrl: '/pricing'
+        }
+      );
+    }
+
+    logger.info('Subscription check passed for Video', { userId, tier: userProfile.subscription_tier });
+
+    // Skip credit validation for now (will be added after subscription gate works)
+    // TODO: Add credit validation after ensuring paid users can access this
+    logger.info('Proceeding with video generation', { operation: 'video-generation' });
+
 
     // Get image as base64
     let imgBase64 = imageBase64;

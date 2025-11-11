@@ -227,9 +227,12 @@ export type Database = {
           display_name: string | null
           email: string | null
           founder_status: string | null
+          free_chapters_used_today: number | null
           full_name: string | null
           id: string
           is_beta_user: boolean | null
+          last_chapter_reset_date: string | null
+          max_active_stories: number | null
           preferred_language: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -247,9 +250,12 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           founder_status?: string | null
+          free_chapters_used_today?: number | null
           full_name?: string | null
           id: string
           is_beta_user?: boolean | null
+          last_chapter_reset_date?: string | null
+          max_active_stories?: number | null
           preferred_language?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -267,9 +273,12 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           founder_status?: string | null
+          free_chapters_used_today?: number | null
           full_name?: string | null
           id?: string
           is_beta_user?: boolean | null
+          last_chapter_reset_date?: string | null
+          max_active_stories?: number | null
           preferred_language?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -1285,6 +1294,7 @@ export type Database = {
         Args: { p_story_id: string; p_visibility: string }
         Returns: boolean
       }
+      check_active_stories: { Args: { user_uuid: string }; Returns: Json }
       check_rate_limit: {
         Args: {
           p_identifier: string
@@ -1316,6 +1326,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_chapter_status: { Args: { user_uuid: string }; Returns: Json }
       get_credit_transactions: {
         Args: { limit_count?: number; user_uuid?: string }
         Returns: {
@@ -1448,6 +1459,7 @@ export type Database = {
         Returns: boolean
       }
       unfinalize_story: { Args: { story_uuid: string }; Returns: Json }
+      use_free_chapter: { Args: { user_uuid: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
