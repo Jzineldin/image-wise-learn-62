@@ -23,7 +23,8 @@ serve(async (req) => {
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
     );
 
     const authHeader = req.headers.get("Authorization");
@@ -43,7 +44,7 @@ serve(async (req) => {
     }
     logger.info('User authenticated', { userId: user.id, email: user.email, operation: 'check-subscription' });
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-06-30.basil" });
+    
 
     // First, check the database subscription_tier field (supports manual upgrades)
     const { data: profile } = await supabaseClient
@@ -74,6 +75,7 @@ serve(async (req) => {
     }
 
     // Otherwise, check Stripe for active subscription
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     let customerId = profile?.stripe_customer_id || null;
 
     if (!customerId) {
