@@ -236,8 +236,7 @@ export const EmailCampaignManager = () => {
               setSubject("Exciting Updates at Tale Forge 🎉");
               setHtmlContent(`<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f9fafb;">
   <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;">
-    <img src="https://tale-forge.app/favicon.ico" alt="Tale Forge Logo" style="width: 64px; height: 64px; margin-bottom: 16px;">
-    <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">Tale Forge</h1>
+    <img src="https://tale-forge.app/tale-forge-logo.png" alt="Tale Forge Logo" style="width: 180px; height: auto; margin-bottom: 16px;">
   </div>
   
   <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -294,7 +293,7 @@ export const EmailCampaignManager = () => {
               setSubject("Welcome to Tale Forge! 🎨");
               setHtmlContent(`<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f9fafb;">
   <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;">
-    <img src="https://tale-forge.app/favicon.ico" alt="Tale Forge Logo" style="width: 64px; height: 64px; margin-bottom: 16px;">
+    <img src="https://tale-forge.app/tale-forge-logo.png" alt="Tale Forge Logo" style="width: 180px; height: auto; margin-bottom: 16px;">
     <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">Welcome to Tale Forge!</h1>
   </div>
   
@@ -333,7 +332,7 @@ export const EmailCampaignManager = () => {
               setSubject("We Miss You on Tale Forge! 📖");
               setHtmlContent(`<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f9fafb;">
   <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;">
-    <img src="https://tale-forge.app/favicon.ico" alt="Tale Forge Logo" style="width: 64px; height: 64px; margin-bottom: 16px;">
+    <img src="https://tale-forge.app/tale-forge-logo.png" alt="Tale Forge Logo" style="width: 180px; height: auto; margin-bottom: 16px;">
     <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">Come Back and Create! 📖</h1>
   </div>
   
