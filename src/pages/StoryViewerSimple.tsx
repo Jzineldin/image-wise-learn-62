@@ -87,7 +87,7 @@ export default function StoryViewerSimple() {
   const [showChapterLimitReached, setShowChapterLimitReached] = useState(false);
 
   // Chapter limits hook
-  const { refetchLimits, chapterStatus } = useChapterLimits();
+  const { refetchLimits, chapterStatus, hoursUntilReset } = useChapterLimits();
 
   // Async video generation state
   const [activeVideoJobs, setActiveVideoJobs] = useState<Set<string>>(new Set());
@@ -337,21 +337,24 @@ export default function StoryViewerSimple() {
       setCurrentIndex(segments.length);
 
       // Refresh chapter limits to update the counter
-      const updatedStatus = await refetchLimits();
+      refetchLimits();
 
       // Warn user if they're close to the limit (at 3/4 chapters)
-      if (updatedStatus?.data?.used === 3 && updatedStatus?.data?.limit === 4) {
-        toast({
-          title: '⚠️ Last Free Chapter!',
-          description: 'You have 1 chapter remaining today. Consider ending your story or upgrade for unlimited chapters.',
-          duration: 7000,
-        });
-      } else {
-        toast({
-          title: 'Story Continues!',
-          description: 'Your adventure unfolds...',
-        });
-      }
+      // Note: chapterStatus will update asynchronously after refetch
+      setTimeout(() => {
+        if (chapterStatus?.used === 3 && chapterStatus?.limit === 4) {
+          toast({
+            title: '⚠️ Last Free Chapter!',
+            description: 'You have 1 chapter remaining today. Consider ending your story or upgrade for unlimited chapters.',
+            duration: 7000,
+          });
+        } else {
+          toast({
+            title: 'Story Continues!',
+            description: 'Your adventure unfolds...',
+          });
+        }
+      }, 100);
 
     } catch (error: any) {
       logger.error('Choice generation failed', error);
@@ -1291,9 +1294,8 @@ const handleGenerateAudio = async () => {
       <ChapterLimitReachedModal
         open={showChapterLimitReached}
         onClose={() => setShowChapterLimitReached(false)}
-        used={chapterStatus?.used || 4}
-        limit={chapterStatus?.limit || 4}
-        resetAt={chapterStatus?.resetAt}
+        hoursUntilReset={hoursUntilReset}
+        chaptersUsed={chapterStatus?.used || 4}
       />
       </div>
     </>
