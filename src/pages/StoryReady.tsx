@@ -164,7 +164,7 @@ export default function StoryReady() {
   const loadStoryData = useCallback(async () => {
     if (!id || !userId) return;
     if (loadingRef.current) {
-      console.log('[StoryReady] Already loading, skipping...');
+      logger.debug('Story data already loading, skipping concurrent load', { storyId: id });
       return;
     }
 
@@ -172,7 +172,7 @@ export default function StoryReady() {
 
     try {
       setLoading(true);
-      console.log('[StoryReady] Loading data for story:', id);
+      logger.info('Loading story data', { storyId: id, userId });
 
       // Load story
       const { data: storyData, error: storyError } = await supabase
@@ -186,7 +186,13 @@ export default function StoryReady() {
 
       // Check ownership
       if (storyData.user_id !== userId) {
-        console.error('Access denied - user does not own this story');
+        logger.error('Access denied - user does not own story', { storyId: id, userId, ownerId: storyData.user_id });
+        toast({
+          title: 'Access Denied',
+          description: 'You do not have permission to view this story',
+          variant: 'destructive',
+        });
+        navigate('/dashboard');
         return;
       }
 
@@ -228,16 +234,19 @@ export default function StoryReady() {
         setReadiness(readinessData as unknown as ReadinessSummary);
       }
     } catch (error) {
-      logger.error('Failed to load story data', error);
-      console.error('Failed to load story data:', error);
+      logger.error('Failed to load story data', { error, storyId: id, userId });
+      toast({
+        title: 'Error',
+        description: 'Failed to load story data. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
       loadingRef.current = false;
     }
-  }, [id, userId]);
+  }, [id, userId, toast, navigate]);
 
   useEffect(() => {
-    console.log('[StoryReady] useEffect triggered', { id, userId, hasUser: !!user });
     if (id && userId) {
       loadStoryData();
     }
