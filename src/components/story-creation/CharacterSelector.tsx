@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,31 +14,87 @@ interface CharacterSelectorProps {
   maxCharacters?: number;
 }
 
-export const CharacterSelector = ({ 
-  selectedCharacters, 
-  onCharactersChange, 
-  maxCharacters = 3 
+interface CharacterCardProps {
+  character: UserCharacter;
+  isSelected: boolean;
+  canSelect: boolean;
+  onToggle: (character: UserCharacter) => void;
+  translate: (key: string) => string;
+}
+
+const CharacterCard = memo(({ character, isSelected, canSelect, onToggle, translate }: CharacterCardProps) => {
+  const handleClick = useCallback(() => {
+    if (canSelect) {
+      onToggle(character);
+    }
+  }, [canSelect, character, onToggle]);
+
+  return (
+    <Card
+      className={`cursor-pointer transition-all duration-200 ${
+        isSelected
+          ? 'ring-2 ring-primary bg-primary/5'
+          : canSelect
+            ? 'hover:shadow-md hover:border-primary/50'
+            : 'opacity-60 cursor-not-allowed'
+      }`}
+      onClick={handleClick}
+    >
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          {character.name}
+          {isSelected && <Badge variant="default" className="text-xs">{translate('characters.selected')}</Badge>}
+        </CardTitle>
+        <CardDescription className="capitalize text-xs">
+          {character.character_type}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <p className="text-sm text-muted-foreground mb-3 line-clamp-3">
+          {character.description}
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {character.personality_traits.slice(0, 3).map((trait, index) => (
+            <Badge key={index} variant="outline" className="text-xs">
+              {trait}
+            </Badge>
+          ))}
+          {character.personality_traits.length > 3 && (
+            <Badge variant="outline" className="text-xs">
+              +{character.personality_traits.length - 3}
+            </Badge>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+});
+
+const CharacterSelectorComponent = ({
+  selectedCharacters,
+  onCharactersChange,
+  maxCharacters = 3
 }: CharacterSelectorProps) => {
   const { characters, loading } = useCharacters();
   const { translate } = useLanguage();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-  const handleCharacterToggle = (character: UserCharacter) => {
+  const handleCharacterToggle = useCallback((character: UserCharacter) => {
     const isSelected = selectedCharacters.some(c => c.id === character.id);
-    
+
     if (isSelected) {
       onCharactersChange(selectedCharacters.filter(c => c.id !== character.id));
     } else if (selectedCharacters.length < maxCharacters) {
       onCharactersChange([...selectedCharacters, character]);
     }
-  };
+  }, [selectedCharacters, onCharactersChange, maxCharacters]);
 
-  const handleCharacterCreated = (character: UserCharacter) => {
+  const handleCharacterCreated = useCallback((character: UserCharacter) => {
     if (selectedCharacters.length < maxCharacters) {
       onCharactersChange([...selectedCharacters, character]);
     }
     setShowCreateDialog(false);
-  };
+  }, [selectedCharacters, maxCharacters, onCharactersChange]);
 
   if (loading) {
     return (
@@ -109,44 +165,14 @@ export const CharacterSelector = ({
             const canSelect = selectedCharacters.length < maxCharacters || isSelected;
 
             return (
-              <Card 
+              <CharacterCard
                 key={character.id}
-                className={`cursor-pointer transition-all duration-200 ${
-                  isSelected 
-                    ? 'ring-2 ring-primary bg-primary/5' 
-                    : canSelect 
-                      ? 'hover:shadow-md hover:border-primary/50' 
-                      : 'opacity-60 cursor-not-allowed'
-                }`}
-                onClick={() => canSelect && handleCharacterToggle(character)}
-              >
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    {character.name}
-                    {isSelected && <Badge variant="default" className="text-xs">{translate('characters.selected')}</Badge>}
-                  </CardTitle>
-                  <CardDescription className="capitalize text-xs">
-                    {character.character_type}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-sm text-muted-foreground mb-3 line-clamp-3">
-                    {character.description}
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {character.personality_traits.slice(0, 3).map((trait, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">
-                        {trait}
-                      </Badge>
-                    ))}
-                    {character.personality_traits.length > 3 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{character.personality_traits.length - 3}
-                      </Badge>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                character={character}
+                isSelected={isSelected}
+                canSelect={canSelect}
+                onToggle={handleCharacterToggle}
+                translate={translate}
+              />
             );
           })}
         </div>
@@ -160,3 +186,8 @@ export const CharacterSelector = ({
     </div>
   );
 };
+
+CharacterCard.displayName = 'CharacterCard';
+
+export const CharacterSelector = memo(CharacterSelectorComponent);
+CharacterSelector.displayName = 'CharacterSelector';
