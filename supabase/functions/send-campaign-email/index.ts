@@ -60,7 +60,7 @@ const handler = async (req: Request): Promise<Response> => {
     // If test email, just send to one address
     if (testEmail) {
       const emailResponse = await resend.emails.send({
-        from: "Tale Forge <onboarding@resend.dev>",
+        from: "Tale Forge <no-reply@tale-forge.app>",
         to: [testEmail],
         subject: `[TEST] ${subject}`,
         html: htmlContent,
@@ -143,7 +143,7 @@ const handler = async (req: Request): Promise<Response> => {
       const batch = emails.slice(i, i + batchSize);
       
       const emailResponse = await resend.emails.send({
-        from: "Tale Forge <onboarding@resend.dev>",
+        from: "Tale Forge <no-reply@tale-forge.app>",
         to: batch,
         subject: subject,
         html: htmlContent,
