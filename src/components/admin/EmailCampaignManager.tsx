@@ -226,49 +226,149 @@ export const EmailCampaignManager = () => {
       <Card>
         <CardHeader>
           <CardTitle>Template Examples</CardTitle>
-          <CardDescription>Quick start templates</CardDescription>
+          <CardDescription>Professional templates with Tale Forge branding</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Button
             variant="outline"
             className="w-full justify-start"
             onClick={() => {
-              setSubject("New Features Available on Tale Forge!");
-              setHtmlContent(`<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <h1 style="color: #333;">Exciting New Features! 🎉</h1>
-  <p>Hi there,</p>
-  <p>We're thrilled to announce some amazing new features on Tale Forge:</p>
-  <ul>
-    <li>Feature 1: Description here</li>
-    <li>Feature 2: Description here</li>
-    <li>Feature 3: Description here</li>
-  </ul>
-  <p>Start creating amazing stories today!</p>
-  <a href="https://your-domain.com" style="display: inline-block; padding: 12px 24px; background: #6366f1; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">Start Creating</a>
-  <p style="color: #666; font-size: 14px; margin-top: 30px;">Best regards,<br>The Tale Forge Team</p>
+              setSubject("Exciting Updates at Tale Forge 🎉");
+              setHtmlContent(`<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f9fafb;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;">
+    <img src="https://tale-forge.app/favicon.ico" alt="Tale Forge Logo" style="width: 64px; height: 64px; margin-bottom: 16px;">
+    <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">Tale Forge</h1>
+  </div>
+  
+  <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <h2 style="color: #1f2937; margin-top: 0; margin-bottom: 20px; font-size: 24px;">Exciting Updates! 🎉</h2>
+    
+    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+      Hi there!
+    </p>
+    
+    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+      We've been working hard to make Tale Forge even better for you. Here's what's new:
+    </p>
+    
+    <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 24px 0;">
+      <h3 style="color: #1f2937; margin-top: 0; margin-bottom: 12px; font-size: 18px;">✨ What's New</h3>
+      <ul style="color: #4b5563; font-size: 16px; line-height: 1.8; margin: 0; padding-left: 20px;">
+        <li>Improved AI story generation with better narrative flow</li>
+        <li>Enhanced image quality and character consistency</li>
+        <li>New text-to-speech narration feature</li>
+        <li>Animated scene generation for immersive storytelling</li>
+      </ul>
+    </div>
+    
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="https://tale-forge.app" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Start Creating Stories</a>
+    </div>
+    
+    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 8px;">
+      Ready to create magical stories? Log in now and experience the improvements!
+    </p>
+    
+    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-top: 32px; margin-bottom: 8px;">
+      Best regards,<br>
+      <strong>Kevin from Tale Forge</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 14px;">
+    <p style="margin: 8px 0;">&copy; 2025 Tale Forge. All rights reserved.</p>
+    <p style="margin: 8px 0;">
+      <a href="https://tale-forge.app" style="color: #667eea; text-decoration: none;">Visit Tale Forge</a>
+    </p>
+  </div>
 </div>`);
             }}
           >
-            New Features Announcement
+            Feature Announcement
           </Button>
 
           <Button
             variant="outline"
             className="w-full justify-start"
             onClick={() => {
-              setSubject("We Miss You on Tale Forge!");
-              setHtmlContent(`<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <h1 style="color: #333;">Come Back and Create! 📖</h1>
-  <p>Hi there,</p>
-  <p>We noticed you haven't created any stories recently. We'd love to see what amazing tales you'll create next!</p>
-  <p><strong>Here's what's new:</strong></p>
-  <ul>
-    <li>Improved story generation</li>
-    <li>New character options</li>
-    <li>Enhanced audio features</li>
-  </ul>
-  <a href="https://your-domain.com" style="display: inline-block; padding: 12px 24px; background: #6366f1; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">Create a Story</a>
-  <p style="color: #666; font-size: 14px; margin-top: 30px;">Happy storytelling!<br>The Tale Forge Team</p>
+              setSubject("Welcome to Tale Forge! 🎨");
+              setHtmlContent(`<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f9fafb;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;">
+    <img src="https://tale-forge.app/favicon.ico" alt="Tale Forge Logo" style="width: 64px; height: 64px; margin-bottom: 16px;">
+    <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">Welcome to Tale Forge!</h1>
+  </div>
+  
+  <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+      Thank you for joining our community of storytellers and parents creating magical moments for children!
+    </p>
+    
+    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+      With Tale Forge, you can create personalized, AI-powered stories with beautiful illustrations that bring imagination to life.
+    </p>
+    
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="https://tale-forge.app" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Start Your First Story</a>
+    </div>
+    
+    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-top: 32px; margin-bottom: 8px;">
+      Happy storytelling!<br>
+      <strong>Kevin from Tale Forge</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 14px;">
+    <p style="margin: 8px 0;">&copy; 2025 Tale Forge. All rights reserved.</p>
+  </div>
+</div>`);
+            }}
+          >
+            Welcome Email
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => {
+              setSubject("We Miss You on Tale Forge! 📖");
+              setHtmlContent(`<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background-color: #f9fafb;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;">
+    <img src="https://tale-forge.app/favicon.ico" alt="Tale Forge Logo" style="width: 64px; height: 64px; margin-bottom: 16px;">
+    <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">Come Back and Create! 📖</h1>
+  </div>
+  
+  <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+      Hi there!
+    </p>
+    
+    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+      We noticed you haven't created any stories recently. We'd love to see what amazing tales you'll bring to life next!
+    </p>
+    
+    <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 24px 0;">
+      <h3 style="color: #1f2937; margin-top: 0; margin-bottom: 12px; font-size: 18px;">✨ Recent Improvements</h3>
+      <ul style="color: #4b5563; font-size: 16px; line-height: 1.8; margin: 0; padding-left: 20px;">
+        <li>Better AI story generation</li>
+        <li>Improved character consistency</li>
+        <li>Text-to-speech narration</li>
+        <li>Animated scene videos</li>
+      </ul>
+    </div>
+    
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="https://tale-forge.app" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Create a Story Now</a>
+    </div>
+    
+    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-top: 32px; margin-bottom: 8px;">
+      Happy storytelling!<br>
+      <strong>Kevin from Tale Forge</strong>
+    </p>
+  </div>
+  
+  <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 14px;">
+    <p style="margin: 8px 0;">&copy; 2025 Tale Forge. All rights reserved.</p>
+  </div>
 </div>`);
             }}
           >
