@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(timeout 10 curl:*)"
+      "Bash(timeout 10 curl:*)",
+      "Bash(npx supabase:*)",
+      "Bash(PGPASSWORD=postgres psql:*)",
+      "Bash(docker exec:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

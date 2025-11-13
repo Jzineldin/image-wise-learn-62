@@ -36,6 +36,39 @@ export const useChapterLimits = () => {
   const { tier } = useSubscription();
   const queryClient = useQueryClient();
 
+  // Setup realtime subscription for profile changes
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`profile-changes-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        },
+        (payload) => {
+          logger.info('Profile updated via realtime', {
+            userId: user.id,
+            changes: payload.new
+          });
+
+          // Invalidate chapter status query to refetch
+          queryClient.invalidateQueries({
+            queryKey: [...queryKeys.userCredits, 'chapter-status', user.id]
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
+
   // Fetch chapter status
   const { data: chapterStatus, isLoading: isLoadingChapters, refetch: refetchChapters } = useQuery({
     queryKey: [...queryKeys.userCredits, 'chapter-status', user?.id],

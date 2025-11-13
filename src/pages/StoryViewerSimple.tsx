@@ -27,6 +27,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { playNarration, AudioController } from '@/lib/utils/audioUtils';
 import { EndStoryDialog } from '@/components/story-viewer/EndStoryDialog';
 import { CreditCostPreview } from '@/components/story-viewer/CreditCostPreview';
+import { useChapterLimits } from '@/hooks/useChapterLimits';
+import { ChapterLimitReachedModal } from '@/components/modals/ChapterLimitReachedModal';
 
 interface StorySegment {
   id: string;
@@ -82,6 +84,10 @@ export default function StoryViewerSimple() {
   const [showInsufficientCredits, setShowInsufficientCredits] = useState(false);
   const [creditError, setCreditError] = useState<{ required: number; available: number } | null>(null);
   const [showEndStoryDialog, setShowEndStoryDialog] = useState(false);
+  const [showChapterLimitReached, setShowChapterLimitReached] = useState(false);
+
+  // Chapter limits hook
+  const { refetchLimits, chapterStatus } = useChapterLimits();
 
   // Async video generation state
   const [activeVideoJobs, setActiveVideoJobs] = useState<Set<string>>(new Set());
@@ -330,25 +336,56 @@ export default function StoryViewerSimple() {
       setSegments(prev => [...prev, newSegment]);
       setCurrentIndex(segments.length);
 
-      toast({
-        title: 'Story Continues!',
-        description: 'Your adventure unfolds...',
-      });
+      // Refresh chapter limits to update the counter
+      const updatedStatus = await refetchLimits();
+
+      // Warn user if they're close to the limit (at 3/4 chapters)
+      if (updatedStatus?.data?.used === 3 && updatedStatus?.data?.limit === 4) {
+        toast({
+          title: '⚠️ Last Free Chapter!',
+          description: 'You have 1 chapter remaining today. Consider ending your story or upgrade for unlimited chapters.',
+          duration: 7000,
+        });
+      } else {
+        toast({
+          title: 'Story Continues!',
+          description: 'Your adventure unfolds...',
+        });
+      }
 
     } catch (error: any) {
       logger.error('Choice generation failed', error);
 
-      if (error instanceof InsufficientCreditsError) {
+      // Check if this is a daily limit error
+      if (error.message?.includes('Daily chapter limit') || error.message?.includes('daily_limit_reached')) {
+        await refetchLimits(); // Refresh to show 4/4
+        setShowChapterLimitReached(true);
+      } else if (error instanceof InsufficientCreditsError) {
         setCreditError({
           required: error.creditsRequired,
           available: error.creditsAvailable,
         });
         setShowInsufficientCredits(true);
       } else {
+        // Clean up error messages for better UX
+        let errorTitle = 'Generation Failed';
+        let errorDescription = 'Failed to continue story. Please try again.';
+
+        if (error.message?.includes('rate limit') || error.message?.includes('429')) {
+          errorTitle = 'Service Temporarily Busy';
+          errorDescription = 'Our AI service is handling many requests. Please wait a moment and try again.';
+        } else if (error.message?.includes('quota') || error.message?.includes('accumulate')) {
+          errorTitle = 'Service Temporarily Unavailable';
+          errorDescription = 'AI service quota reached. This usually resolves quickly. Please try again in a moment.';
+        } else if (error.message) {
+          errorDescription = error.message;
+        }
+
         toast({
-          title: 'Generation Failed',
-          description: error.message || 'Failed to continue story',
+          title: errorTitle,
+          description: errorDescription,
           variant: 'destructive',
+          duration: 6000,
         });
       }
     } finally {
@@ -798,6 +835,9 @@ const handleGenerateAudio = async () => {
         // Reload segments to get the new ending
         await loadStory();
 
+        // Refresh chapter limits
+        await refetchLimits();
+
         // Mark story as "ready" (content complete, ready for asset management)
         try {
           const { data: readyData, error: readyError } = await supabase
@@ -941,8 +981,8 @@ const handleGenerateAudio = async () => {
       </header>
 
       {/* Main Content */}
-      <main className="container py-8">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8">
+      <main className="container py-8 px-4">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-8">
           {/* Left: Media (Image/Video) */}
           <div className="space-y-4">
             <div className="relative aspect-video rounded-lg overflow-hidden bg-muted border">
@@ -1158,34 +1198,45 @@ const handleGenerateAudio = async () => {
           </div>
 
           {/* Right: Text & Choices */}
-          <div className="flex flex-col justify-between">
+          <div className="flex flex-col gap-6">
             {/* Story Text */}
-            <div className="prose prose-lg dark:prose-invert mb-8">
+            <div className="prose prose-lg dark:prose-invert">
               <p className="text-lg leading-relaxed">{currentSegment.content}</p>
             </div>
 
             {/* Choices or Navigation */}
-            <div className="space-y-3">
+            <div className="space-y-3" style={{ minWidth: '300px' }}>
               {!isEnding && currentSegment.choices && currentSegment.choices.length > 0 ? (
                 <>
-                  <p className="text-sm font-semibold text-muted-foreground mb-2">
+                  <p className="text-sm font-bold text-foreground mb-3 tracking-wide">
                     What happens next?
                   </p>
                   {currentSegment.choices.map((choice, idx) => (
-                    <Button
+                    <button
                       key={choice.id || idx}
-                      variant="outline"
-                      className="w-full !justify-start text-left h-auto py-4 px-6 !whitespace-normal !break-words !inline-flex !flex-row !items-start !gap-2"
+                      className="w-full text-left h-auto py-4 px-6 bg-card/90 hover:bg-card border-2 border-border hover:border-primary/50 backdrop-blur-sm transition-all rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => handleChoice(choice.text)}
                       disabled={isGeneratingChoice || hasNextSegment}
+                      style={{ minWidth: '300px', display: 'block' }}
                     >
-                      <span className="flex-1 whitespace-normal break-words leading-relaxed">{choice.text}</span>
+                      <p style={{
+                        margin: 0,
+                        fontSize: '16px',
+                        lineHeight: '1.6',
+                        fontWeight: 500,
+                        whiteSpace: 'normal',
+                        wordWrap: 'break-word',
+                        overflowWrap: 'break-word',
+                        hyphens: 'auto'
+                      }}>
+                        {choice.text}
+                      </p>
                       {choice.impact && (
-                        <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                        <span className="text-xs text-muted-foreground block mt-2">
                           {choice.impact}
                         </span>
                       )}
-                    </Button>
+                    </button>
                   ))}
                   {isGeneratingChoice && (
                     <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
@@ -1234,6 +1285,15 @@ const handleGenerateAudio = async () => {
         onConfirm={handleConfirmEndStory}
         onCancel={() => setShowEndStoryDialog(false)}
         hasExistingEnding={!!segments.find(s => s.is_ending)}
+      />
+
+      {/* Chapter Limit Reached Dialog */}
+      <ChapterLimitReachedModal
+        open={showChapterLimitReached}
+        onClose={() => setShowChapterLimitReached(false)}
+        used={chapterStatus?.used || 4}
+        limit={chapterStatus?.limit || 4}
+        resetAt={chapterStatus?.resetAt}
       />
       </div>
     </>
