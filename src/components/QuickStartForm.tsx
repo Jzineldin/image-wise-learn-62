@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AIClient, InsufficientCreditsError } from "@/lib/api/ai-client";
 import { FEATURES } from "@/lib/config/features";
 import { normalizeAgeGroup, toDatabaseFormat } from "@/lib/utils/age-group";
+import { logger } from "@/lib/logger";
 
 
 const GENRES = [
@@ -122,9 +123,9 @@ export default function QuickStartForm() {
 
       const { error: updateError } = await supabase.from('stories').update({ status: 'active' }).eq('id', story.id);
       if (updateError) {
-        console.error('[QuickStartForm] Failed to update story status:', updateError);
+        logger.error('Failed to update story status', { error: updateError, storyId: story.id });
       }
-      console.log('[QuickStartForm] Story created successfully:', {
+      logger.info('Story created successfully', {
         storyId: story.id,
         userId: user.id,
         status: 'active',
