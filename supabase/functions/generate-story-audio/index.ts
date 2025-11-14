@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     if (segment_id) {
       const { data: existingSegment, error: segmentError } = await supabase
         .from('story_segments')
-        .select('audio_url, audio_generation_status')
+        .select('audio_url, voice_status')
         .eq('id', segment_id)
         .single();
 
@@ -108,10 +108,10 @@ Deno.serve(async (req) => {
       }
 
       // Mark as in progress to prevent concurrent requests
-      if (existingSegment?.audio_generation_status !== 'in_progress') {
+      if (existingSegment?.voice_status !== 'processing') {
         await supabase
           .from('story_segments')
-          .update({ audio_generation_status: 'in_progress' })
+          .update({ voice_status: 'processing' })
           .eq('id', segment_id);
       }
     }
@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
       if (segment_id) {
         await supabase
           .from('story_segments')
-          .update({ audio_generation_status: 'failed' })
+          .update({ voice_status: 'failed' })
           .eq('id', segment_id);
       }
       throw new Error('Failed to upload audio file');
@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
         .from('story_segments')
         .update({
           audio_url: audioUrl,
-          audio_generation_status: 'completed',
+          voice_status: 'ready',
         })
         .eq('id', segment_id);
 
@@ -257,7 +257,6 @@ Deno.serve(async (req) => {
         .from('stories')
         .update({
           full_story_audio_url: audioUrl,
-          audio_generation_status: 'completed',
         })
         .eq('id', story_id);
 
@@ -301,7 +300,7 @@ Deno.serve(async (req) => {
         const supabase = createClient(supabaseUrl, supabaseKey);
         await supabase
           .from('story_segments')
-          .update({ audio_generation_status: 'failed' })
+          .update({ voice_status: 'failed' })
           .eq('id', segment_id);
       } catch (updateError) {
         logger.error('Failed to update segment status to failed', updateError, { segmentId: segment_id });

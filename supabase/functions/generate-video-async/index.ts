@@ -269,7 +269,7 @@ async function processVideoGeneration(
       .from('story_segments')
       .update({
         video_url: videoUrl,
-        video_generation_status: 'completed'
+        animation_status: 'ready'
       })
       .eq('id', segmentId);
 

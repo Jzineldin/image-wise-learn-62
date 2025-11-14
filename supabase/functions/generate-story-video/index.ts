@@ -148,7 +148,7 @@ serve(async (req) => {
       .update({
         video_task_id: videoResult.taskId,
         video_provider: videoResult.provider,
-        video_generation_status: 'processing'
+        animation_status: 'processing'
       })
       .eq('id', segment_id);
 
@@ -176,7 +176,7 @@ serve(async (req) => {
           .from('story_segments')
           .update({
             video_url: completedResult.videoUrl,
-            video_generation_status: 'completed'
+            animation_status: 'ready'
           })
           .eq('id', segment_id);
 
@@ -207,7 +207,7 @@ serve(async (req) => {
         const { error: failUpdateError } = await supabase
           .from('story_segments')
           .update({
-            video_generation_status: 'failed'
+            animation_status: 'failed'
           })
           .eq('id', segment_id);
 
@@ -259,7 +259,7 @@ serve(async (req) => {
         const supabase = createSupabaseClient(true);
         await supabase
           .from('story_segments')
-          .update({ video_generation_status: 'failed' })
+          .update({ animation_status: 'failed' })
           .eq('id', segment_id);
       } catch (updateError) {
         logger.error('Failed to update segment status after error', updateError, { requestId });
