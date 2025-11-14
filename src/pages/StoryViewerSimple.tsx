@@ -134,16 +134,10 @@ export default function StoryViewerSimple() {
           });
 
           if (job.status === 'completed' && job.video_url) {
-            // Update segment with video URL (if it exists in our segments)
+            // Check if this segment belongs to our story
             setSegments(prev => {
-              const updatedSegments = prev.map(seg =>
-                seg.id === jobSegmentId
-                  ? { ...seg, video_url: job.video_url, video_generation_status: 'completed' }
-                  : seg
-              );
-
-              // Only show toast if this segment belongs to our story
               const isOurSegment = prev.some(s => s.id === jobSegmentId);
+
               if (isOurSegment) {
                 // Remove from active jobs
                 setActiveVideoJobs(prevJobs => {
@@ -152,19 +146,26 @@ export default function StoryViewerSimple() {
                   return next;
                 });
 
-                // Show success notification
-                toast({
-                  title: 'Video Ready!',
-                  description: 'Your video has been generated successfully.',
-                });
-
-                logger.info('Video generation completed', {
+                // Reload story from database to get persisted video_url
+                logger.info('Video generation completed - reloading story from database', {
                   segmentId: jobSegmentId,
                   videoUrl: job.video_url
                 });
+
+                loadStory().then(() => {
+                  // Show success notification after reload
+                  toast({
+                    title: 'Video Ready!',
+                    description: 'Your video has been generated successfully.',
+                  });
+
+                  logger.info('Story reloaded after video generation', {
+                    segmentId: jobSegmentId,
+                  });
+                });
               }
 
-              return updatedSegments;
+              return prev; // Don't update local state, will reload from DB
             });
           } else if (job.status === 'failed') {
             // Check if this job belongs to our story
@@ -448,16 +449,20 @@ export default function StoryViewerSimple() {
         });
 
         if (imageUrl) {
-          // Update segment with new image
-          setSegments(prev => prev.map(seg =>
-            seg.id === currentSegment.id
-              ? { ...seg, image_url: imageUrl }
-              : seg
-          ));
+          logger.info('Image generation successful - reloading story from database', {
+            segmentId: currentSegment.id,
+          });
+
+          // Reload story from database to get persisted image_url
+          await loadStory();
 
           toast({
             title: 'Image Generated!',
             description: 'Your scene has been illustrated',
+          });
+
+          logger.info('Story reloaded after image generation', {
+            segmentId: currentSegment.id,
           });
         } else {
           logger.error('Image URL not found in response', result.data);
@@ -545,31 +550,21 @@ const handleGenerateAudio = async () => {
         });
 
         if (audioUrl) {
-          logger.info('Setting audio_url in segment state', {
+          logger.info('Audio generation successful - reloading story from database', {
             segmentId: currentSegment.id,
             audioUrlPreview: audioUrl.substring(0, 50),
-            videoUrlBefore: currentSegment.video_url ? 'EXISTS' : 'MISSING',
           });
 
-          setSegments(prev => {
-            const updated = prev.map(seg =>
-              seg.id === currentSegment.id
-                ? { ...seg, audio_url: audioUrl }
-                : seg
-            );
-            const updatedSegment = updated.find(s => s.id === currentSegment.id);
-            logger.info('Segments updated after audio generation', {
-              segmentId: currentSegment.id,
-              audioUrlAfter: updatedSegment?.audio_url ? 'EXISTS' : 'MISSING',
-              videoUrlAfter: updatedSegment?.video_url ? 'EXISTS' : 'MISSING',
-              allFields: Object.keys(updatedSegment || {})
-            });
-            return updated;
-          });
+          // Reload story from database to get persisted audio_url
+          await loadStory();
 
           toast({
             title: 'Audio Generated!',
             description: 'Narration is ready to play',
+          });
+
+          logger.info('Story reloaded after audio generation', {
+            segmentId: currentSegment.id,
           });
         } else {
           logger.warn('No audio URL in response', { resultData: result.data });
