@@ -1,5 +1,4 @@
 import { useState, useEffect, memo, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +6,7 @@ import { LazyImage } from '@/components/LazyImage';
 import { useFeaturedStories } from '@/hooks/useDataFetching';
 import { logger } from '@/lib/logger';
 import { ANIMATION_DELAYS } from '@/lib/constants/query-constants';
+import { StoryPlayerModal } from '@/components/StoryPlayerModal';
 
 interface FeaturedStory {
   story_id: string;
@@ -25,6 +25,7 @@ const FeaturedStoriesCarousel = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
   const { data: featuredStories = [], isLoading: loading } = useFeaturedStories();
 
   // Auto-play functionality with proper cleanup
@@ -226,11 +227,14 @@ const FeaturedStoriesCarousel = () => {
           )}
 
           {/* Read Story Button */}
-          <Link to={`/story/${currentStory.story_id}?mode=experience`} className="block mt-6">
-            <Button variant="default" size="lg" className="w-full bg-gradient-to-r from-accent to-secondary shadow-2xl hover:shadow-[0_10px_30px_rgba(255,255,255,0.3)] hover:scale-105 transition-all duration-300 text-base py-6 font-bold">
-              Read This Story
-            </Button>
-          </Link>
+          <Button
+            variant="default"
+            size="lg"
+            onClick={() => setSelectedStoryId(currentStory.story_id)}
+            className="w-full bg-gradient-to-r from-accent to-secondary shadow-2xl hover:shadow-[0_10px_30px_rgba(255,255,255,0.3)] hover:scale-105 transition-all duration-300 text-base py-6 font-bold mt-6"
+          >
+            Read This Story
+          </Button>
 
           {/* Navigation Controls */}
           {featuredStories.length > 1 && (
@@ -291,6 +295,15 @@ const FeaturedStoriesCarousel = () => {
           )}
         </div>
       </div>
+
+      {/* Story Player Modal */}
+      {selectedStoryId && (
+        <StoryPlayerModal
+          storyId={selectedStoryId}
+          isOpen={!!selectedStoryId}
+          onClose={() => setSelectedStoryId(null)}
+        />
+      )}
     </div>
   );
 };
