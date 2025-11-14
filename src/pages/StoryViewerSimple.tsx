@@ -18,7 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { AIClient, InsufficientCreditsError } from '@/lib/api/ai-client';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import { calculateAudioCredits, CREDIT_COSTS } from '../../shared/credit-costs';
-import { Home, ChevronLeft, ChevronRight, Sparkles, Loader2, Volume2, Video, Play, Pause } from 'lucide-react';
+import { Home, ChevronLeft, ChevronRight, Sparkles, Loader2, Volume2, Video, Play, Pause, FileDown } from 'lucide-react';
 import { logger, generateRequestId } from '@/lib/utils/debug';
 import { normalizeAgeGroup } from '@/lib/utils/age-group';
 import HeroBackground from '@/components/HeroBackground';
@@ -29,6 +29,7 @@ import { EndStoryDialog } from '@/components/story-viewer/EndStoryDialog';
 import { CreditCostPreview } from '@/components/story-viewer/CreditCostPreview';
 import { useChapterLimits } from '@/hooks/useChapterLimits';
 import { ChapterLimitReachedModal } from '@/components/modals/ChapterLimitReachedModal';
+import { exportStoryToPDF } from '@/lib/pdf-export-improved';
 
 interface StorySegment {
   id: string;
@@ -85,6 +86,7 @@ export default function StoryViewerSimple() {
   const [creditError, setCreditError] = useState<{ required: number; available: number } | null>(null);
   const [showEndStoryDialog, setShowEndStoryDialog] = useState(false);
   const [showChapterLimitReached, setShowChapterLimitReached] = useState(false);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
 
   // Chapter limits hook
   const { refetchLimits, chapterStatus, hoursUntilReset } = useChapterLimits();
@@ -760,6 +762,61 @@ const handleGenerateAudio = async () => {
   };
 
   /**
+   * Export story to PDF
+   */
+  const handleExportPDF = async () => {
+    if (!story || segments.length === 0) {
+      toast({
+        title: 'Cannot Export',
+        description: 'Story must have at least one segment to export',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsExportingPDF(true);
+
+    try {
+      logger.info('Exporting story to PDF', {
+        storyId: story.id,
+        title: story.title,
+        segmentCount: segments.length,
+      });
+
+      // Map segments to the format expected by the PDF export
+      const pdfSegments = segments.map(seg => ({
+        segment_number: seg.segment_number,
+        content: seg.content,
+        segment_text: seg.content, // Fallback field
+        image_url: seg.image_url,
+        chapter_title: undefined, // Add chapter_title if it exists in your schema
+      }));
+
+      await exportStoryToPDF(story.title, pdfSegments);
+
+      toast({
+        title: 'PDF Exported!',
+        description: 'Your story has been downloaded as a PDF',
+      });
+
+      logger.info('PDF export completed successfully', {
+        storyId: story.id,
+        title: story.title,
+      });
+    } catch (error: any) {
+      logger.error('PDF export failed', error);
+
+      toast({
+        title: 'Export Failed',
+        description: error.message || 'Failed to export PDF. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+
+  /**
    * Confirm and execute story ending
    * Either generates ending or marks story as complete
    */
@@ -963,6 +1020,27 @@ const handleGenerateAudio = async () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Export PDF Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPDF}
+              disabled={isExportingPDF}
+              className="hidden sm:flex items-center gap-2"
+            >
+              {isExportingPDF ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <FileDown className="w-4 h-4" />
+                  Export PDF
+                </>
+              )}
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
