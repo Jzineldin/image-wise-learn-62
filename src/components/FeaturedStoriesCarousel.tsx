@@ -171,6 +171,7 @@ const FeaturedStoriesCarousel = () => {
       {/* Background Image with Lazy Loading */}
       {currentStory.preview_image_url ? (
         <LazyImage
+          key={`${currentStory.story_id}-${currentStory.preview_image_url}`}
           src={currentStory.preview_image_url}
           alt={`${currentStory.title} preview`}
           className="absolute inset-0 w-full h-full object-cover"
@@ -193,9 +194,12 @@ const FeaturedStoriesCarousel = () => {
         </div>
       )}
 
-      <div className={`relative z-10 p-8 text-center space-y-6 min-h-full flex flex-col justify-end transition-all duration-300 ${
-        isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-      }`}>
+      <div
+        key={currentStory.story_id}
+        className={`relative z-10 p-8 text-center space-y-6 min-h-full flex flex-col justify-end transition-all duration-300 ${
+          isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+        }`}
+      >
         {/* Story Info */}
         <div className="space-y-4 bg-gradient-to-t from-black/40 to-transparent p-6 rounded-t-xl -mx-8 -mb-8 pb-8">
           <h3 className="text-2xl font-heading font-bold text-foreground line-clamp-2 drop-shadow-2xl">
