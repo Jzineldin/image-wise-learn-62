@@ -18,7 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { AIClient, InsufficientCreditsError } from '@/lib/api/ai-client';
 import InsufficientCreditsDialog from '@/components/InsufficientCreditsDialog';
 import { calculateAudioCredits, CREDIT_COSTS } from '../../shared/credit-costs';
-import { Home, ChevronLeft, ChevronRight, Sparkles, Loader2, Volume2, Video, Play, Pause, FileDown } from 'lucide-react';
+import { Home, ChevronLeft, ChevronRight, Sparkles, Loader2, Volume2, Video, Play, Pause, FileDown, Share2 } from 'lucide-react';
 import { logger, generateRequestId } from '@/lib/utils/debug';
 import { normalizeAgeGroup } from '@/lib/utils/age-group';
 import HeroBackground from '@/components/HeroBackground';
@@ -53,6 +53,7 @@ interface Story {
   age_group: string;
   status: string;
   user_id: string;
+  visibility?: string;
   metadata?: {
     childName?: string;
     character?: string;
@@ -817,6 +818,79 @@ const handleGenerateAudio = async () => {
   };
 
   /**
+   * Share story via Web Share API or clipboard
+   */
+  const handleShare = async () => {
+    if (!story) return;
+
+    // Check if story is public
+    if (story.visibility !== 'public') {
+      toast({
+        title: 'Story is Private',
+        description: 'Make your story public to share it with others.',
+        variant: 'default',
+      });
+      return;
+    }
+
+    const shareUrl = `${window.location.origin}/story/${story.id}`;
+    const shareText = `Check out my story "${story.title}" on Tale Forge!`;
+
+    logger.info('Sharing story', {
+      storyId: story.id,
+      title: story.title,
+      shareUrl,
+    });
+
+    // Try Web Share API first
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: story.title,
+          text: shareText,
+          url: shareUrl,
+        });
+
+        toast({
+          title: 'Shared!',
+          description: 'Story shared successfully.',
+        });
+
+        logger.info('Story shared via Web Share API', {
+          storyId: story.id,
+        });
+      } catch (error: any) {
+        // User cancelled or error occurred
+        if (error.name !== 'AbortError') {
+          logger.error('Web Share API failed', error);
+        }
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+
+        toast({
+          title: 'Link Copied!',
+          description: 'Story link copied to clipboard.',
+        });
+
+        logger.info('Story link copied to clipboard', {
+          storyId: story.id,
+        });
+      } catch (error) {
+        logger.error('Clipboard copy failed', error);
+
+        toast({
+          title: 'Copy Failed',
+          description: 'Could not copy link. Please copy manually: ' + shareUrl,
+          variant: 'destructive',
+        });
+      }
+    }
+  };
+
+  /**
    * Confirm and execute story ending
    * Either generates ending or marks story as complete
    */
@@ -1020,6 +1094,17 @@ const handleGenerateAudio = async () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Share Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShare}
+              className="hidden sm:flex items-center gap-2"
+            >
+              <Share2 className="w-4 h-4" />
+              Share
+            </Button>
+
             {/* Export PDF Button */}
             <Button
               variant="outline"
