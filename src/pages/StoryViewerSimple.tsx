@@ -30,6 +30,7 @@ import { CreditCostPreview } from '@/components/story-viewer/CreditCostPreview';
 import { useChapterLimits } from '@/hooks/useChapterLimits';
 import { ChapterLimitReachedModal } from '@/components/modals/ChapterLimitReachedModal';
 import { exportStoryToPDF } from '@/lib/pdf-export-improved';
+import { StoryMetaTags } from '@/components/StoryMetaTags';
 
 interface StorySegment {
   id: string;
@@ -1075,6 +1076,16 @@ const handleGenerateAudio = async () => {
 
   return (
     <>
+      {/* Dynamic Meta Tags for Social Media Sharing */}
+      {story && segments.length > 0 && (
+        <StoryMetaTags
+          title={story.title}
+          description={segments[0]?.content.substring(0, 200) + '...'}
+          imageUrl={segments[0]?.image_url}
+          storyUrl={`${window.location.origin}/story/${story.id}`}
+        />
+      )}
+
       <Navigation />
       <div className="min-h-screen relative">
         <HeroBackground />
