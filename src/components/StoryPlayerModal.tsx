@@ -6,11 +6,12 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight, Volume2, VolumeX, Play, Pause } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 import { LazyImage } from '@/components/LazyImage';
+import { playNarration, type AudioController } from '@/lib/utils/audioUtils';
 
 interface StorySegment {
   id: string;
@@ -42,22 +43,16 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
   const [currentChapterIndex, setCurrentChapterIndex] = useState(initialChapter);
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [audioController, setAudioController] = useState<AudioController | null>(null);
 
   // Use refs to avoid circular dependencies in useEffect
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isMutedRef = useRef(isMuted);
+  const audioControllerRef = useRef<AudioController | null>(null);
   const segmentsRef = useRef(segments);
 
   // Keep refs in sync
   useEffect(() => {
-    audioRef.current = audioElement;
-  }, [audioElement]);
-
-  useEffect(() => {
-    isMutedRef.current = isMuted;
-  }, [isMuted]);
+    audioControllerRef.current = audioController;
+  }, [audioController]);
 
   useEffect(() => {
     segmentsRef.current = segments;
@@ -103,58 +98,50 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
     loadStory();
   }, [storyId]);
 
-  // Handle audio playback
+  // Handle audio playback with WAV header support
   useEffect(() => {
     // Cleanup previous audio if exists
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.src = '';
+    if (audioControllerRef.current) {
+      audioControllerRef.current.stop();
+      setAudioController(null);
     }
 
     if (!currentChapter?.audio_url) {
-      setAudioElement(null);
       setIsPlaying(false);
       return;
     }
 
-    // Create new audio element for current chapter
-    const audio = new Audio(currentChapter.audio_url);
-    audio.volume = isMuted ? 0 : 1;
-
-    const handleEnded = () => {
-      setIsPlaying(false);
-    };
-
-    audio.addEventListener('ended', handleEnded);
-    setAudioElement(audio);
-
-    return () => {
-      audio.pause();
-      audio.removeEventListener('ended', handleEnded);
-      audio.src = '';
-    };
+    // Don't auto-load audio, wait for user to click play
+    setIsPlaying(false);
   }, [currentChapter?.id]);
 
-  // Update audio volume when mute state changes
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : 1;
+  const handlePlayPause = useCallback(async () => {
+    // If already playing, stop it
+    if (isPlaying && audioControllerRef.current) {
+      audioControllerRef.current.stop();
+      setIsPlaying(false);
+      setAudioController(null);
+      return;
     }
-  }, [isMuted]);
 
-  const handlePlayPause = useCallback(() => {
-    if (!audioRef.current) return;
+    // Start playing
+    if (!currentChapter?.audio_url) return;
 
-    setIsPlaying(prev => {
-      if (prev) {
-        audioRef.current?.pause();
-        return false;
-      } else {
-        audioRef.current?.play();
-        return true;
-      }
-    });
-  }, []);
+    try {
+      const controller = await playNarration(currentChapter.audio_url);
+
+      controller.onEnded(() => {
+        setIsPlaying(false);
+        setAudioController(null);
+      });
+
+      setAudioController(controller);
+      setIsPlaying(true);
+    } catch (error) {
+      logger.error('Failed to play audio in modal', error);
+      setIsPlaying(false);
+    }
+  }, [isPlaying, currentChapter?.audio_url]);
 
   const handlePreviousChapter = useCallback(() => {
     setCurrentChapterIndex(prev => {
@@ -177,8 +164,8 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
   }, []);
 
   const handleClose = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
+    if (audioControllerRef.current) {
+      audioControllerRef.current.stop();
     }
     setIsPlaying(false);
     onClose();
@@ -249,7 +236,6 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
                   controls
                   autoPlay
                   loop
-                  muted={isMuted}
                 />
               ) : currentChapter.image_url ? (
                 <LazyImage
@@ -304,20 +290,6 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
                         {isPlaying ? 'Playing narration...' : 'Narration available'}
                       </p>
                     </div>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setIsMuted(!isMuted)}
-                      className="text-white hover:bg-white/20 h-8 w-8"
-                      aria-label={isMuted ? 'Unmute' : 'Mute'}
-                    >
-                      {isMuted ? (
-                        <VolumeX className="w-4 h-4" />
-                      ) : (
-                        <Volume2 className="w-4 h-4" />
-                      )}
-                    </Button>
                   </div>
                 </div>
               )}
