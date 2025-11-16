@@ -67,17 +67,109 @@ export interface AudioController {
 }
 
 /**
- * Plays narration from a base64 data URL
- * Constructs proper WAV file from Gemini's raw PCM audio before decoding
+ * Plays narration from a data URL or storage URL
+ * Supports both base64 data URLs and Supabase storage URLs
  *
- * @param audioUrl - Base64 data URL (e.g., "data:audio/wav;base64,...")
+ * @param audioUrl - Base64 data URL (e.g., "data:audio/wav;base64,...") or storage URL (e.g., "https://...")
  * @returns Promise that resolves with an AudioController to manage playback
  */
 export const playNarration = async (audioUrl: string): Promise<AudioController> => {
   // Validate input
-  if (!audioUrl || !audioUrl.startsWith('data:audio/')) {
-    console.error('Invalid audio data URL provided:', audioUrl?.substring(0, 50));
-    throw new Error('Invalid audio data URL provided');
+  if (!audioUrl) {
+    console.error('No audio URL provided');
+    throw new Error('No audio URL provided');
+  }
+
+  // If it's a storage URL (https://...), fetch and play via AudioContext
+  if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) {
+    try {
+      console.log('Fetching audio from storage:', audioUrl);
+
+      // Fetch the audio file
+      const response = await fetch(audioUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch audio: ${response.status} ${response.statusText}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      console.log('Audio fetched, size:', arrayBuffer.byteLength, 'bytes');
+
+      // Convert to Uint8Array immediately to preserve the data
+      // (ArrayBuffer gets "detached" after first decodeAudioData attempt)
+      const rawData = new Uint8Array(arrayBuffer);
+
+      // Use AudioContext to decode and play
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+      let audioBuffer: AudioBuffer;
+
+      try {
+        // Try to decode directly first (for properly formatted WAV files)
+        // Need to create a copy of the buffer since decodeAudioData consumes it
+        const bufferCopy = rawData.slice().buffer;
+        audioBuffer = await audioContext.decodeAudioData(bufferCopy);
+        console.log('Audio decoded successfully (standard WAV)');
+      } catch (decodeError) {
+        // If decode fails, assume it's raw PCM without WAV headers (old files)
+        // Construct WAV header and try again
+        console.log('Direct decode failed, constructing WAV header for raw PCM data');
+
+        const wavHeader = createWavHeader(rawData);
+        const wavFile = new Uint8Array(wavHeader.length + rawData.length);
+        wavFile.set(wavHeader, 0);
+        wavFile.set(rawData, wavHeader.length);
+
+        audioBuffer = await audioContext.decodeAudioData(wavFile.buffer);
+        console.log('Audio decoded successfully (raw PCM with constructed WAV header)');
+      }
+
+      console.log('Audio ready to play', {
+        duration: audioBuffer.duration,
+        sampleRate: audioBuffer.sampleRate,
+        channels: audioBuffer.numberOfChannels
+      });
+
+      // Play the decoded audio
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
+
+      let endedCallback: (() => void) | null = null;
+
+      source.onended = () => {
+        if (endedCallback) {
+          endedCallback();
+        }
+      };
+
+      source.start();
+      console.log('Audio playback started successfully');
+
+      return {
+        stop: () => {
+          try {
+            source.stop();
+            if (endedCallback) {
+              endedCallback();
+            }
+          } catch (e) {
+            console.log('Audio source already stopped');
+          }
+        },
+        onEnded: (callback: () => void) => {
+          endedCallback = callback;
+        }
+      };
+    } catch (error) {
+      console.error('Failed to load and play audio from storage:', error);
+      throw new Error(`Audio playback failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Otherwise, treat it as a data URL
+  if (!audioUrl.startsWith('data:audio/')) {
+    console.error('Invalid audio URL provided:', audioUrl?.substring(0, 50));
+    throw new Error('Invalid audio URL - must be data URL or https URL');
   }
 
   try {
