@@ -14,6 +14,7 @@ import { AIClient, InsufficientCreditsError } from "@/lib/api/ai-client";
 import { FEATURES } from "@/lib/config/features";
 import { normalizeAgeGroup, toDatabaseFormat } from "@/lib/utils/age-group";
 import { logger } from "@/lib/logger";
+import { ChapterLimitReachedModal } from "@/components/modals/ChapterLimitReachedModal";
 
 
 const GENRES = [
@@ -50,6 +51,7 @@ export default function QuickStartForm() {
   const [tone, setTone] = useState<Tone>("Whimsical");
   const [submitting, setSubmitting] = useState(false);
   const [ageGroup, setAgeGroup] = useState<string>("7-9 years old");
+  const [showChapterLimitModal, setShowChapterLimitModal] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -66,6 +68,31 @@ export default function QuickStartForm() {
         variant: "destructive",
       });
       return;
+    }
+
+    // Pre-flight chapter limit check
+    try {
+      const { data: canGenerate, error: checkError } = await supabase.rpc('can_generate_chapter', {
+        user_uuid: user.id
+      });
+
+      if (checkError) throw checkError;
+
+      if (!canGenerate.allowed) {
+        // Show chapter limit modal
+        setShowChapterLimitModal(true);
+        logger.info('Chapter creation gated', {
+          userId: user.id,
+          reason: canGenerate.reason,
+          used: canGenerate.used,
+          limit: canGenerate.limit,
+          operation: 'chapter-creation-gated'
+        });
+        return; // Don't proceed with creation
+      }
+    } catch (error) {
+      logger.error('Error checking chapter limit', error, { userId: user.id });
+      // Continue anyway if check fails (graceful degradation)
     }
 
     setSubmitting(true);
@@ -246,6 +273,12 @@ export default function QuickStartForm() {
       >
         {submitting ? "⏳ Forging..." : "⚡ Forge My Tale"}
       </button>
+
+      {/* Chapter Limit Modal */}
+      <ChapterLimitReachedModal
+        open={showChapterLimitModal}
+        onClose={() => setShowChapterLimitModal(false)}
+      />
     </form>
   );
 }

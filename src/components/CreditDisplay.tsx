@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/production-logger';
 import FounderBadge from './FounderBadge';
 import { useChapterLimits } from '@/hooks/useChapterLimits';
+import { useQuotas } from '@/hooks/useQuotas';
 
 interface CreditDisplayProps {
   compact?: boolean;
@@ -27,70 +28,40 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
   const { createCheckout, tier } = useSubscription();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [credits, setCredits] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  // Use the new unified quotas hook
+  const { creditBalance, chaptersRemaining, isSubscriber, isLoading, refetch } = useQuotas();
+
+  // Keep chapter limits hook for compatibility
   const { chapterStatus, isPaid, isLoading: isLoadingChapters } = useChapterLimits();
 
-  const fetchCredits = useCallback(async () => {
-    if (!user?.id) return;
-
-    try {
-      // Fetch credits
-      const { data: creditsData, error: creditsError } = await supabase
-        .from('user_credits')
-        .select('current_balance')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (creditsError) throw creditsError;
-      setCredits(creditsData?.current_balance || 0);
-
-      // Fetch user profile for beta status
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('is_beta_user, beta_joined_at, founder_status')
-        .eq('id', user.id)
-        .single();
-
-      if (!profileError && profileData) {
-        setUserProfile(profileData);
-      }
-    } catch (error) {
-      logger.error('Error fetching credits', error, { component: 'CreditDisplay' });
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
-
+  // Fetch user profile for beta status
   useEffect(() => {
-    fetchCredits();
-  }, [fetchCredits]);
+    const fetchProfile = async () => {
+      if (!user?.id) return;
 
-  // Listen for real-time credit updates
-  useEffect(() => {
-    if (!user?.id) return;
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('is_beta_user, beta_joined_at, founder_status')
+          .eq('id', user.id)
+          .single();
 
-    const channel = supabase
-      .channel('credit-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'user_credits',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          setCredits(payload.new.current_balance || 0);
+        if (!profileError && profileData) {
+          setUserProfile(profileData);
         }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+      } catch (error) {
+        logger.error('Error fetching profile', error, { component: 'CreditDisplay' });
+      }
     };
+
+    fetchProfile();
   }, [user?.id]);
+
+  // Alias for backwards compatibility
+  const credits = creditBalance;
+  const fetchCredits = refetch;
 
   const handleBuyCredits = async () => {
     // Buy the most popular pack (100 credits for $9)
@@ -100,7 +71,7 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
     }
   };
 
-  if (loading || isLoadingChapters) {
+  if (isLoading || isLoadingChapters) {
     return (
       <div className={`${compact ? 'flex items-center space-x-2' : ''}`}>
         <div className="animate-pulse">
@@ -111,7 +82,8 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
   }
 
   const isLowCredits = credits < 5;
-  const remaining = chapterStatus?.remaining || 0;
+  // Use chaptersRemaining from useQuotas if available, fallback to chapterStatus
+  const remaining = chaptersRemaining !== null ? chaptersRemaining : (chapterStatus?.remaining || 0);
 
   if (compact) {
     return (
@@ -126,20 +98,28 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
           />
         )}
 
-        {/* Show chapters for free users, credits for paid users */}
+        {/* Show BOTH chapters AND credits for free users */}
         {!isPaid ? (
-          <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${
-            remaining === 0 ? 'border-destructive/20 bg-destructive/5' : 
-            remaining === 1 ? 'border-warning/20 bg-warning/5' : 
-            'border-border bg-background'
-          }`}>
-            <BookOpen className={`w-4 h-4 ${
-              remaining === 0 ? 'text-destructive' : 
-              remaining === 1 ? 'text-warning' : 
-              'text-primary'
-            }`} />
-            <span className="font-medium text-sm">{remaining}/4 chapters</span>
-          </div>
+          <>
+            <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${
+              remaining === 0 ? 'border-destructive/20 bg-destructive/5' :
+              remaining === 1 ? 'border-warning/20 bg-warning/5' :
+              'border-border bg-background'
+            }`}>
+              <BookOpen className={`w-4 h-4 ${
+                remaining === 0 ? 'text-destructive' :
+                remaining === 1 ? 'text-warning' :
+                'text-primary'
+              }`} />
+              <span className="font-medium text-sm">{remaining}/4 chapters</span>
+            </div>
+            <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${
+              isLowCredits ? 'border-destructive/20 bg-destructive/5' : 'border-border bg-background'
+            }`}>
+              <Coins className={`w-4 h-4 ${isLowCredits ? 'text-destructive' : 'text-primary'}`} />
+              <span className="font-medium text-sm">{credits} credits</span>
+            </div>
+          </>
         ) : (
           <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${
             isLowCredits ? 'border-destructive/20 bg-destructive/5' : 'border-border bg-background'

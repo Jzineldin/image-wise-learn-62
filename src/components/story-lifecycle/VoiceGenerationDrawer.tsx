@@ -32,6 +32,10 @@ import { AIClient } from '@/lib/api/ai-client';
 import { logger } from '@/lib/logger';
 import { Volume2, Play, Pause, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { CREDIT_COSTS } from '@/lib/constants/api-constants';
+import { FeatureGateModal } from '@/components/modals/FeatureGateModal';
+import { useEntitlementCheck } from '@/hooks/useEntitlementCheck';
+import { useQuotas } from '@/hooks/useQuotas';
+import { calculateTTSCredits } from '../../../shared/credit-costs';
 
 interface Chapter {
   id: string;
@@ -83,6 +87,12 @@ export function VoiceGenerationDrawer({
   onSuccess,
 }: VoiceGenerationDrawerProps) {
   const { toast } = useToast();
+
+  // Quota and entitlement hooks
+  const { checkEntitlement } = useEntitlementCheck();
+  const { creditBalance, isSubscriber, refreshQuotas } = useQuotas();
+  const [showTTSGate, setShowTTSGate] = useState(false);
+
   const [voiceId, setVoiceId] = useState(
     chapter.voice_config?.speakerId || AVAILABLE_VOICES[0].id
   );
@@ -91,7 +101,7 @@ export function VoiceGenerationDrawer({
   const [playing, setPlaying] = useState(false);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
 
-  const creditsRequired = calculateAudioCredits();
+  const creditsRequired = calculateTTSCredits(chapter.content);
   const wordCount = countWords(chapter.content);
 
   useEffect(() => {
@@ -139,6 +149,23 @@ export function VoiceGenerationDrawer({
 
   const handleGenerate = async () => {
     try {
+      // Pre-flight entitlement check
+      const entitlement = await checkEntitlement('tts', { text: chapter.content });
+
+      if (!entitlement.allowed) {
+        // Show gate modal instead of proceeding
+        setShowTTSGate(true);
+        logger.info('TTS generation gated', {
+          chapterId: chapter.id,
+          storyId,
+          reason: entitlement.reason,
+          creditsRequired,
+          creditsAvailable: creditBalance,
+          operation: 'tts-generation-gated'
+        });
+        return; // Don't proceed with generation
+      }
+
       setGenerating(true);
 
       logger.info('Generating voice for chapter', {
@@ -148,6 +175,7 @@ export function VoiceGenerationDrawer({
         speed,
         wordCount,
         creditsRequired,
+        creditsSpent: creditsRequired,
       });
 
       // Track analytics
@@ -204,6 +232,9 @@ export function VoiceGenerationDrawer({
           chapter_number: chapter.segment_number,
         });
       }
+
+      // Refresh quotas to update UI
+      refreshQuotas();
 
       toast({
         title: 'Voice Generated!',
@@ -413,9 +444,19 @@ export function VoiceGenerationDrawer({
           </div>
 
           <p className="text-xs text-[#C9C5D5] text-center italic">
-            Voice generation uses your credit balance. Each chapter costs {CREDIT_COSTS.audioPerChapter} credits.
+            Voice generation uses your credit balance. Estimated cost: {creditsRequired} credits.
           </p>
         </div>
+
+        {/* TTS Gate Modal */}
+        <FeatureGateModal
+          open={showTTSGate}
+          onClose={() => setShowTTSGate(false)}
+          feature="tts"
+          estimatedCost={creditsRequired}
+          currentBalance={creditBalance}
+          isSubscriber={isSubscriber}
+        />
       </SheetContent>
     </Sheet>
   );

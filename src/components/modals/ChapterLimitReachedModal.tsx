@@ -44,7 +44,7 @@ export const ChapterLimitReachedModal = ({
           </div>
           <DialogTitle className="text-center">Daily Chapter Limit Reached</DialogTitle>
           <DialogDescription className="text-center">
-            You've created {chaptersUsed} chapters today. Your limit will reset in{' '}
+            You've used all 4 free chapters today. Resets in{' '}
             <span className="font-semibold">{formatTimeUntilReset(hoursUntilReset)}</span>.
           </DialogDescription>
         </DialogHeader>
@@ -75,7 +75,7 @@ export const ChapterLimitReachedModal = ({
               </li>
               <li className="flex items-center space-x-2">
                 <TrendingUp className="w-4 h-4 text-success" />
-                <span>100-300 credits for TTS & Video</span>
+                <span>500 credits/month for TTS & Video</span>
               </li>
               <li className="flex items-center space-x-2">
                 <TrendingUp className="w-4 h-4 text-success" />

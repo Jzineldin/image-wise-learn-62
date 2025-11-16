@@ -7,6 +7,10 @@ import { Film, Loader2, CheckCircle2, AlertCircle, Play } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';
+import { VideoGateModal } from '@/components/modals/VideoGateModal';
+import { useEntitlementCheck } from '@/hooks/useEntitlementCheck';
+import { useQuotas } from '@/hooks/useQuotas';
+import { calculateVideoCredits } from '../../../shared/credit-costs';
 
 interface VideoGenerationPanelProps {
   segmentId: string;
@@ -26,15 +30,37 @@ export const VideoGenerationPanel = ({
   onVideoGenerated
 }: VideoGenerationPanelProps) => {
   const { toast } = useToast();
+
+  // Quota and entitlement hooks
+  const { checkEntitlement } = useEntitlementCheck();
+  const { creditBalance, isSubscriber, refreshQuotas } = useQuotas();
+  const [showVideoGate, setShowVideoGate] = useState(false);
+
   const [status, setStatus] = useState<GenerationStatus>('idle');
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [creditsRequired] = useState(1);
+  const videoCost = calculateVideoCredits(); // 30 credits
 
   const generateVideo = async () => {
     try {
+      // Pre-flight entitlement check
+      const entitlement = await checkEntitlement('video');
+
+      if (!entitlement.allowed) {
+        // Show gate modal instead of spinning
+        setShowVideoGate(true);
+        logger.info('Video generation gated', {
+          segmentId,
+          reason: entitlement.reason,
+          creditsRequired: videoCost,
+          creditsAvailable: creditBalance,
+          operation: 'video-generation-gated'
+        });
+        return; // Don't proceed with generation
+      }
+
       setStatus('generating');
       setError(null);
       setProgress(0);
@@ -42,6 +68,7 @@ export const VideoGenerationPanel = ({
       logger.info('Starting video generation', {
         segmentId,
         storyId,
+        creditsSpent: videoCost,
         operation: 'video-generation-start'
       });
 
@@ -80,6 +107,9 @@ export const VideoGenerationPanel = ({
         setVideoUrl(data.video_url);
         setStatus('completed');
         setProgress(100);
+
+        // Refresh quotas to update UI
+        refreshQuotas();
 
         logger.info('Video generation completed', {
           segmentId,
@@ -197,7 +227,7 @@ export const VideoGenerationPanel = ({
         {/* Credit Info */}
         <div className="p-3 rounded-lg bg-background/50 border border-border/50">
           <p className="text-xs text-muted-foreground">
-            <span className="font-medium">{creditsRequired} credit</span> will be deducted for video generation
+            <span className="font-medium">{videoCost} credits</span> will be deducted for video generation
           </p>
         </div>
 
@@ -248,6 +278,14 @@ export const VideoGenerationPanel = ({
             Generate an animated video from this story scene. This may take a minute.
           </p>
         )}
+
+        {/* Video Gate Modal */}
+        <VideoGateModal
+          open={showVideoGate}
+          onClose={() => setShowVideoGate(false)}
+          currentBalance={creditBalance}
+          isSubscriber={isSubscriber}
+        />
       </CardContent>
     </Card>
   );

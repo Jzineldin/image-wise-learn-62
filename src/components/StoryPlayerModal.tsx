@@ -5,7 +5,7 @@
  * Features unified layout with image/video, text, TTS, and chapter navigation
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Volume2, VolumeX, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,11 +45,29 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
   const [isMuted, setIsMuted] = useState(false);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
+  // Use refs to avoid circular dependencies in useEffect
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isMutedRef = useRef(isMuted);
+  const segmentsRef = useRef(segments);
+
+  // Keep refs in sync
+  useEffect(() => {
+    audioRef.current = audioElement;
+  }, [audioElement]);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  useEffect(() => {
+    segmentsRef.current = segments;
+  }, [segments]);
+
   const currentChapter = segments[currentChapterIndex];
 
-  // Load story data
+  // Load story data (only on mount, since modal is conditionally rendered)
   useEffect(() => {
-    if (!isOpen || !storyId) return;
+    if (!storyId) return;
 
     const loadStory = async () => {
       setIsLoading(true);
@@ -83,15 +101,18 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
     };
 
     loadStory();
-  }, [storyId, isOpen]);
+  }, [storyId]);
 
   // Handle audio playback
   useEffect(() => {
+    // Cleanup previous audio if exists
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.src = '';
+    }
+
     if (!currentChapter?.audio_url) {
-      if (audioElement) {
-        audioElement.pause();
-        setAudioElement(null);
-      }
+      setAudioElement(null);
       setIsPlaying(false);
       return;
     }
@@ -100,58 +121,68 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
     const audio = new Audio(currentChapter.audio_url);
     audio.volume = isMuted ? 0 : 1;
 
-    audio.addEventListener('ended', () => {
+    const handleEnded = () => {
       setIsPlaying(false);
-    });
+    };
 
+    audio.addEventListener('ended', handleEnded);
     setAudioElement(audio);
 
     return () => {
       audio.pause();
-      audio.removeEventListener('ended', () => {});
+      audio.removeEventListener('ended', handleEnded);
+      audio.src = '';
     };
-  }, [currentChapter?.id, currentChapter?.audio_url]);
+  }, [currentChapter?.id]);
 
   // Update audio volume when mute state changes
   useEffect(() => {
-    if (audioElement) {
-      audioElement.volume = isMuted ? 0 : 1;
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : 1;
     }
-  }, [isMuted, audioElement]);
+  }, [isMuted]);
 
   const handlePlayPause = useCallback(() => {
-    if (!audioElement) return;
+    if (!audioRef.current) return;
 
-    if (isPlaying) {
-      audioElement.pause();
-      setIsPlaying(false);
-    } else {
-      audioElement.play();
-      setIsPlaying(true);
-    }
-  }, [audioElement, isPlaying]);
+    setIsPlaying(prev => {
+      if (prev) {
+        audioRef.current?.pause();
+        return false;
+      } else {
+        audioRef.current?.play();
+        return true;
+      }
+    });
+  }, []);
 
   const handlePreviousChapter = useCallback(() => {
-    if (currentChapterIndex > 0) {
-      setCurrentChapterIndex(prev => prev - 1);
-      setIsPlaying(false);
-    }
-  }, [currentChapterIndex]);
+    setCurrentChapterIndex(prev => {
+      if (prev > 0) {
+        setIsPlaying(false);
+        return prev - 1;
+      }
+      return prev;
+    });
+  }, []);
 
   const handleNextChapter = useCallback(() => {
-    if (currentChapterIndex < segments.length - 1) {
-      setCurrentChapterIndex(prev => prev + 1);
-      setIsPlaying(false);
-    }
-  }, [currentChapterIndex, segments.length]);
+    setCurrentChapterIndex(prev => {
+      if (prev < segmentsRef.current.length - 1) {
+        setIsPlaying(false);
+        return prev + 1;
+      }
+      return prev;
+    });
+  }, []);
 
   const handleClose = useCallback(() => {
-    if (audioElement) {
-      audioElement.pause();
+    if (audioRef.current) {
+      audioRef.current.pause();
     }
     setIsPlaying(false);
     onClose();
-  }, [audioElement, onClose]);
+  }, [onClose]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -177,7 +208,7 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4">
       {/* Close button */}
       <Button
         variant="ghost"
@@ -194,10 +225,10 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
       ) : !currentChapter ? (
         <div className="text-white text-xl">Story not found</div>
       ) : (
-        <div className="w-full h-full max-w-7xl mx-auto p-4 md:p-8 flex flex-col">
+        <div className="w-full max-w-2xl mx-auto h-[90vh] flex flex-col">
           {/* Header */}
-          <div className="text-center mb-4">
-            <h1 className="text-3xl md:text-4xl font-heading font-bold text-white mb-2">
+          <div className="text-center mb-4 px-4">
+            <h1 className="text-2xl md:text-3xl font-heading font-bold text-white mb-1">
               {story?.title}
             </h1>
             <p className="text-white/70 text-sm">
@@ -206,15 +237,15 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
             </p>
           </div>
 
-          {/* Main Content Area */}
-          <div className="flex-1 grid md:grid-cols-2 gap-6 overflow-hidden">
-            {/* Left: Media (Image/Video) */}
-            <div className="relative rounded-2xl overflow-hidden bg-black/50 flex items-center justify-center">
+          {/* Main Content - Portrait Card */}
+          <div className="flex-1 bg-gradient-to-b from-gray-900/80 to-black/80 rounded-2xl overflow-hidden shadow-2xl flex flex-col backdrop-blur-sm border border-white/10">
+            {/* Media Section - Takes up ~60% of card */}
+            <div className="relative w-full aspect-[4/3] bg-black flex-shrink-0">
               {currentChapter.video_url ? (
                 <video
                   key={currentChapter.id}
                   src={currentChapter.video_url}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-cover"
                   controls
                   autoPlay
                   loop
@@ -225,43 +256,51 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
                   key={currentChapter.id}
                   src={currentChapter.image_url}
                   alt={`Chapter ${currentChapterIndex + 1}`}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-cover"
                   loading="eager"
                 />
               ) : (
-                <div className="text-white/50 text-lg">No media available</div>
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="text-white/50 text-lg">No media available</div>
+                </div>
               )}
             </div>
 
-            {/* Right: Text & Controls */}
-            <div className="flex flex-col justify-between">
-              {/* Story Text */}
-              <div className="flex-1 overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-                <p className="text-white text-lg md:text-xl leading-relaxed whitespace-pre-wrap">
+            {/* Text & Controls Section - Takes up remaining space */}
+            <div className="flex-1 flex flex-col p-6 overflow-hidden">
+              {/* Story Text - Scrollable */}
+              <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent mb-4">
+                <p className="text-white text-base md:text-lg leading-relaxed whitespace-pre-wrap">
                   {currentChapter.content}
                 </p>
               </div>
 
               {/* Audio Controls */}
               {currentChapter.audio_url && (
-                <div className="mt-6 p-4 bg-white/10 rounded-xl backdrop-blur-sm">
-                  <div className="flex items-center justify-between gap-4">
+                <div className="mt-auto p-3 bg-white/10 rounded-xl backdrop-blur-sm border border-white/10">
+                  <div className="flex items-center justify-between gap-3">
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={handlePlayPause}
                       className="text-white hover:bg-white/20"
                       aria-label={isPlaying ? 'Pause narration' : 'Play narration'}
                     >
                       {isPlaying ? (
-                        <Pause className="w-6 h-6" />
+                        <>
+                          <Pause className="w-4 h-4 mr-2" />
+                          Pause
+                        </>
                       ) : (
-                        <Play className="w-6 h-6" />
+                        <>
+                          <Play className="w-4 h-4 mr-2" />
+                          Play
+                        </>
                       )}
                     </Button>
 
                     <div className="flex-1 text-center">
-                      <p className="text-white/70 text-sm">
+                      <p className="text-white/70 text-xs">
                         {isPlaying ? 'Playing narration...' : 'Narration available'}
                       </p>
                     </div>
@@ -270,13 +309,13 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
                       variant="ghost"
                       size="icon"
                       onClick={() => setIsMuted(!isMuted)}
-                      className="text-white hover:bg-white/20"
+                      className="text-white hover:bg-white/20 h-8 w-8"
                       aria-label={isMuted ? 'Unmute' : 'Mute'}
                     >
                       {isMuted ? (
-                        <VolumeX className="w-6 h-6" />
+                        <VolumeX className="w-4 h-4" />
                       ) : (
-                        <Volume2 className="w-6 h-6" />
+                        <Volume2 className="w-4 h-4" />
                       )}
                     </Button>
                   </div>
@@ -286,14 +325,15 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
           </div>
 
           {/* Bottom Navigation */}
-          <div className="mt-6 flex items-center justify-between">
+          <div className="mt-4 flex items-center justify-between px-4">
             <Button
               variant="ghost"
+              size="sm"
               onClick={handlePreviousChapter}
               disabled={currentChapterIndex === 0}
               className="text-white hover:bg-white/10 disabled:opacity-30"
             >
-              <ChevronLeft className="w-5 h-5 mr-2" />
+              <ChevronLeft className="w-4 h-4 mr-1" />
               Previous
             </Button>
 
@@ -306,10 +346,10 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
                     setCurrentChapterIndex(index);
                     setIsPlaying(false);
                   }}
-                  className={`w-3 h-3 rounded-full transition-all ${
+                  className={`h-2 rounded-full transition-all ${
                     index === currentChapterIndex
-                      ? 'bg-white w-8'
-                      : 'bg-white/40 hover:bg-white/70'
+                      ? 'bg-white w-6'
+                      : 'bg-white/40 hover:bg-white/70 w-2'
                   }`}
                   aria-label={`Go to chapter ${index + 1}`}
                 />
@@ -318,12 +358,13 @@ export function StoryPlayerModal({ storyId, isOpen, onClose, initialChapter = 0 
 
             <Button
               variant="ghost"
+              size="sm"
               onClick={handleNextChapter}
               disabled={currentChapterIndex === segments.length - 1}
               className="text-white hover:bg-white/10 disabled:opacity-30"
             >
               Next
-              <ChevronRight className="w-5 h-5 ml-2" />
+              <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
         </div>

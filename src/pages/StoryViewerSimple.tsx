@@ -538,6 +538,8 @@ const handleGenerateAudio = async () => {
       const result = await AIClient.generateAudioV2({
         text: currentSegment.content,
         voiceId: selectedVoice,
+        segment_id: currentSegment.id, // Pass segment ID for persistence
+        story_id: story.id, // Pass story ID for full story audio
       });
 
       if (result.success && result.data) {
@@ -1057,17 +1059,6 @@ const handleGenerateAudio = async () => {
   const isEnding = currentSegment?.is_ending || false;
   const hasNextSegment = currentIndex < segments.length - 1;
   const hasPrevSegment = currentIndex > 0;
-
-  // Debug logging for audio player
-  logger.info('Rendering StoryViewerSimple', {
-    currentIndex,
-    hasAudioUrl: !!currentSegment?.audio_url,
-    audioUrl: currentSegment?.audio_url?.substring(0, 50),
-    hasVideoUrl: !!currentSegment?.video_url,
-    videoUrl: currentSegment?.video_url?.substring(0, 50),
-    segmentId: currentSegment?.id,
-    allSegmentFields: Object.keys(currentSegment || {})
-  });
 
   return (
     <>

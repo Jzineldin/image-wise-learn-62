@@ -30,7 +30,8 @@ const FeaturedStoriesCarousel = () => {
 
   // Auto-play functionality with proper cleanup
   useEffect(() => {
-    if (!isAutoPlaying || featuredStories.length <= 1) return;
+    // Pause auto-play when modal is open
+    if (!isAutoPlaying || featuredStories.length <= 1 || selectedStoryId) return;
     
     let intervalId: NodeJS.Timeout;
     let timeoutId: NodeJS.Timeout;
@@ -47,7 +48,7 @@ const FeaturedStoriesCarousel = () => {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-  }, [featuredStories.length, isAutoPlaying]);
+  }, [featuredStories.length, isAutoPlaying, selectedStoryId]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -68,51 +69,48 @@ const FeaturedStoriesCarousel = () => {
   const nextStory = useCallback(() => {
     setIsTransitioning(true);
     setIsAutoPlaying(false);
-    
-    const transitionTimeout = setTimeout(() => {
+
+    setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % featuredStories.length);
       setIsTransitioning(false);
-      
-      const resumeTimeout = setTimeout(() => setIsAutoPlaying(true), 1000);
-      
-      return () => {
-        clearTimeout(transitionTimeout);
-        clearTimeout(resumeTimeout);
-      };
+
+      setTimeout(() => setIsAutoPlaying(true), 1000);
     }, 150);
   }, [featuredStories.length]);
 
   const prevStory = useCallback(() => {
     setIsTransitioning(true);
     setIsAutoPlaying(false);
-    
-    const transitionTimeout = setTimeout(() => {
+
+    setTimeout(() => {
       setCurrentIndex((prev) => (prev - 1 + featuredStories.length) % featuredStories.length);
       setIsTransitioning(false);
-      
-      const resumeTimeout = setTimeout(() => setIsAutoPlaying(true), 1000);
-      
-      return () => {
-        clearTimeout(transitionTimeout);
-        clearTimeout(resumeTimeout);
-      };
+
+      setTimeout(() => setIsAutoPlaying(true), 1000);
     }, 150);
   }, [featuredStories.length]);
 
   // Context7 Pattern: Memoize event handlers to prevent re-renders
   const handleMouseEnter = useCallback(() => {
+    if (selectedStoryId) return; // Don't change auto-play state when modal is open
     setIsAutoPlaying(false);
-  }, []);
+  }, [selectedStoryId]);
 
   const handleMouseLeave = useCallback(() => {
+    if (selectedStoryId) return; // Don't change auto-play state when modal is open
     setIsAutoPlaying(true);
-  }, []);
+  }, [selectedStoryId]);
 
   // Context7 Pattern: Memoize current story to prevent unnecessary recalculations
   const currentStory = useMemo(() =>
     featuredStories[currentIndex],
     [featuredStories, currentIndex]
   );
+
+  // Memoize modal close handler to prevent re-renders
+  const handleCloseModal = useCallback(() => {
+    setSelectedStoryId(null);
+  }, []);
 
   if (loading) {
     return (
@@ -161,14 +159,15 @@ const FeaturedStoriesCarousel = () => {
   }
 
   return (
-    <div
-      role="region"
-      aria-label="Featured stories carousel"
-      aria-live="polite"
-      className="relative w-full rounded-2xl overflow-hidden min-h-[500px] aspect-[4/5] shadow-2xl hover:shadow-[0_20px_50px_rgba(255,255,255,0.1)] transition-all duration-500 hover:scale-[1.02] group"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
+    <>
+      <div
+        role="region"
+        aria-label="Featured stories carousel"
+        aria-live="polite"
+        className="relative w-full rounded-2xl overflow-hidden min-h-[500px] aspect-[4/5] shadow-2xl hover:shadow-[0_20px_50px_rgba(255,255,255,0.1)] transition-all duration-500 hover:scale-[1.02] group"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
       {/* Background Image with Lazy Loading */}
       {currentStory.preview_image_url ? (
         <LazyImage
@@ -296,15 +295,17 @@ const FeaturedStoriesCarousel = () => {
         </div>
       </div>
 
-      {/* Story Player Modal */}
+      </div>
+
+      {/* Story Player Modal - Rendered outside carousel to prevent hover conflicts */}
       {selectedStoryId && (
         <StoryPlayerModal
           storyId={selectedStoryId}
           isOpen={!!selectedStoryId}
-          onClose={() => setSelectedStoryId(null)}
+          onClose={handleCloseModal}
         />
       )}
-    </div>
+    </>
   );
 };
 

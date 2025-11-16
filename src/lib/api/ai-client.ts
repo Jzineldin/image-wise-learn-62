@@ -575,19 +575,25 @@ export class AIClient {
   static async generateAudioV2(params: {
     text: string;
     voiceId?: 'Kore' | 'Puck' | 'Charon' | 'Fenrir' | 'Zephyr';
+    segment_id?: string;
+    story_id?: string;
   }) {
     logger.info('V2 Audio Generation (Gemini TTS - FREE)', {
       voiceId: params.voiceId || 'Kore',
       textLength: params.text.length,
+      segmentId: params.segment_id,
+      storyId: params.story_id,
       method: 'generate-audio-v2'
     });
 
     return this.invoke('generate-audio-v2', {
       text: params.text,
-      voiceId: params.voiceId || 'Kore'
+      voiceId: params.voiceId || 'Kore',
+      segment_id: params.segment_id,
+      story_id: params.story_id
     }, {
-      timeout: 30000,
-      retries: 1
+      timeout: 90000, // Increased to 90 seconds for TTS generation + storage upload
+      retries: 0 // No retries to avoid double-charging
     });
   }
 
