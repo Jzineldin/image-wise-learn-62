@@ -1,4 +1,4 @@
-import { useState, useEffect, memo, useCallback } from 'react';
+import { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,68 @@ interface StorySeedGeneratorProps {
   onSeedSelect: (seed: StorySeed | null) => void;
   onCustomSeedChange: (seed: string) => void;
 }
+
+interface SeedCardProps {
+  seed: StorySeed;
+  isSelected: boolean;
+  onSelect: (seed: StorySeed) => void;
+  translate: (key: string) => string;
+}
+
+const SeedCard = memo(({ seed, isSelected, onSelect, translate }: SeedCardProps) => {
+  const handleClick = useCallback(() => {
+    onSelect(seed);
+  }, [seed, onSelect]);
+
+  return (
+    <Card
+      className={`cursor-pointer transition-all duration-200 ${
+        isSelected
+          ? 'ring-2 ring-primary bg-primary/5'
+          : 'hover:shadow-md hover:border-primary/50'
+      }`}
+      onClick={handleClick}
+    >
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center justify-between">
+          {seed.title}
+          {isSelected && (
+            <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
+              {translate('storySeeds.selected')}
+            </span>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <p className="text-sm text-muted-foreground">
+          {seed.description}
+        </p>
+      </CardContent>
+    </Card>
+  );
+});
+
+interface CharacterSummaryProps {
+  characters: UserCharacter[];
+  translate: (key: string) => string;
+}
+
+const CharacterSummary = memo(({ characters, translate }: CharacterSummaryProps) => {
+  if (characters.length === 0) return null;
+
+  return (
+    <div className="bg-muted/30 rounded-lg p-4">
+      <h5 className="font-medium text-sm mb-2">{translate('storySeeds.storyCharacters')}:</h5>
+      <div className="flex flex-wrap gap-2">
+        {characters.map(char => (
+          <span key={char.id} className="text-sm bg-background px-2 py-1 rounded border">
+            {char.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+});
 
 export const StorySeedGenerator = memo(({
   ageGroup,
@@ -105,37 +167,15 @@ export const StorySeedGenerator = memo(({
             Tip: In the next step, opening choices include <span className="font-medium">Impact</span> previews to help you pick a direction.
           </div>
           <div className="grid gap-3">
-            {seeds.map((seed) => {
-              const isSelected = selectedSeed?.id === seed.id;
-              
-              return (
-                <Card
-                  key={seed.id}
-                  className={`cursor-pointer transition-all duration-200 ${
-                    isSelected 
-                      ? 'ring-2 ring-primary bg-primary/5' 
-                      : 'hover:shadow-md hover:border-primary/50'
-                  }`}
-                  onClick={() => handleSeedSelect(seed)}
-                >
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center justify-between">
-                      {seed.title}
-                      {isSelected && (
-                        <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
-                          {translate('storySeeds.selected')}
-                        </span>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-sm text-muted-foreground">
-                      {seed.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {seeds.map((seed) => (
+              <SeedCard
+                key={seed.id}
+                seed={seed}
+                isSelected={selectedSeed?.id === seed.id}
+                onSelect={handleSeedSelect}
+                translate={translate}
+              />
+            ))}
           </div>
           </>
         )}
@@ -197,18 +237,11 @@ export const StorySeedGenerator = memo(({
       </div>
 
       {/* Character Summary */}
-      {characters.length > 0 && (
-        <div className="bg-muted/30 rounded-lg p-4">
-          <h5 className="font-medium text-sm mb-2">{translate('storySeeds.storyCharacters')}:</h5>
-          <div className="flex flex-wrap gap-2">
-            {characters.map(char => (
-              <span key={char.id} className="text-sm bg-background px-2 py-1 rounded border">
-                {char.name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      <CharacterSummary characters={characters} translate={translate} />
     </div>
   );
 });
+
+SeedCard.displayName = 'SeedCard';
+CharacterSummary.displayName = 'CharacterSummary';
+StorySeedGenerator.displayName = 'StorySeedGenerator';

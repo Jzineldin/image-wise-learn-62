@@ -15,13 +15,13 @@ export const RETRY_ATTEMPTS = {
   image: 2,
 };
 
-export const CREDIT_COSTS = {
-  story: 2,
-  segment: 2, // 1 for text + 1 for image
-  image: 1,
-  audioBase: 1, // Plus word-based calculation
-};
+// DEPRECATED: Use shared/credit-costs.ts instead
+// This is kept for backwards compatibility only
+import { CREDIT_COSTS as SHARED_COSTS } from '../../../shared/credit-costs';
 
+export const CREDIT_COSTS = SHARED_COSTS;
+
+// Legacy TTS pricing (kept for backwards compatibility)
 export const TTS_PRICING = {
   wordsPerCredit: 100,
   minCredits: 1,

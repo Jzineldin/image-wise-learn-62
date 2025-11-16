@@ -139,11 +139,11 @@ const Index = () => {
 
       {/* Hero Section - Split Layout */}
       <section className="relative overflow-hidden min-h-screen flex items-center justify-center pt-16">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center max-w-7xl mx-auto -mt-16">
-            
+        <div className="container mx-auto px-4 py-8">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center max-w-7xl mx-auto">
+
             {/* Left Side - Main Content */}
-            <div className="space-y-8 lg:space-y-10 flex flex-col justify-center min-h-[500px]">
+            <div className="space-y-8 flex flex-col justify-center">
               {/* Beta Badge */}
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20 w-fit">
                 <Crown className="w-4 h-4 text-yellow-500 animate-pulse" />
@@ -153,7 +153,7 @@ const Index = () => {
               </div>
 
               <div className="space-y-6">
-                <h1 className="text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-heading font-bold text-fire-gradient leading-[0.9] glow-fire">
+                <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-heading font-bold text-fire-gradient leading-[0.9] glow-fire">
                   TALE<br />FORGE
                 </h1>
 
@@ -165,28 +165,28 @@ const Index = () => {
               <div className="flex flex-col sm:flex-row gap-4 max-w-md">
                 {hasFounderStatus ? (
                   <Link to="/create">
-                    <Button variant="default" size="lg" className="w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2">
+                    <Button variant="default" size="lg" className="w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2 px-8 py-6 text-base">
                       <BookOpen className="w-5 h-5" />
                       Create Story
                     </Button>
                   </Link>
                 ) : (
                   <Link to="/auth">
-                    <Button variant="default" size="lg" className="w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2">
+                    <Button variant="default" size="lg" className="w-full sm:w-auto shadow-xl hover:shadow-2xl gap-2 px-8 py-6 text-base">
                       <Crown className="w-5 h-5" />
                       Claim Founder Status
                     </Button>
                   </Link>
                 )}
                 <Link to="/discover">
-                  <Button variant="outline" size="lg" className="w-full sm:w-auto shadow-lg hover:shadow-xl">
+                  <Button variant="outline" size="lg" className="w-full sm:w-auto shadow-lg hover:shadow-xl px-8 py-6 text-base">
                     Explore Stories
                   </Button>
                 </Link>
               </div>
 
               {/* Social Proof */}
-              <div className="flex items-center gap-6 text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-primary" />
                   <span>
@@ -203,14 +203,12 @@ const Index = () => {
             </div>
 
             {/* Right Side - Featured Stories Carousel */}
-            <div className="flex justify-center lg:justify-start xl:justify-center items-center min-h-[500px]">
-              <div className="relative">
-                {/* Connecting line/element for visual flow */}
-                <div className="hidden lg:block absolute -left-8 top-1/2 transform -translate-y-1/2 w-8 h-px bg-gradient-to-r from-transparent via-primary/30 to-primary/60"></div>
+            <div className="flex justify-center items-center">
+              <div className="w-full max-w-lg">
                 <FeaturedStoriesCarousel />
               </div>
             </div>
-            
+
           </div>
         </div>
       </section>

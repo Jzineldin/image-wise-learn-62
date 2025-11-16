@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { queryKeys } from '@/lib/query-client';
 import { logger } from '@/lib/production-logger';
+import { CREDIT_COSTS, calculateAudioCredits, calculateVideoCredits } from '../../shared/credit-costs';
 
 interface StorySegment {
   id: string;
@@ -16,6 +17,7 @@ interface StorySegment {
   content: string | null;
   image_url?: string | null;
   audio_url?: string | null;
+  video_url?: string | null;
 }
 
 interface CreditCalculation {
@@ -25,6 +27,7 @@ interface CreditCalculation {
     segments: number;
     images: number;
     audio: number;
+    video: number;
     total: number;
   };
   isLoading: boolean;
@@ -33,10 +36,12 @@ interface CreditCalculation {
 /**
  * Calculate credits used for a story based on its segments
  * 
- * Credit costs:
- * - Story segment (text): 1 credit
- * - Image generation: 1 credit
+ * Credit costs (from shared/credit-costs.ts):
+ * - Story generation: FREE (0 credits)
+ * - Story segment (text): FREE (0 credits)
+ * - Image generation: FREE (0 credits)
  * - Audio generation: 1 credit per 100 words (rounded up)
+ * - Video generation: 12 credits (8-second fixed duration)
  */
 export const useStoryCredits = (
   storyId: string | undefined,
@@ -78,6 +83,7 @@ export const useStoryCredits = (
         segments: 0,
         images: 0,
         audio: 0,
+        video: 0,
         total: 0
       };
     }
@@ -85,32 +91,37 @@ export const useStoryCredits = (
     let segmentCredits = 0;
     let imageCredits = 0;
     let audioCredits = 0;
+    let videoCredits = 0;
 
     segments.forEach((segment) => {
-      // Count segment text generation (1 credit per segment)
+      // Story segments: FREE (0 credits)
       if (segment.content && segment.content.trim().length > 0) {
-        segmentCredits += 1;
+        segmentCredits += CREDIT_COSTS.segment;
       }
 
-      // Count image generation (1 credit per image)
+      // Image generation: FREE (0 credits)
       if (segment.image_url) {
-        imageCredits += 1;
+        imageCredits += CREDIT_COSTS.image;
       }
 
-      // Count audio generation (1 credit per 100 words, rounded up)
+      // Audio generation: 1 credit per 100 words (rounded up)
       if (segment.audio_url && segment.content) {
-        const wordCount = segment.content.trim().split(/\s+/).filter(w => w.length > 0).length;
-        const audioCost = Math.max(1, Math.ceil(wordCount / 100));
-        audioCredits += audioCost;
+        audioCredits += calculateAudioCredits(segment.content);
+      }
+
+      // Video generation: 12 credits for 8-second video
+      if (segment.video_url) {
+        videoCredits += CREDIT_COSTS.videoLong;
       }
     });
 
-    const total = segmentCredits + imageCredits + audioCredits;
+    const total = segmentCredits + imageCredits + audioCredits + videoCredits;
 
     return {
       segments: segmentCredits,
       images: imageCredits,
       audio: audioCredits,
+      video: videoCredits,
       total
     };
   }, [segments]);
@@ -132,16 +143,21 @@ export const useStoryCredits = (
 export const estimateSegmentCost = (
   includeImage: boolean = true,
   includeAudio: boolean = false,
+  includeVideo: boolean = false,
   estimatedWordCount: number = 150
 ): number => {
-  let cost = 1; // Base segment cost
+  let cost = CREDIT_COSTS.segment; // Story segment: FREE (0 credits)
 
   if (includeImage) {
-    cost += 1; // Image generation
+    cost += CREDIT_COSTS.image; // Image generation: FREE (0 credits)
   }
 
   if (includeAudio) {
-    cost += Math.max(1, Math.ceil(estimatedWordCount / 100)); // Audio cost
+    cost += Math.max(1, Math.ceil(estimatedWordCount / 100)); // Audio: 1 credit per 100 words
+  }
+
+  if (includeVideo) {
+    cost += CREDIT_COSTS.videoLong; // Video: 12 credits (8 seconds)
   }
 
   return cost;
@@ -154,24 +170,22 @@ export const formatCreditBreakdown = (breakdown: {
   segments: number;
   images: number;
   audio: number;
+  video: number;
   total: number;
 }): string => {
   const parts: string[] = [];
 
-  if (breakdown.segments > 0) {
-    parts.push(`${breakdown.segments} segment${breakdown.segments > 1 ? 's' : ''}`);
-  }
-
-  if (breakdown.images > 0) {
-    parts.push(`${breakdown.images} image${breakdown.images > 1 ? 's' : ''}`);
-  }
-
+  // Only show paid features (audio and video)
   if (breakdown.audio > 0) {
     parts.push(`${breakdown.audio} audio`);
   }
 
+  if (breakdown.video > 0) {
+    parts.push(`${breakdown.video} video`);
+  }
+
   if (parts.length === 0) {
-    return 'No credits used yet';
+    return 'No credits used yet (Story & Images are FREE!)';
   }
 
   return parts.join(' + ') + ` = ${breakdown.total} credit${breakdown.total > 1 ? 's' : ''}`;

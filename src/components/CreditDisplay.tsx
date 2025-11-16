@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Coins, Plus, RefreshCw } from 'lucide-react';
+import { Coins, Plus, RefreshCw, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/production-logger';
 import FounderBadge from './FounderBadge';
+import { useChapterLimits } from '@/hooks/useChapterLimits';
+import { useQuotas } from '@/hooks/useQuotas';
 
 interface CreditDisplayProps {
   compact?: boolean;
@@ -23,72 +25,43 @@ interface UserProfile {
 
 const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayProps) => {
   const { user } = useAuth();
-  const { createCheckout } = useSubscription();
+  const { createCheckout, tier } = useSubscription();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [credits, setCredits] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
-  const fetchCredits = useCallback(async () => {
-    if (!user?.id) return;
+  // Use the new unified quotas hook
+  const { creditBalance, chaptersRemaining, isSubscriber, isLoading, refetch } = useQuotas();
 
-    try {
-      // Fetch credits
-      const { data: creditsData, error: creditsError } = await supabase
-        .from('user_credits')
-        .select('current_balance')
-        .eq('user_id', user.id)
-        .maybeSingle();
+  // Keep chapter limits hook for compatibility
+  const { chapterStatus, isPaid, isLoading: isLoadingChapters } = useChapterLimits();
 
-      if (creditsError) throw creditsError;
-      setCredits(creditsData?.current_balance || 0);
-
-      // Fetch user profile for beta status
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('is_beta_user, beta_joined_at, founder_status')
-        .eq('id', user.id)
-        .single();
-
-      if (!profileError && profileData) {
-        setUserProfile(profileData);
-      }
-    } catch (error) {
-      logger.error('Error fetching credits', error, { component: 'CreditDisplay' });
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
-
+  // Fetch user profile for beta status
   useEffect(() => {
-    fetchCredits();
-  }, [fetchCredits]);
+    const fetchProfile = async () => {
+      if (!user?.id) return;
 
-  // Listen for real-time credit updates
-  useEffect(() => {
-    if (!user?.id) return;
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('is_beta_user, beta_joined_at, founder_status')
+          .eq('id', user.id)
+          .single();
 
-    const channel = supabase
-      .channel('credit-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'user_credits',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          setCredits(payload.new.current_balance || 0);
+        if (!profileError && profileData) {
+          setUserProfile(profileData);
         }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+      } catch (error) {
+        logger.error('Error fetching profile', error, { component: 'CreditDisplay' });
+      }
     };
+
+    fetchProfile();
   }, [user?.id]);
+
+  // Alias for backwards compatibility
+  const credits = creditBalance;
+  const fetchCredits = refetch;
 
   const handleBuyCredits = async () => {
     // Buy the most popular pack (100 credits for $9)
@@ -98,7 +71,7 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
     }
   };
 
-  if (loading) {
+  if (isLoading || isLoadingChapters) {
     return (
       <div className={`${compact ? 'flex items-center space-x-2' : ''}`}>
         <div className="animate-pulse">
@@ -109,6 +82,8 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
   }
 
   const isLowCredits = credits < 5;
+  // Use chaptersRemaining from useQuotas if available, fallback to chapterStatus
+  const remaining = chaptersRemaining !== null ? chaptersRemaining : (chapterStatus?.remaining || 0);
 
   if (compact) {
     return (
@@ -123,16 +98,42 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
           />
         )}
 
-        <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${
-          isLowCredits ? 'border-destructive/20 bg-destructive/5' : 'border-border bg-background'
-        }`}>
-          <Coins className={`w-4 h-4 ${isLowCredits ? 'text-destructive' : 'text-primary'}`} />
-          <span className="font-medium">{credits}</span>
-        </div>
-        {showActions && isLowCredits && (
-          <Button size="sm" variant="outline" onClick={handleBuyCredits}>
+        {/* Show BOTH chapters AND credits for free users */}
+        {!isPaid ? (
+          <>
+            <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${
+              remaining === 0 ? 'border-destructive/20 bg-destructive/5' :
+              remaining === 1 ? 'border-warning/20 bg-warning/5' :
+              'border-border bg-background'
+            }`}>
+              <BookOpen className={`w-4 h-4 ${
+                remaining === 0 ? 'text-destructive' :
+                remaining === 1 ? 'text-warning' :
+                'text-primary'
+              }`} />
+              <span className="font-medium text-sm">{remaining}/4 chapters</span>
+            </div>
+            <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${
+              isLowCredits ? 'border-destructive/20 bg-destructive/5' : 'border-border bg-background'
+            }`}>
+              <Coins className={`w-4 h-4 ${isLowCredits ? 'text-destructive' : 'text-primary'}`} />
+              <span className="font-medium text-sm">{credits} credits</span>
+            </div>
+          </>
+        ) : (
+          <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border ${
+            isLowCredits ? 'border-destructive/20 bg-destructive/5' : 'border-border bg-background'
+          }`}>
+            <Coins className={`w-4 h-4 ${isLowCredits ? 'text-destructive' : 'text-primary'}`} />
+            <span className="font-medium">{credits} credits</span>
+            <span className="text-xs text-muted-foreground">(TTS/Video)</span>
+          </div>
+        )}
+        
+        {showActions && ((isPaid && isLowCredits) || (!isPaid && remaining === 0)) && (
+          <Button size="sm" variant="outline" onClick={() => navigate('/pricing')}>
             <Plus className="w-3 h-3 mr-1" />
-            Buy
+            {isPaid ? 'Buy' : 'Upgrade'}
           </Button>
         )}
       </div>
@@ -140,18 +141,27 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
   }
 
   return (
-    <Card className={isLowCredits ? 'border-destructive/20' : ''}>
+    <Card className={isLowCredits || (!isPaid && remaining === 0) ? 'border-destructive/20' : ''}>
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className={`p-3 rounded-full ${
-              isLowCredits ? 'bg-destructive/10' : 'bg-primary/10'
+              isLowCredits || (!isPaid && remaining === 0) ? 'bg-destructive/10' : 'bg-primary/10'
             }`}>
-              <Coins className={`w-6 h-6 ${isLowCredits ? 'text-destructive' : 'text-primary'}`} />
+              {!isPaid ? (
+                <BookOpen className={`w-6 h-6 ${remaining === 0 ? 'text-destructive' : 'text-primary'}`} />
+              ) : (
+                <Coins className={`w-6 h-6 ${isLowCredits ? 'text-destructive' : 'text-primary'}`} />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-lg">{credits} Credits</h3>
+                <h3 className="font-semibold text-lg">
+                  {!isPaid 
+                    ? `${remaining}/4 Chapters Today` 
+                    : `${credits} Credits`
+                  }
+                </h3>
                 {/* Founder Badge */}
                 {userProfile && (userProfile.is_beta_user || userProfile.founder_status) && (
                   <FounderBadge
@@ -163,7 +173,14 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
                 )}
               </div>
               <p className="text-sm text-muted-foreground">
-                {isLowCredits ? 'Running low on credits' : 'Ready to create stories'}
+                {!isPaid 
+                  ? remaining === 0 
+                    ? 'Daily limit reached' 
+                    : 'Free chapters remaining'
+                  : isLowCredits 
+                    ? 'Running low on credits' 
+                    : 'For TTS & Video generation'
+                }
               </p>
             </div>
           </div>
@@ -188,26 +205,41 @@ const CreditDisplay = ({ compact = false, showActions = true }: CreditDisplayPro
           )}
         </div>
 
-        {isLowCredits && showActions && (
+        {showActions && ((isPaid && isLowCredits) || (!isPaid && remaining <= 1)) && (
           <div className="mt-4 pt-4 border-t border-destructive/10">
             <p className="text-sm text-muted-foreground mb-3">
-              Get more credits to continue creating amazing stories!
+              {!isPaid 
+                ? 'Upgrade to get unlimited chapters every day plus credits for TTS & Video!' 
+                : 'Get more credits to continue using premium features!'
+              }
             </p>
             <div className="flex space-x-2">
-              <Button 
-                size="sm" 
-                className="flex-1"
-                onClick={handleBuyCredits}
-              >
-                Quick Buy - 100 Credits ($9)
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => navigate('/pricing')}
-              >
-                View All Packs
-              </Button>
+              {isPaid ? (
+                <>
+                  <Button 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={handleBuyCredits}
+                  >
+                    Quick Buy - 100 Credits ($9)
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => navigate('/pricing')}
+                  >
+                    View All Packs
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => navigate('/pricing')}
+                >
+                  Upgrade for Unlimited Chapters
+                </Button>
+              )}
             </div>
           </div>
         )}

@@ -2,6 +2,7 @@
 // Supports character consistency with reference images (up to 3)
 
 import { logger } from './logger.ts';
+import { arrayBufferToBase64 } from './base64.ts';
 
 export interface GeminiImageRequest {
   prompt: string;
@@ -58,7 +59,7 @@ export class GoogleGeminiImageService {
             }
 
             const imageBuffer = await imageResponse.arrayBuffer();
-            const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+            const base64Image = arrayBufferToBase64(imageBuffer);
             
             parts.push({
               inlineData: {

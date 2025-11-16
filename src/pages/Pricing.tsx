@@ -2,12 +2,14 @@ import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Sparkles, Crown, Zap, CreditCard, Package } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Check, Sparkles, Crown, Zap, CreditCard, Package, BookOpen, Image, Volume2, Video, Calculator } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/logger';
 import { useState } from 'react';
+import { CREDIT_COSTS, getPricingTiers } from '../../shared/credit-costs';
 
 const Pricing = () => {
   const { isAuthenticated } = useAuth();
@@ -26,11 +28,12 @@ const Pricing = () => {
       icon: <Sparkles className="w-8 h-8" />,
       description: "Perfect for getting started",
       features: [
-        "10 credits per month",
-        "Auto-refresh every 30 days",
-        "AI text generation",
-        "AI illustrations",
-        "Basic support",
+        "4 free chapters per day",
+        "AI text generation (FREE)",
+        "AI illustrations (FREE)",
+        "Max 2 active stories",
+        "Basic story endings",
+        "No TTS or Video",
         "No payment required"
       ],
       buttonText: "Start Creating Free",
@@ -45,9 +48,10 @@ const Pricing = () => {
       icon: <Crown className="w-8 h-8" />,
       description: "Most Popular",
       features: [
-        "100 credits per month",
-        "~10-20 complete stories",
-        "All free features",
+        "Unlimited chapters per day",
+        "100 credits for TTS & Video",
+        "Unlimited active stories",
+        "Premium story endings",
         "Priority generation",
         "Email support",
         "Cancel anytime",
@@ -65,8 +69,10 @@ const Pricing = () => {
       icon: <Zap className="w-8 h-8" />,
       description: "Best Value",
       features: [
-        "300 credits per month",
-        "~30-60 complete stories",
+        "Unlimited chapters per day",
+        "300 credits for TTS & Video",
+        "Unlimited active stories",
+        "Premium story endings",
         "All Starter features",
         "Priority support",
         "10% discount on extra credits",
@@ -197,21 +203,243 @@ const Pricing = () => {
           <h1 className="text-4xl md:text-5xl font-heading font-bold text-gradient mb-6">
             Choose Your Plan
           </h1>
-          <p className="text-xl text-text-secondary max-w-2xl mx-auto mb-4">
+          <p className="text-xl text-text-secondary max-w-2xl mx-auto">
             Start free with 10 credits every month. Upgrade anytime for more stories.
           </p>
-          <div className="bg-muted/50 backdrop-blur-sm border border-border/50 rounded-lg p-4 max-w-lg mx-auto">
-            <div className="flex items-center justify-center space-x-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <Sparkles className="w-4 h-4 text-primary" />
-                <span><strong>1 Credit = 1 Story Chapter</strong> (AI text + illustration)</span>
+        </div>
+
+        {/* Credit System Explanation */}
+        <div className="mb-20 max-w-6xl mx-auto">
+          <Card className="bg-gradient-to-br from-primary/5 to-secondary/5 border-primary/20">
+            <CardHeader className="text-center">
+              <CardTitle className="text-3xl font-heading flex items-center justify-center gap-3">
+                <Calculator className="w-8 h-8 text-primary" />
+                Understanding Credits
+              </CardTitle>
+              <CardDescription className="text-lg">
+                Transparent pricing for every feature. Know exactly what you'll pay before you create.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              {/* Feature Pricing Grid */}
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* FREE Features */}
+                <Card className="border-green-500/30 bg-green-500/5">
+                  <CardHeader>
+                    <CardTitle className="text-xl flex items-center gap-2 text-green-600 dark:text-green-400">
+                      <Sparkles className="w-5 h-5" />
+                      FREE Features
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <BookOpen className="w-5 h-5 text-green-600 dark:text-green-400 mt-1" />
+                      <div>
+                        <p className="font-semibold">Story Generation</p>
+                        <p className="text-sm text-muted-foreground">Create unlimited story chapters and text content</p>
+                        <Badge className="mt-2 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                          FREE
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Image className="w-5 h-5 text-green-600 dark:text-green-400 mt-1" />
+                      <div>
+                        <p className="font-semibold">Image Generation</p>
+                        <p className="text-sm text-muted-foreground">Beautiful AI illustrations for your stories</p>
+                        <Badge className="mt-2 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                          FREE (Beta)
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* PAID Features */}
+                <Card className="border-orange-500/30 bg-orange-500/5">
+                  <CardHeader>
+                    <CardTitle className="text-xl flex items-center gap-2 text-orange-600 dark:text-orange-400">
+                      <CreditCard className="w-5 h-5" />
+                      Premium Features
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <Volume2 className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-1" />
+                      <div>
+                        <p className="font-semibold">Audio Narration</p>
+                        <p className="text-sm text-muted-foreground">Professional voice narration</p>
+                        <Badge className="mt-2 bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+                          1 credit per 100 words
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Video className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-1" />
+                      <div>
+                        <p className="font-semibold">Video Animation</p>
+                        <p className="text-sm text-muted-foreground">8-second animated scene videos</p>
+                        <Badge className="mt-2 bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+                          {CREDIT_COSTS.videoLong} credits per video
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </div>
-            <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground mt-2">
-              <CreditCard className="w-4 h-4" />
-              <span>Voice narration: 1 credit per 100 words</span>
-            </div>
-          </div>
+
+              {/* Detailed Pricing Tables */}
+              <div className="grid md:grid-cols-2 gap-6 mt-8">
+                {/* Audio Pricing Tiers */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Volume2 className="w-5 h-5 text-primary" />
+                      Audio Pricing Tiers
+                    </CardTitle>
+                    <CardDescription>
+                      Word-based pricing (rounded up to nearest 100)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {getPricingTiers().audio.map((tier, index) => (
+                        <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-muted/30 border border-border/50">
+                          <span className="text-sm font-medium">{tier.range}</span>
+                          <Badge variant="secondary">{tier.credits} credit{tier.credits > 1 ? 's' : ''}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Video Pricing Tiers */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Video className="w-5 h-5 text-primary" />
+                      Video Pricing (Fixed Duration)
+                    </CardTitle>
+                    <CardDescription>
+                      8-second video animation with Veo 3.1
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center p-3 rounded-lg bg-muted/30 border border-border/50">
+                        <span className="text-sm font-medium">8-second video</span>
+                        <Badge variant="secondary">{CREDIT_COSTS.videoLong} credits</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                        <strong>Note:</strong> Video generation uses Google's Veo 3.1 model with a fixed 8-second duration for consistent quality and timing.
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Example Calculations */}
+              <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/30">
+                <CardHeader>
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Calculator className="w-6 h-6 text-primary" />
+                    Example: Complete Story Costs
+                  </CardTitle>
+                  <CardDescription>
+                    See what a typical story costs with different features
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-3 gap-6">
+                    {/* Example 1: Text + Images Only */}
+                    <div className="p-4 rounded-lg bg-background/60 border border-border/50">
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <BookOpen className="w-4 h-4" />
+                        Basic Story
+                      </h4>
+                      <ul className="space-y-2 text-sm">
+                        <li className="flex justify-between">
+                          <span>5 chapters (text)</span>
+                          <Badge variant="outline" className="bg-green-500/10">FREE</Badge>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>5 images</span>
+                          <Badge variant="outline" className="bg-green-500/10">FREE</Badge>
+                        </li>
+                        <li className="flex justify-between pt-2 border-t font-semibold">
+                          <span>Total Cost</span>
+                          <Badge className="bg-green-500 text-white">FREE</Badge>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Example 2: With Audio */}
+                    <div className="p-4 rounded-lg bg-background/60 border border-border/50">
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <Volume2 className="w-4 h-4" />
+                        Story + Audio
+                      </h4>
+                      <ul className="space-y-2 text-sm">
+                        <li className="flex justify-between">
+                          <span>5 chapters (text)</span>
+                          <Badge variant="outline" className="bg-green-500/10">FREE</Badge>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>5 images</span>
+                          <Badge variant="outline" className="bg-green-500/10">FREE</Badge>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>5 audio (150 words ea.)</span>
+                          <Badge variant="outline">10cr</Badge>
+                        </li>
+                        <li className="flex justify-between pt-2 border-t font-semibold">
+                          <span>Total Cost</span>
+                          <Badge className="bg-orange-500 text-white">10 credits</Badge>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Example 3: Full Experience */}
+                    <div className="p-4 rounded-lg bg-background/60 border border-primary/50 ring-2 ring-primary/20">
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4" />
+                        Premium Experience
+                      </h4>
+                      <ul className="space-y-2 text-sm">
+                        <li className="flex justify-between">
+                          <span>5 chapters (text)</span>
+                          <Badge variant="outline" className="bg-green-500/10">FREE</Badge>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>5 images</span>
+                          <Badge variant="outline" className="bg-green-500/10">FREE</Badge>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>5 audio (150 words ea.)</span>
+                          <Badge variant="outline">10cr</Badge>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>2 animated videos</span>
+                          <Badge variant="outline">24cr</Badge>
+                        </li>
+                        <li className="flex justify-between pt-2 border-t font-semibold">
+                          <span>Total Cost</span>
+                          <Badge className="bg-primary text-primary-foreground">34 credits</Badge>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Cost Breakdown Note */}
+                  <div className="mt-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                    <p className="text-sm text-muted-foreground">
+                      <strong>💡 Pro Tip:</strong> The Starter plan (100 credits/month) can create 2-3 complete premium stories with audio narration and video animations, or 10+ basic stories with just text and images.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Monthly Subscriptions */}

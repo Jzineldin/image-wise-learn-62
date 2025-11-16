@@ -1,6 +1,7 @@
 /**
  * Server-side validation utilities for Edge Functions
  * Provides secure input validation and sanitization
+ * Last updated: 2025-11-16T16:11:00Z
  */
 
 export interface ValidationResult<T = any> {
@@ -74,7 +75,13 @@ export class InputValidator {
    * Validate genre
    */
   static validateGenre(genre: string): ValidationResult<string> {
-    const validGenres = ['Fantasy', 'Adventure', 'Mystery', 'Superhero Stories', 'Animal Stories', 'Fairy Tales'];
+    // Support both Quick Start genres and full genre list
+    const validGenres = [
+      // Quick Start genres
+      'Fantasy', 'Space Adventure', 'Forest Fairytale', 'Pirates', 'Magical School', 'Custom',
+      // Full genre list
+      'Adventure', 'Sci-Fi', 'Science Fiction', 'Mystery', 'Superhero Stories', 'Animal Stories', 'Fairy Tales', 'Educational'
+    ];
     if (!validGenres.includes(genre)) {
       return { success: false, error: `Invalid genre. Must be one of: ${validGenres.join(', ')}` };
     }
@@ -218,11 +225,14 @@ export class InputValidator {
       }
     }
 
+    // Genre is optional for image generation - skip validation
+    // Images can be generated for any theme/genre
     if (body.genre) {
-      const genreResult = this.validateGenre(body.genre);
-      if (!genreResult.success) {
-        errors.push(genreResult.error!);
-      }
+      // Accept any genre for image generation
+      // const genreResult = this.validateGenre(body.genre);
+      // if (!genreResult.success) {
+      //   errors.push(genreResult.error!);
+      // }
     }
 
     return errors.length > 0 ? { success: false, errors } : { success: true };

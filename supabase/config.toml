@@ -12,7 +12,7 @@ host = "smtp.resend.com"
 port = 587
 user = "resend"
 pass = "env(RESEND_API_KEY)"
-admin_email = "noreply@yourdomain.com"
+admin_email = "noreply@tale-forge.app"
 sender_name = "Tale Forge"
 
 [functions.generate-story]
@@ -56,3 +56,15 @@ verify_jwt = true
 
 [functions.send-welcome-email]
 verify_jwt = false
+
+[functions.generate-audio-v2]
+verify_jwt = true
+
+[functions.generate-video-v2]
+verify_jwt = true
+
+[functions.generate-story-page-v2]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false  # Stripe webhooks can't provide JWT - signature verified instead

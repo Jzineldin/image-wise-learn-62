@@ -1,5 +1,6 @@
 import React from 'react';
 import { logger } from '@/lib/logger';
+import { Button } from '@/components/ui/button';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -45,13 +46,13 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
               <p className="text-text-secondary mb-6">
                 We're sorry, but something unexpected happened. Please refresh the page to try again.
               </p>
-              <button
+              <Button
                 onClick={() => window.location.reload()}
                 variant="default"
                 size="lg"
               >
                 Refresh Page
-              </button>
+              </Button>
             </div>
           </div>
         )

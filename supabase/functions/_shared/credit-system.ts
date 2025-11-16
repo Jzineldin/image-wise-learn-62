@@ -3,42 +3,29 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { logger } from './logger.ts';
 
+// Import from local edge functions copy
+import { CREDIT_COSTS as SHARED_COSTS, calculateAudioCredits as sharedCalculateAudioCredits } from './credit-costs.ts';
+
 export interface CreditCosts {
   storyGeneration: number;
   storySegment: number;
-  audioGeneration: number; // per 100 words
+  audioGeneration: number;
   imageGeneration: number;
   storyTitle: number;
 }
 
-// Credit cost configuration
+// Use shared credit costs (aligned with frontend)
 export const CREDIT_COSTS: CreditCosts = {
-  storyGeneration: 0,     // Free - text generation only (images charged separately)
-  storySegment: 1,        // 1 credit per story segment (text only - images charged separately)
-  audioGeneration: 1,     // 1 credit per 100 words of audio
-  imageGeneration: 1,     // 1 credit per image
-  storyTitle: 0           // Free
+  storyGeneration: SHARED_COSTS.storyGeneration,
+  storySegment: SHARED_COSTS.segment,
+  audioGeneration: SHARED_COSTS.audioGeneration,
+  imageGeneration: SHARED_COSTS.image,
+  storyTitle: SHARED_COSTS.storyTitle,
 };
 
-// Calculate audio credits based on word count
+// Calculate audio credits based on word count (use shared implementation)
 export function calculateAudioCredits(text: string): number {
-  const trimmedText = text.trim();
-  if (!trimmedText) {
-    logger.info('Audio credit calculation: empty text provided', { operation: 'credit-calculation' });
-    return 0; // No credits for empty text
-  }
-
-  const wordCount = trimmedText.split(/\s+/).length;
-  const credits = Math.ceil(wordCount / 100); // 1 credit per 100 words, rounded up
-
-  logger.info('Audio credit calculation', {
-    wordCount,
-    credits,
-    textLength: trimmedText.length,
-    operation: 'credit-calculation'
-  });
-
-  return credits;
+  return sharedCalculateAudioCredits(text);
 }
 
 // Credit validation and deduction service

@@ -253,3 +253,63 @@ a[class*="Button"] {
     transition: transform 0.1s ease;
   }
 }
+
+/* Text overflow and wrapping prevention */
+@media (max-width: 768px) {
+  /* Story content and paragraphs */
+  .story-content,
+  [class*="story-content"] {
+    overflow-wrap: break-word;
+    word-break: break-word;
+    word-wrap: break-word;
+    hyphens: auto;
+  }
+
+  /* Story titles - prevent overflow */
+  .story-title,
+  h1, h2, h3, h4, h5, h6 {
+    word-wrap: break-word;
+    word-break: break-word;
+    hyphens: none;
+  }
+
+  /* Card titles and descriptions */
+  [class*="Card"] h3,
+  [class*="Card"] h4,
+  [class*="card"] h3,
+  [class*="card"] h4 {
+    word-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  /* Testimonial text */
+  .testimonial-content,
+  .testimonial-text {
+    word-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  /* Form labels */
+  .form-label,
+  label:not(:has(input)) {
+    hyphens: none;
+    word-break: keep-all;
+  }
+
+  /* Long character names */
+  .character-name {
+    word-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  /* Image captions and alt text containers */
+  .image-caption,
+  .image-description {
+    word-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+  }
+}

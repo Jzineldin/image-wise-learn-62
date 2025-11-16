@@ -24,6 +24,40 @@ const Auth = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Handle OAuth callback (PKCE): exchange code for a session
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get('code');
+    const errorDesc = url.searchParams.get('error_description') || url.searchParams.get('error');
+
+    if (errorDesc) {
+      logger.error('OAuth error in callback', { error: errorDesc });
+      toast({
+        title: 'Google sign-in failed',
+        description: String(errorDesc),
+        variant: 'destructive',
+      });
+    }
+
+    if (code) {
+      logger.info('Exchanging OAuth code for session');
+      supabase.auth.exchangeCodeForSession(window.location.href)
+        .then(({ data, error }) => {
+          if (error) {
+            logger.error('exchangeCodeForSession failed', { error: error.message });
+            toast({ title: 'Authentication error', description: error.message, variant: 'destructive' });
+          } else if (data?.session) {
+            setSession(data.session);
+            setUser(data.user ?? data.session.user ?? null);
+            navigate('/dashboard');
+          }
+        })
+        .catch((e: any) => {
+          logger.error('exchangeCodeForSession exception', { error: e?.message });
+        });
+    }
+  }, [navigate, toast]);
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

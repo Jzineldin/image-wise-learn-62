@@ -436,6 +436,139 @@ Return format: { "titles": ["Title 1", "Title 2", ...], "recommended": "Title 1"
       }
     };
   }
+
+  /**
+   * Generate image prompt optimized for Google Gemini 2.5 Flash Image (Nano-banana)
+   * Supports story scenes with optional character descriptions
+   */
+  static generateImagePrompt(context: PromptContext & {
+    storySegment: string;
+    characters?: Array<{ name: string; description: string; character_type?: string; personality?: string }>;
+    style?: string;
+  }): string {
+    const { ageGroup, genre, storySegment, characters = [], style = 'digital_storybook' } = context;
+
+    // Age-specific visual styles optimized for Nano-banana
+    const ageStyleMap: Record<string, { style: string; mood: string; composition: string; lighting: string }> = {
+      '4-6': {
+        style: 'soft, whimsical watercolor illustration with rounded shapes, gentle colors, and simple composition',
+        mood: 'warm, comforting, and playful',
+        composition: 'centered, clear focal point, uncluttered background',
+        lighting: 'soft, diffused natural light with gentle shadows'
+      },
+      '7-9': {
+        style: 'vibrant, detailed digital illustration with rich colors and dynamic composition',
+        mood: 'adventurous, exciting, and engaging',
+        composition: 'dynamic angles, detailed environment, sense of depth and movement',
+        lighting: 'bright, colorful lighting with clear shadows and highlights'
+      },
+      '10-12': {
+        style: 'sophisticated, semi-realistic illustration with detailed textures and atmospheric lighting',
+        mood: 'immersive, dramatic, and emotionally resonant',
+        composition: 'complex composition, detailed background, atmospheric perspective',
+        lighting: 'dramatic, atmospheric lighting with depth and mood'
+      },
+      '13+': {
+        style: 'cinematic digital illustration with rich detail and sophisticated color palette',
+        mood: 'immersive, compelling, and visually striking',
+        composition: 'complex layered composition with atmospheric depth',
+        lighting: 'cinematic lighting with dramatic shadows and highlights'
+      }
+    };
+
+    const ageStyle = ageStyleMap[ageGroup] || ageStyleMap['7-9'];
+
+    // Build character descriptions
+    const charDescriptions = (characters || [])
+      .slice(0, 3)
+      .map((c: any) => {
+        const name = c?.name ? String(c.name) : '';
+        const desc = c?.description ? String(c.description) : '';
+        const type = c?.character_type ? String(c.character_type) : '';
+        const personality = c?.personality ? String(c.personality) : '';
+
+        if (!name) return '';
+
+        let charDesc = name;
+        if (type && type !== 'human') charDesc += `, a ${type}`;
+        if (desc) charDesc += `, ${desc}`;
+        if (personality) charDesc += ` with a ${personality} personality`;
+
+        return charDesc;
+      })
+      .filter(Boolean);
+
+    // Extract scene from story segment
+    const scene = storySegment.slice(0, 300).replace(/\s+/g, ' ').trim();
+
+    // Build comprehensive narrative prompt
+    let prompt = `A children's book illustration showing ${scene}`;
+
+    if (charDescriptions.length > 0) {
+      prompt += `\n\nFeaturing: ${charDescriptions.join('; ')}.`;
+    }
+
+    prompt += `
+
+The scene is rendered in a ${ageStyle.style}.
+The mood is ${ageStyle.mood}.
+Composition: ${ageStyle.composition}.
+
+Camera angle: eye-level perspective, inviting and accessible for young readers.
+Lighting: ${ageStyle.lighting}.
+
+This illustration is suitable for ages ${ageGroup} and maintains a safe, friendly, and engaging tone appropriate for children's literature.
+High quality, professional children's book illustration.`;
+
+    return prompt;
+  }
+
+  /**
+   * Generate character reference image prompt optimized for Nano-banana
+   * Creates portrait-style character reference images for consistency
+   */
+  static generateCharacterReferencePrompt(context: PromptContext & {
+    characterName: string;
+    characterDescription: string;
+    characterType: string;
+    backstory?: string;
+    personalityTraits?: string[];
+  }): string {
+    const { ageGroup, characterName, characterDescription, characterType, backstory, personalityTraits = [] } = context;
+
+    // Age-specific portrait styles
+    const portraitStyleMap: Record<string, string> = {
+      '4-6': 'soft, whimsical watercolor illustration with rounded shapes, gentle colors, and simple composition',
+      '7-9': 'vibrant, detailed digital illustration with rich colors and dynamic composition',
+      '10-12': 'sophisticated, semi-realistic illustration with detailed textures and atmospheric lighting',
+      '13+': 'cinematic digital illustration with rich detail and sophisticated color palette'
+    };
+
+    const portraitStyle = portraitStyleMap[ageGroup] || portraitStyleMap['7-9'];
+
+    // Build personality description
+    const personalityDesc = personalityTraits && personalityTraits.length > 0
+      ? ` The character has a ${personalityTraits.slice(0, 3).join(', ')} personality.`
+      : '';
+
+    // Build backstory description
+    const backstoryDesc = backstory
+      ? ` Background: ${backstory.slice(0, 150)}.`
+      : '';
+
+    // Create detailed, narrative prompt for character reference image
+    const prompt = `A portrait-style character reference illustration of ${characterName}, a ${characterType}.
+${characterDescription}.${personalityDesc}${backstoryDesc}
+
+This is a character reference image for a children's story, showing the character from the front in a neutral, friendly pose.
+The illustration should be in a ${portraitStyle}.
+Clear, well-defined features that can be used as a reference for maintaining character consistency across multiple scenes.
+Warm, inviting lighting. Soft shadows. Colorful but not overly saturated.
+Portrait orientation (3:4 aspect ratio). White or simple gradient background to keep focus on the character.
+Safe for children, friendly, and engaging. High quality illustration suitable for children's books.`;
+
+    return prompt;
+  }
 }
 
 // ============= FALLBACK GENERATORS =============

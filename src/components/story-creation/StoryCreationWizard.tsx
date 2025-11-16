@@ -130,9 +130,6 @@ export const StoryCreationWizard = ({
   const progress = useMemo(() => (flow.step / STEPS.length) * 100, [flow.step]);
 
   const handleStepClick = useCallback((targetStep: number) => {
-    // TEMP DIAGNOSTIC LOG
-    // eslint-disable-next-line no-console
-    console.log('[Wizard.handleStepClick] invoked', { targetStep, currentStep: flow.step, ts: Date.now() });
     // Allow backward navigation to any previous step; forward remains via Next
     if (targetStep < flow.step) {
       updateFlow({ step: targetStep });
@@ -143,17 +140,10 @@ export const StoryCreationWizard = ({
     const el = (e.target as HTMLElement).closest('[data-step-id]') as HTMLElement | null;
     if (!el) return;
     const target = Number(el.getAttribute('data-step-id'));
-    // eslint-disable-next-line no-console
-    console.log('[Wizard.handleIndicatorRowClick]', { target, currentStep: flow.step, ts: Date.now() });
     if (!Number.isNaN(target)) {
       handleStepClick(target);
     }
-  }, [handleStepClick]);
-
-
-  // TEMP DIAGNOSTIC LOG OF RENDERED STEP
-  // eslint-disable-next-line no-console
-  console.log('[Wizard.render] step', flow.step, 'ts', Date.now());
+  }, [handleStepClick, flow.step]);
 
   return (
     <div className="space-y-8">

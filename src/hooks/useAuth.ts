@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthStore } from '@/stores/authStore';
+import { logger } from '@/lib/logger';
 
 export const useAuth = () => {
   const { user, profile, loading, setUser, setProfile, setLoading, logout } = useAuthStore();
@@ -44,7 +45,7 @@ export const useAuth = () => {
       if (error) throw error;
       setProfile(data);
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      logger.error('Error fetching profile', { error, userId });
       setProfile(null);
     } finally {
       setLoading(false);

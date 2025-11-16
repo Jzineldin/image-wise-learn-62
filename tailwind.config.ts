@@ -20,7 +20,7 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
-        
+
         // Tale Forge Brand Colors
         primary: {
           DEFAULT: "hsl(var(--primary))", // Amber
@@ -31,21 +31,21 @@ export default {
           DEFAULT: "hsl(var(--secondary))", // Gold
           foreground: "hsl(var(--secondary-foreground))",
         },
-        
+
         // Surface Colors
         surface: {
           DEFAULT: "hsl(var(--surface))",
           elevated: "hsl(var(--surface-elevated))",
           overlay: "hsl(var(--surface-overlay))",
         },
-        
+
         // Glass Colors
         glass: {
           dark: "hsl(var(--glass-dark))",
           medium: "hsl(var(--glass-medium))",
           light: "hsl(var(--glass-light))",
         },
-        
+
         // Text Colors
         text: {
           primary: "hsl(var(--text-primary))",
@@ -53,13 +53,13 @@ export default {
           tertiary: "hsl(var(--text-tertiary))",
           muted: "hsl(var(--text-muted))",
         },
-        
+
         // Semantic Colors
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         error: "hsl(var(--error))",
         info: "hsl(var(--info))",
-        
+
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
@@ -80,6 +80,14 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+
+        // New cinematic dark fantasy palette
+        deep: "#0B0C12",
+        gold: {
+          DEFAULT: "#F2B544",
+          600: "#DA9C2E",
+          700: "#B97F1F",
+        },
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
@@ -89,11 +97,14 @@ export default {
         'gradient-primary': 'var(--gradient-primary)',
         'gradient-surface': 'var(--gradient-surface)',
         'gradient-glass': 'var(--gradient-glass)',
+        'gold-gradient': 'linear-gradient(180deg,#F2B544 0%,#E6A73D 55%,#B97F1F 100%)',
+        'cosmic': 'linear-gradient(180deg,#0B0C12 0%,#0B0C12 100%)',
       },
       boxShadow: {
         'glow': 'var(--shadow-glow)',
         'glow-strong': 'var(--shadow-glow-strong)',
         'glass': 'var(--shadow-glass)',
+        'card': '0 10px 40px rgba(0,0,0,.45)',
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -101,6 +112,8 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
+        twinkle: { '0%,100%': { opacity: .3 }, '50%': { opacity: .8 } },
+        float: { '0%,100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-8px)' } },
         "accordion-down": {
           from: {
             height: "0",
@@ -119,6 +132,8 @@ export default {
         },
       },
       animation: {
+        twinkle: 'twinkle 2.8s ease-in-out infinite',
+        float: 'float 14s ease-in-out infinite',
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },

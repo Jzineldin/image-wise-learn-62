@@ -1,20 +1,52 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch",
+      "Bash(timeout 10 curl:*)",
+      "Bash(npx supabase:*)",
+      "Bash(PGPASSWORD=postgres psql:*)",
+      "Bash(docker exec:*)",
+      "Bash(npx tsx:*)",
       "Bash(npm run build:*)",
-      "Bash(npx vite build:*)",
-      "Bash(sort:*)",
-      "Bash(npm audit:*)",
-      "Bash(find:*)",
-      "Bash(npm install:*)",
-      "Bash(npm run type-check:*)",
+      "Bash(curl:*)",
+      "Bash(sudo dd:*)",
+      "Bash(sudo chmod:*)",
+      "Bash(sudo tee:*)",
+      "Bash(sudo rm:*)",
+      "Bash(sh:*)",
+      "Bash(gh:*)",
+      "Bash(~/.local/bin/gh pr create --base Story-viewer --title \"chore: Improve codebase security and organization\" --body \"$(cat <<''EOF''\n## Summary\n\nThis PR addresses critical security and code quality issues identified in the codebase analysis:\n\n- **Security**: Move hardcoded Supabase credentials to environment variables\n- **Code Quality**: Replace console statements with proper logger\n- **Organization**: Clean up project root by organizing database files\n- **Development**: Add 6 Claude Code skills for improved workflow\n\n## Changes Made\n\n### Security Improvements ✅\n- Moved Supabase URL and anon key from hardcoded values to environment variables\n- Added `.env.example` template for team onboarding\n- Updated `.gitignore` to explicitly exclude environment files\n- Added validation in Supabase client to catch missing env vars early\n\n### Code Quality ✅\n- Replaced console statements with proper logger in:\n  - `src/components/QuickStartForm.tsx` (2 statements)\n  - `src/hooks/useAuth.ts` (1 statement)\n- Logger now includes structured context objects for better debugging\n\n### Project Organization ✅\n- Moved 11 ad-hoc SQL files from root to `database/adhoc-fixes/`\n- Added comprehensive README documenting each SQL file''s purpose\n- Cleaner project root directory\n\n### Development Workflow ✅\nAdded 6 Claude Code skills:\n1. **supabase-migration**: Database migration and RLS policy assistance\n2. **api-endpoint-tester**: API and RPC function testing workflows\n3. **react-component-generator**: Component scaffolding with project patterns\n4. **freemium-flow-checker**: Subscription logic and limit validation\n5. **supabase-local-dev**: Local development environment management\n6. **git-workflow**: Git conventions and PR creation automation\n\n## Testing\n\n- [x] Tested locally with \\`npm run dev\\`\n- [x] Build succeeds: \\`npm run build\\`\n- [x] Supabase connection works with env vars\n- [x] No TypeScript errors\n- [x] No breaking changes to functionality\n\n## Rollback Plan\n\nIf anything goes wrong, full rollback instructions are available in \\`ROLLBACK_INSTRUCTIONS.md\\`\n\nBackup branch: \\`backup-before-improvements\\`\n\n## Breaking Changes\n\nNone. Credentials remain the same (just moved to \\`.env.local\\`).\n\n**Note**: You''ll want to rotate the Supabase anon key after merging since the old hardcoded key was exposed in version control.\n\n## Screenshots\n\nN/A - Backend/infrastructure changes only\n\n---\n\n🤖 Generated with Claude Code\nhttps://claude.com/claude-code\nEOF\n)\")",
+      "Bash(tee:*)",
+      "Bash(npx tsc:*)",
+      "Bash(docker ps:*)",
       "Bash(npm run dev:*)",
-      "Read(//c/Users/Jzine/**)",
-      "Bash(supabase functions logs:*)",
-      "Bash(node:*)"
+      "Bash(node test-modal.js:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(pkill:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker logs:*)",
+      "Bash(node check-storage-bucket.js:*)",
+      "Bash(node check-storage-usage.js:*)",
+      "Bash(node analyze-storage.js:*)",
+      "Bash(timeout 60 curl:*)",
+      "Bash(killall:*)",
+      "Bash(docker volume ls:*)",
+      "Bash(docker volume rm:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "disabledMcpjsonServers": [
+    "memory",
+    "playwright",
+    "puppeteer",
+    "context7",
+    "github",
+    "fetch",
+    "supabase",
+    "chrome-devtools"
+  ]
 }

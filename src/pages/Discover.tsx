@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Search, ThumbsUp, Eye, Filter, Book, Loader2 } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
+import HeroBackground from '@/components/HeroBackground';
 import StoryCard from '@/components/StoryCard';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -106,39 +107,40 @@ const Discover = () => {
   ];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative">
+      <HeroBackground />
       <Navigation />
-      <div className="container mx-auto px-4 py-8">
+      <div className="relative z-10 container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="content-overlay max-w-4xl mx-auto">
-            <h1 className="text-4xl md:text-5xl font-heading font-bold text-gradient mb-4">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-heading font-bold text-[#F4E3B2] mb-4 tracking-wide">
               Discover Amazing Stories
             </h1>
-            <p className="text-xl text-text-secondary">
+            <p className="text-lg text-[#C9C5D5]">
               Explore a world of magical tales created by our community of storytellers
             </p>
           </div>
         </div>
 
         {/* Search and Filters */}
-        <div className="glass-card-elevated p-6 mb-8">
+        <div className="rounded-2xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)] p-6 mb-8">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-tertiary w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#C9C5D5] w-5 h-5" />
               <Input
                 type="text"
                 placeholder="Search stories, authors, or keywords..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="input-field pl-10"
+                className="pl-10 bg-[rgba(0,0,0,.3)] border-[rgba(242,181,68,.2)] text-white placeholder:text-[#C9C5D5]"
               />
             </div>
             <div className="flex gap-2">
               <select
                 value={selectedGenre}
                 onChange={(e) => setSelectedGenre(e.target.value)}
-                className="input-field w-48"
+                className="px-4 py-2 rounded-lg bg-[rgba(0,0,0,.3)] border border-[rgba(242,181,68,.2)] text-white w-48"
               >
                 {genres.map(genre => (
                   <option key={genre} value={genre}>
@@ -146,7 +148,10 @@ const Discover = () => {
                   </option>
                 ))}
               </select>
-              <Button variant="outline">
+              <Button
+                variant="outline"
+                className="bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border-[rgba(242,181,68,.35)] hover:bg-[rgba(242,181,68,.25)]"
+              >
                 <Filter className="w-4 h-4 mr-2" />
                 Filters
               </Button>
@@ -156,19 +161,21 @@ const Discover = () => {
 
         {/* Public Stories */}
         <section className="mb-16">
-          <h2 className="text-3xl font-heading font-semibold mb-6">
+          <h2 className="text-2xl md:text-3xl font-heading font-semibold text-[#F4E3B2] mb-6">
             Community Stories
           </h2>
-          
+
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <Loading.Skeleton.Card count={6} />
             </div>
           ) : publicStories.length === 0 ? (
-            <div className="text-center py-12">
-              <Book className="w-16 h-16 text-text-tertiary mx-auto mb-4" />
-              <h3 className="text-xl font-heading font-semibold mb-2">No stories found</h3>
-              <p className="text-text-secondary">
+            <div className="rounded-2xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)] p-12 text-center">
+              <div className="p-4 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+                <Book className="w-10 h-10 text-primary" />
+              </div>
+              <h3 className="text-xl font-heading font-semibold text-[#F4E3B2] mb-2">No stories found</h3>
+              <p className="text-[#C9C5D5]">
                 {searchQuery ? 'Try adjusting your search terms' : 'Be the first to publish a story!'}
               </p>
             </div>
@@ -194,6 +201,7 @@ const Discover = () => {
                     variant="default"
                     size="lg"
                     aria-label="Load more stories"
+                    className="bg-[rgba(242,181,68,.15)] text-[#F4E3B2] border border-[rgba(242,181,68,.35)] hover:bg-[rgba(242,181,68,.25)]"
                   >
                     {isFetchingNextPage ? (
                       <>
@@ -212,7 +220,7 @@ const Discover = () => {
 
               {/* End of results message */}
               {!hasNextPage && publicStories.length > 0 && (
-                <div className="text-center mt-8 text-text-secondary">
+                <div className="text-center mt-8 text-[#C9C5D5]">
                   <p>You've reached the end of the stories. Check back later for more!</p>
                 </div>
               )}
@@ -222,18 +230,18 @@ const Discover = () => {
 
         {/* Browse Categories */}
         <section>
-          <h2 className="text-3xl font-heading font-semibold mb-6">Browse by Genre</h2>
+          <h2 className="text-2xl md:text-3xl font-heading font-semibold text-[#F4E3B2] mb-6">Browse by Genre</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {genres.slice(1).map((genre) => (
               <button
                 key={genre}
-                className="glass-card-interactive p-6 text-center group"
+                className="rounded-2xl bg-[rgba(17,17,22,.85)] backdrop-blur-md ring-1 ring-[rgba(242,181,68,.18)] shadow-[0_12px_48px_rgba(0,0,0,.45)] hover:ring-[rgba(242,181,68,.35)] transition-all duration-300 p-6 text-center group hover:shadow-[0_12px_48px_rgba(242,181,68,.15)]"
                 onClick={() => setSelectedGenre(genre)}
               >
-                <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-primary/30 transition-colors duration-200 text-primary font-bold text-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-200 text-primary font-bold text-lg">
                   {genre.charAt(0)}
                 </div>
-                <h3 className="font-medium group-hover:text-primary transition-colors duration-200 text-sm">
+                <h3 className="font-heading font-medium text-[#F4E3B2] group-hover:text-primary transition-colors duration-200 text-sm">
                   {genre}
                 </h3>
               </button>
@@ -241,7 +249,7 @@ const Discover = () => {
           </div>
         </section>
       </div>
-      
+
       <Footer />
     </div>
   );

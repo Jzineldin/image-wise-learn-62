@@ -313,6 +313,10 @@ function getAgeSpecificGuidelines(ageGroup: string): {
 }
 
 /**
+ * @deprecated Use PromptTemplateManager.generateImagePrompt() from supabase/functions/_shared/prompt-templates.ts instead
+ * This function is kept for backward compatibility but is no longer used in the codebase.
+ * The centralized version is optimized for Google Gemini 2.5 Flash Image (Nano-banana).
+ *
  * Generate prompt for image generation (DALL-E/Stable Diffusion)
  */
 export function generateImagePrompt(
@@ -322,7 +326,7 @@ export function generateImagePrompt(
   characterDescription?: string
 ): string {
   const style = getImageStyleForAge(ageGroup);
-  
+
   return `Create a children's book illustration in ${style} style.
 
 SCENE DESCRIPTION:

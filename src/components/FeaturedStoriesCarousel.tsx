@@ -1,5 +1,4 @@
 import { useState, useEffect, memo, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +6,7 @@ import { LazyImage } from '@/components/LazyImage';
 import { useFeaturedStories } from '@/hooks/useDataFetching';
 import { logger } from '@/lib/logger';
 import { ANIMATION_DELAYS } from '@/lib/constants/query-constants';
+import { StoryPlayerModal } from '@/components/StoryPlayerModal';
 
 interface FeaturedStory {
   story_id: string;
@@ -25,11 +25,13 @@ const FeaturedStoriesCarousel = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
   const { data: featuredStories = [], isLoading: loading } = useFeaturedStories();
 
   // Auto-play functionality with proper cleanup
   useEffect(() => {
-    if (!isAutoPlaying || featuredStories.length <= 1) return;
+    // Pause auto-play when modal is open
+    if (!isAutoPlaying || featuredStories.length <= 1 || selectedStoryId) return;
     
     let intervalId: NodeJS.Timeout;
     let timeoutId: NodeJS.Timeout;
@@ -46,7 +48,7 @@ const FeaturedStoriesCarousel = () => {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
     };
-  }, [featuredStories.length, isAutoPlaying]);
+  }, [featuredStories.length, isAutoPlaying, selectedStoryId]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -67,51 +69,48 @@ const FeaturedStoriesCarousel = () => {
   const nextStory = useCallback(() => {
     setIsTransitioning(true);
     setIsAutoPlaying(false);
-    
-    const transitionTimeout = setTimeout(() => {
+
+    setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % featuredStories.length);
       setIsTransitioning(false);
-      
-      const resumeTimeout = setTimeout(() => setIsAutoPlaying(true), 1000);
-      
-      return () => {
-        clearTimeout(transitionTimeout);
-        clearTimeout(resumeTimeout);
-      };
+
+      setTimeout(() => setIsAutoPlaying(true), 1000);
     }, 150);
   }, [featuredStories.length]);
 
   const prevStory = useCallback(() => {
     setIsTransitioning(true);
     setIsAutoPlaying(false);
-    
-    const transitionTimeout = setTimeout(() => {
+
+    setTimeout(() => {
       setCurrentIndex((prev) => (prev - 1 + featuredStories.length) % featuredStories.length);
       setIsTransitioning(false);
-      
-      const resumeTimeout = setTimeout(() => setIsAutoPlaying(true), 1000);
-      
-      return () => {
-        clearTimeout(transitionTimeout);
-        clearTimeout(resumeTimeout);
-      };
+
+      setTimeout(() => setIsAutoPlaying(true), 1000);
     }, 150);
   }, [featuredStories.length]);
 
   // Context7 Pattern: Memoize event handlers to prevent re-renders
   const handleMouseEnter = useCallback(() => {
+    if (selectedStoryId) return; // Don't change auto-play state when modal is open
     setIsAutoPlaying(false);
-  }, []);
+  }, [selectedStoryId]);
 
   const handleMouseLeave = useCallback(() => {
+    if (selectedStoryId) return; // Don't change auto-play state when modal is open
     setIsAutoPlaying(true);
-  }, []);
+  }, [selectedStoryId]);
 
   // Context7 Pattern: Memoize current story to prevent unnecessary recalculations
   const currentStory = useMemo(() =>
     featuredStories[currentIndex],
     [featuredStories, currentIndex]
   );
+
+  // Memoize modal close handler to prevent re-renders
+  const handleCloseModal = useCallback(() => {
+    setSelectedStoryId(null);
+  }, []);
 
   if (loading) {
     return (
@@ -160,17 +159,19 @@ const FeaturedStoriesCarousel = () => {
   }
 
   return (
-    <div
-      role="region"
-      aria-label="Featured stories carousel"
-      aria-live="polite"
-      className="relative max-w-md w-full rounded-2xl overflow-hidden min-h-[400px] shadow-2xl hover:shadow-[0_20px_50px_rgba(255,255,255,0.1)] transition-all duration-500 hover:scale-[1.02] group"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
+    <>
+      <div
+        role="region"
+        aria-label="Featured stories carousel"
+        aria-live="polite"
+        className="relative w-full rounded-2xl overflow-hidden min-h-[500px] aspect-[4/5] shadow-2xl hover:shadow-[0_20px_50px_rgba(255,255,255,0.1)] transition-all duration-500 hover:scale-[1.02] group"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
       {/* Background Image with Lazy Loading */}
       {currentStory.preview_image_url ? (
         <LazyImage
+          key={`${currentStory.story_id}-${currentStory.preview_image_url}`}
           src={currentStory.preview_image_url}
           alt={`${currentStory.title} preview`}
           className="absolute inset-0 w-full h-full object-cover"
@@ -179,115 +180,132 @@ const FeaturedStoriesCarousel = () => {
       ) : (
         <div className="absolute inset-0 glass-card-dark" />
       )}
-      
+
       {/* Background overlay for text readability */}
       <div className={`absolute inset-0 transition-all duration-500 ${currentStory.preview_image_url
-        ? 'bg-gradient-to-t from-black/90 via-black/60 to-black/40 group-hover:from-black/95 group-hover:via-black/70'
+        ? 'bg-gradient-to-t from-black/95 via-black/70 to-black/30 group-hover:from-black/98 group-hover:via-black/80'
         : ''
       }`} />
-      
+
       {/* Fallback icon when no image */}
       {!currentStory.preview_image_url && (
-        <div className="absolute top-8 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-white/10 rounded-full flex items-center justify-center z-10">
-          <BookOpen className="w-8 h-8 text-foreground" />
+        <div className="absolute top-12 left-1/2 transform -translate-x-1/2 w-20 h-20 bg-white/10 rounded-full flex items-center justify-center z-10">
+          <BookOpen className="w-10 h-10 text-foreground" />
         </div>
       )}
 
-      <div className={`relative z-10 p-8 text-center space-y-6 min-h-[400px] flex flex-col justify-center transition-all duration-300 ${
-        isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-      }`}>
+      <div
+        key={currentStory.story_id}
+        className={`relative z-10 p-8 text-center space-y-6 min-h-full flex flex-col justify-end transition-all duration-300 ${
+          isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+        }`}
+      >
         {/* Story Info */}
-        <div className="space-y-3">
-          <h3 className="text-xl font-heading font-bold text-foreground line-clamp-2 drop-shadow-lg">
+        <div className="space-y-4 bg-gradient-to-t from-black/40 to-transparent p-6 rounded-t-xl -mx-8 -mb-8 pb-8">
+          <h3 className="text-2xl font-heading font-bold text-foreground line-clamp-2 drop-shadow-2xl">
             {currentStory.title}
           </h3>
-          
-          <p className="text-foreground/90 text-sm drop-shadow-md">
+
+          <p className="text-foreground/95 text-sm drop-shadow-lg font-medium">
             by {currentStory.author_name || 'Anonymous'}
           </p>
 
-          <div className="flex items-center justify-center gap-2">
-            <Badge variant="secondary" className="text-xs backdrop-blur-sm bg-white/20 border-white/30 shadow-lg">
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <Badge variant="secondary" className="text-xs backdrop-blur-md bg-white/25 border-white/40 shadow-lg font-semibold">
               {currentStory.genre}
             </Badge>
-            <Badge variant="outline" className="text-xs backdrop-blur-sm bg-white/10 border-white/30 shadow-lg">
+            <Badge variant="outline" className="text-xs backdrop-blur-md bg-white/15 border-white/40 shadow-lg font-semibold">
               Ages {currentStory.age_group}
             </Badge>
           </div>
 
           {currentStory.description && (
-            <p className="text-foreground/80 text-sm leading-relaxed line-clamp-3 drop-shadow-md">
+            <p className="text-foreground/90 text-base leading-relaxed line-clamp-3 drop-shadow-lg">
               {currentStory.description}
             </p>
           )}
-        </div>
 
-        {/* Read Story Button */}
-        <Link to={`/story/${currentStory.story_id}?mode=experience`}>
-          <Button variant="default" size="lg" className="w-full bg-gradient-to-r from-accent to-secondary shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300">
+          {/* Read Story Button */}
+          <Button
+            variant="default"
+            size="lg"
+            onClick={() => setSelectedStoryId(currentStory.story_id)}
+            className="w-full bg-gradient-to-r from-accent to-secondary shadow-2xl hover:shadow-[0_10px_30px_rgba(255,255,255,0.3)] hover:scale-105 transition-all duration-300 text-base py-6 font-bold mt-6"
+          >
             Read This Story
           </Button>
-        </Link>
 
-        {/* Navigation Controls */}
-        {featuredStories.length > 1 && (
-          <div className="flex items-center justify-between mt-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={prevStory}
-              aria-label="Previous featured story"
-              aria-controls="featured-stories-carousel"
-              className="text-foreground/70 hover:text-foreground hover:bg-white/20 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-110 transition-all duration-300 shadow-lg"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            
-            <div className="flex gap-2" role="group" aria-label="Story indicators">
-              {featuredStories.map((story, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setIsTransitioning(true);
-                    setIsAutoPlaying(false);
+          {/* Navigation Controls */}
+          {featuredStories.length > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={prevStory}
+                aria-label="Previous featured story"
+                aria-controls="featured-stories-carousel"
+                className="text-foreground/80 hover:text-foreground hover:bg-white/25 backdrop-blur-md border border-white/30 hover:border-white/50 hover:scale-110 transition-all duration-300 shadow-xl"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
 
-                    const transitionTimeout = setTimeout(() => {
-                      setCurrentIndex(index);
-                      setIsTransitioning(false);
+              <div className="flex gap-2.5" role="group" aria-label="Story indicators">
+                {featuredStories.map((story, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      setIsTransitioning(true);
+                      setIsAutoPlaying(false);
 
-                      const resumeTimeout = setTimeout(() => setIsAutoPlaying(true), 1000);
+                      const transitionTimeout = setTimeout(() => {
+                        setCurrentIndex(index);
+                        setIsTransitioning(false);
 
-                      return () => {
-                        clearTimeout(transitionTimeout);
-                        clearTimeout(resumeTimeout);
-                      };
-                    }, 150);
-                  }}
-                  aria-label={`Go to story ${index + 1}: ${story.title}`}
-                  aria-current={index === currentIndex ? 'true' : 'false'}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 shadow-md hover:scale-125 ${
-                    index === currentIndex
-                      ? 'bg-foreground shadow-lg'
-                      : 'bg-foreground/30 hover:bg-foreground/60'
-                  }`}
-                />
-              ))}
+                        const resumeTimeout = setTimeout(() => setIsAutoPlaying(true), 1000);
+
+                        return () => {
+                          clearTimeout(transitionTimeout);
+                          clearTimeout(resumeTimeout);
+                        };
+                      }, 150);
+                    }}
+                    aria-label={`Go to story ${index + 1}: ${story.title}`}
+                    aria-current={index === currentIndex ? 'true' : 'false'}
+                    className={`w-3 h-3 rounded-full transition-all duration-300 shadow-lg hover:scale-150 ${
+                      index === currentIndex
+                        ? 'bg-foreground shadow-2xl w-8'
+                        : 'bg-foreground/40 hover:bg-foreground/70'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={nextStory}
+                aria-label="Next featured story"
+                aria-controls="featured-stories-carousel"
+                className="text-foreground/80 hover:text-foreground hover:bg-white/25 backdrop-blur-md border border-white/30 hover:border-white/50 hover:scale-110 transition-all duration-300 shadow-xl"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
             </div>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={nextStory}
-              aria-label="Next featured story"
-              aria-controls="featured-stories-carousel"
-              className="text-foreground/70 hover:text-foreground hover:bg-white/20 backdrop-blur-sm border border-white/20 hover:border-white/40 hover:scale-110 transition-all duration-300 shadow-lg"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+
+      </div>
+
+      {/* Story Player Modal - Rendered outside carousel to prevent hover conflicts */}
+      {selectedStoryId && (
+        <StoryPlayerModal
+          storyId={selectedStoryId}
+          isOpen={!!selectedStoryId}
+          onClose={handleCloseModal}
+        />
+      )}
+    </>
   );
 };
 

@@ -3,7 +3,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles, RotateCcw, Lock, ArrowRight } from 'lucide-react';
 import { AudioControls } from './AudioControls';
 import { OptimizedImage } from '@/components/ui/optimized-image';
+import { VideoGenerationPanel } from './VideoGenerationPanel';
 import { isStoryCompleted } from '@/lib/helpers/story-helpers';
+import { CreditCostPreview } from './CreditCostPreview';
 import {
   Tooltip,
   TooltipContent,
@@ -101,18 +103,21 @@ export const StorySegmentDisplay = ({
               ) : (
                 <>
                   <Sparkles className="h-12 w-12 text-muted-foreground mx-auto" />
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">No image yet</p>
                     {viewMode === 'creation' && isOwner && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onGenerateImage(segment)}
-                        className="text-xs"
-                      >
-                        <Sparkles className="h-3 w-3 mr-1" />
-                        Generate Image
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onGenerateImage(segment)}
+                          className="text-xs"
+                        >
+                          <Sparkles className="h-3 w-3 mr-1" />
+                          Generate Image
+                        </Button>
+                        <CreditCostPreview type="image" />
+                      </>
                     )}
                   </div>
                 </>
@@ -151,6 +156,15 @@ export const StorySegmentDisplay = ({
         </CardContent>
       </Card>
 
+      {/* Video Generation Panel - Only in creation mode for owners with image */}
+      {viewMode === 'creation' && isOwner && segment.image_url && (
+        <VideoGenerationPanel
+          segmentId={segment.id}
+          storyId={story.id}
+          imageUrl={segment.image_url}
+          segmentContent={segment.content}
+        />
+      )}
 
       {/* Interactive Choices */}
       {segment.choices && segment.choices.length > 0 && viewMode === 'creation' && (

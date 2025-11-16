@@ -7,6 +7,7 @@
 
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import { GoogleGeminiImageService } from './google-gemini-image-service.ts';
+import { arrayBufferToBase64 } from './base64.ts';
 
 export interface ImageProvider {
   name: string;
@@ -416,7 +417,7 @@ export class ImageService {
     // Convert blob to base64 data URL
     const imageBlob = await response.blob();
     const arrayBuffer = await imageBlob.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const base64 = arrayBufferToBase64(arrayBuffer);
 
     return {
       imageUrl: `data:image/png;base64,${base64}`,

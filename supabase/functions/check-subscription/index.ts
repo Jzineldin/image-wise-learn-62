@@ -23,7 +23,8 @@ serve(async (req) => {
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
     );
 
     const authHeader = req.headers.get("Authorization");
@@ -43,15 +44,38 @@ serve(async (req) => {
     }
     logger.info('User authenticated', { userId: user.id, email: user.email, operation: 'check-subscription' });
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-06-30.basil" });
+    
 
-    // Prefer stored stripe_customer_id on profile; fallback to email lookup
+    // First, check the database subscription_tier field (supports manual upgrades)
     const { data: profile } = await supabaseClient
       .from('profiles')
-      .select('id, stripe_customer_id')
+      .select('id, stripe_customer_id, subscription_tier, subscription_status')
       .eq('id', user.id)
       .single();
 
+    const dbTier = profile?.subscription_tier || 'free';
+    const dbStatus = profile?.subscription_status || 'active';
+
+    // If user has a paid tier in the database and it's active, return that immediately
+    if (dbTier !== 'free' && dbStatus === 'active') {
+      logger.info('Using database subscription tier', { dbTier, userId: user.id, operation: 'check-subscription' });
+      
+      const creditsPerMonth = dbTier === 'starter' ? 100 : dbTier === 'premium' ? 300 : 10;
+      
+      return new Response(JSON.stringify({
+        subscribed: true,
+        tier: dbTier,
+        product_id: null, // Database-based subscription, no Stripe product
+        subscription_end: null,
+        credits_per_month: creditsPerMonth
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    // Otherwise, check Stripe for active subscription
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     let customerId = profile?.stripe_customer_id || null;
 
     if (!customerId) {
