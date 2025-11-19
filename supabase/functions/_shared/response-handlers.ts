@@ -362,7 +362,7 @@ export class StorySegmentValidator extends ResponseValidator<{
     ];
 
     // First, try to find a direct string value
-    let c = candidates.find(v => typeof v === 'string' && v.trim().length > 0);
+    const c = candidates.find(v => typeof v === 'string' && v.trim().length > 0);
     if (c) return String(c);
 
     // If not found, check if any candidate is an object with nested text fields

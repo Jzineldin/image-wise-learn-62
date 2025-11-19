@@ -54,7 +54,7 @@ export const useStoryStore = create<StoryState>((set, get) => ({
     const prevStep = state.currentFlow.step;
     const nextStep = typeof updates.step === 'number' ? updates.step : prevStep;
     // TEMP DIAGNOSTIC LOG
-    // eslint-disable-next-line no-console
+     
     console.log('[StoryStore.updateFlow]', {
       prevStep,
       updates,

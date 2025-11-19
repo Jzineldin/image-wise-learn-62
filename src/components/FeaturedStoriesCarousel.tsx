@@ -33,21 +33,20 @@ const FeaturedStoriesCarousel = () => {
     // Pause auto-play when modal is open
     if (!isAutoPlaying || featuredStories.length <= 1 || selectedStoryId) return;
     
-    let intervalId: NodeJS.Timeout;
-    let timeoutId: NodeJS.Timeout;
+    let lastTimeoutId: NodeJS.Timeout;
+    const intervalId = setInterval(() => {
+       setIsTransitioning(true);
+       const timeoutId = setTimeout(() => {
+         setCurrentIndex((prev) => (prev + 1) % featuredStories.length);
+         setIsTransitioning(false);
+       }, ANIMATION_DELAYS.transition);
+       lastTimeoutId = timeoutId;
+     }, ANIMATION_DELAYS.carouselInterval);
 
-    intervalId = setInterval(() => {
-      setIsTransitioning(true);
-      timeoutId = setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % featuredStories.length);
-        setIsTransitioning(false);
-      }, ANIMATION_DELAYS.transition);
-    }, ANIMATION_DELAYS.carouselInterval);
-
-    return () => {
-      clearInterval(intervalId);
-      clearTimeout(timeoutId);
-    };
+     return () => {
+       clearInterval(intervalId);
+       if (lastTimeoutId) clearTimeout(lastTimeoutId);
+     };
   }, [featuredStories.length, isAutoPlaying, selectedStoryId]);
 
   // Keyboard navigation

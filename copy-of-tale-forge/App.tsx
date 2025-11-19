@@ -125,7 +125,7 @@ const App: React.FC = () => {
             <StoryLoadingIndicator />
           </div>
         );
-      case 'story':
+      case 'story': {
         const currentPage = storyPages[currentPageIndex];
         return (
           <div className="min-h-screen w-full flex flex-col items-center justify-center p-4">
@@ -156,10 +156,11 @@ const App: React.FC = () => {
               {currentPageIndex > 0 && <button onClick={() => setCurrentPageIndex(p => p - 1)} className="border border-white/50 text-white font-bold py-2 px-6 rounded-lg hover:bg-white/20 transition hover:shadow-[0_0_10px_rgba(255,255,255,0.3)]">Previous</button>}
               {currentPageIndex < storyPages.length - 1 && <button onClick={() => setCurrentPageIndex(p => p + 1)} className="border border-white/50 text-white font-bold py-2 px-6 rounded-lg hover:bg-white/20 transition hover:shadow-[0_0_10px_rgba(255,255,255,0.3)]">Next</button>}
             </div>
-          </div>
-        );
-      default:
-        return <LandingPage onStartStory={handleStartStory} onResumeStory={handleResume} hasSavedStory={isStorySaved} />;
+            </div>
+            );
+            }
+            default:
+            return <LandingPage onStartStory={handleStartStory} onResumeStory={handleResume} hasSavedStory={isStorySaved} />;
     }
   };
 

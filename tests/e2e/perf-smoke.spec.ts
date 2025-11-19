@@ -16,7 +16,7 @@ test('Perf smoke: seeds and image end-to-end timings from UI', async ({ page }) 
   const consoleErrors: string[] = [];
   page.on('console', (msg) => {
     // Echo everything for evidence
-    // eslint-disable-next-line no-console
+     
     console.log(`[PAGE:${msg.type()}]`, msg.text());
     if (msg.type() === 'error') consoleErrors.push(msg.text());
   });
