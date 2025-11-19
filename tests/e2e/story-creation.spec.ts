@@ -198,7 +198,7 @@ test.describe('Tale Forge - Story Creation E2E', () => {
 test('backward navigation via step indicators works', async ({ page }) => {
   // Pipe page console to test output for diagnostics
   page.on('console', (msg) => {
-    // eslint-disable-next-line no-console
+     
     console.log(`[PAGE:${msg.type()}]`, msg.text());
   });
   test.setTimeout(120_000);

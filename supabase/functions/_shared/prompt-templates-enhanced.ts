@@ -257,7 +257,7 @@ Return your response as JSON with this EXACT structure:
 
     // ========== FRONT-LOADED STYLE PROMPT ==========
     // All artistic direction comes FIRST, then the scene
-    let prompt = `A beautiful, whimsical, and vibrant storybook illustration for a child's ${genre} tale.
+    const prompt = `A beautiful, whimsical, and vibrant storybook illustration for a child's ${genre} tale.
 
 🎨 ARTISTIC STYLE:
 The illustration style is ${styleAnalogy}.

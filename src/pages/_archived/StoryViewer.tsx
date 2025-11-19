@@ -277,7 +277,9 @@ const StoryViewer = () => {
             console.info('[DIAG:image-poll] timeout fallback → triggering image generation', { segmentId: firstSegAfter.id });
             await generateSegmentImage(firstSegAfter);
           }
-        } catch {}
+          } catch {
+          // Intentionally empty - error already logged above
+          }
         setGeneratingImage(null);
         // Clear imgPending hint to avoid re-poll loops
         if (searchParams.get('imgPending') === '1') {
@@ -475,7 +477,9 @@ const StoryViewer = () => {
           } else if (raw != null) {
             contentStr = String(raw);
           }
-        } catch {}
+          } catch {
+          // Intentionally empty - fallback to empty contentStr
+          }
 
         return {
           id: segment.id,

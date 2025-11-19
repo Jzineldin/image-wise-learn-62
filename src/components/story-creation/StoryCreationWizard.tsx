@@ -89,26 +89,27 @@ export const StoryCreationWizard = ({
           return !!flow.ageGroup && flow.genres.length > 0;
         case 2:
           return true; // Characters are optional
-        case 3:
+        case 3: {
           const seedText = typeof flow.selectedSeed === 'object' && flow.selectedSeed
             ? flow.selectedSeed.title || flow.selectedSeed.description || ''
             : String(flow.selectedSeed || '');
           const customText = flow.customSeed?.trim() || '';
           const finalSeedText = seedText || customText;
-          
+
           if (!finalSeedText) return false;
-          
+
           // Basic validation for story seed
           if (finalSeedText.length < 10 || finalSeedText.length > 1000) {
             return false;
           }
           return true;
-        case 4:
+        }
+        case 4: {
           // Final validation before submission
           const seedForValidation = typeof flow.selectedSeed === 'object' && flow.selectedSeed
             ? flow.selectedSeed.title || flow.selectedSeed.description || ''
             : String(flow.selectedSeed || flow.customSeed || '');
-            
+
           const storyData = {
             title: 'My Story',
             prompt: seedForValidation,
@@ -117,9 +118,10 @@ export const StoryCreationWizard = ({
             languageCode: selectedLanguage,
             characters: flow.selectedCharacters
           };
-          
+
           const validationResult = validate(storyData);
           return validationResult.isValid;
+        }
         default:
           return true;
       }

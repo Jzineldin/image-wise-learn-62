@@ -26,15 +26,16 @@ export const CreditCostPreview = ({
   className = ""
 }: CreditCostPreviewProps) => {
   const getCostDetails = () => {
-    switch (type) {
-      case 'audio':
-        const audioCost = Math.max(1, Math.ceil(wordCount / 100));
-        return {
-          cost: audioCost,
-          label: `${audioCost} credit${audioCost !== 1 ? 's' : ''}`,
-          details: `Based on ${wordCount} words\n(1 credit per 100 words, rounded up)`,
-          isFree: false
-        };
+     switch (type) {
+       case 'audio': {
+         const audioCost = Math.max(1, Math.ceil(wordCount / 100));
+         return {
+           cost: audioCost,
+           label: `${audioCost} credit${audioCost !== 1 ? 's' : ''}`,
+           details: `Based on ${wordCount} words\n(1 credit per 100 words, rounded up)`,
+           isFree: false
+         };
+       }
       
       case 'video':
         return {

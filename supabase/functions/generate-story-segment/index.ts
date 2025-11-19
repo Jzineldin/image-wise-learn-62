@@ -355,7 +355,7 @@ Deno.serve(async (req) => {
       temperature: 0.6
     }, story.language_code);  // Pass language code for model selection
 
-    let parsed: any = aiResponse.content;
+    const parsed: any = aiResponse.content;
     let segmentContent = '';
     let choices: Array<{ id: number; text: string; impact?: string }> = [];
 
@@ -363,8 +363,8 @@ Deno.serve(async (req) => {
       if (parsed && typeof parsed === 'object' && parsed.content) {
         segmentContent = String(parsed.content || '').trim();
         const rawChoices = Array.isArray(parsed.choices) ? parsed.choices : [];
-        choices = rawChoices.map((c: any, i: number) => ({ id: Number(c.id ?? i + 1), text: String(c.text || '').trim(), impact: c.impact ? String(c.impact) : undefined }))
-          .filter((c: any) => c.text);
+        choices = rawChoices.map((choice: any, i: number) => ({ id: Number(choice.id ?? i + 1), text: String(choice.text || '').trim(), impact: choice.impact ? String(choice.impact) : undefined }))
+          .filter((choice: any) => choice.text);
       } else {
         throw new Error('Missing structured fields');
       }
